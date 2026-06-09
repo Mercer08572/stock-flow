@@ -12,6 +12,7 @@ A modular monolith inventory system for managing:
 - Products
 - SKU
 - Inventory
+- Warehouses
 - Batches
 - Inbound Orders
 - Outbound Orders
@@ -59,6 +60,7 @@ Examples:
 - material
 - sku
 - inventory
+- warehouse
 - inbound
 - outbound
 

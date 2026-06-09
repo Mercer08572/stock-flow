@@ -17,6 +17,7 @@ Handler -> Service transaction boundary -> Repository
 - Commit the transaction only after the full use case succeeds.
 - Roll back the transaction when any step in the use case fails.
 - Keep transaction scope as small as possible.
+- Keep inventory changes by warehouse atomic with their related movement or order records.
 
 ## Handler Layer Rules
 
@@ -46,3 +47,13 @@ Inbound Service
 ```
 
 The transaction boundary still belongs to the application service layer.
+
+## Warehouse Inventory Transaction Rule
+
+Inventory changes involving warehouses must be committed atomically with their business operation.
+
+Examples:
+
+- Receiving stock into a warehouse must create the inbound record and increase warehouse inventory in one transaction.
+- Shipping stock from a warehouse must create the outbound record and decrease or reserve warehouse inventory in one transaction.
+- Transferring stock between warehouses must decrease the source warehouse and increase the target warehouse in one transaction.
