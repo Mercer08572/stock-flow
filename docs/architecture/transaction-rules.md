@@ -36,24 +36,19 @@ Handler -> Service transaction boundary -> Repository
 
 When one use case coordinates multiple modules, the owning application service is responsible for the transaction boundary.
 
-For example:
-
-```text
-Inbound Service
-  -> start transaction
-  -> create inbound order
-  -> call inventory application service to increase stock
-  -> commit transaction
-```
+For inventory operations, the inventory service owns the transaction boundary.
 
 The transaction boundary still belongs to the application service layer.
 
 ## Warehouse Inventory Transaction Rule
 
-Inventory changes involving warehouses must be committed atomically with their business operation.
+Inventory changes involving warehouses, SKUs, batches, reservations, idempotency keys, and movement records must be committed atomically.
 
 Examples:
 
-- Receiving stock into a warehouse must create the inbound record and increase warehouse inventory in one transaction.
-- Shipping stock from a warehouse must create the outbound record and decrease or reserve warehouse inventory in one transaction.
-- Transferring stock between warehouses must decrease the source warehouse and increase the target warehouse in one transaction.
+- Increasing stock must update stock balance and create a movement record in one transaction.
+- Reserving stock must check available quantity, update reserved quantity, store the idempotency key, and create a movement record in one transaction.
+- Releasing reserved stock must reduce reserved quantity and create a movement record in one transaction.
+- Decreasing stock from available stock must check available quantity, reduce on-hand quantity, and create a movement record in one transaction.
+- Decreasing stock from reserved stock must reduce both on-hand quantity and reserved quantity, and create a movement record in one transaction.
+- FIFO batch allocation must lock and update all selected batch stock rows in one transaction.

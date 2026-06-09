@@ -14,8 +14,8 @@ A modular monolith inventory system for managing:
 - Inventory
 - Warehouses
 - Batches
-- Inbound Orders
-- Outbound Orders
+- Inventory Reservations
+- Inventory Movements
 
 Future modules may include:
 
@@ -61,11 +61,10 @@ Examples:
 - sku
 - inventory
 - warehouse
-- inbound
-- outbound
 
 Modules communicate through application services.
 Cross-module repository access by anti-corruption layer, avoid direct access.
+This service does not own inbound or outbound order modules. External business systems should call inventory operation APIs for stock changes.
 
 ## Development Principles
 
@@ -84,10 +83,8 @@ stock-flow/
 │   │   
 │   ├── inventory/
 │   │   
-│   ├── outbound/
+│   ├── warehouse/
 │   │   
-│   ├── outbound/
-│   │
 │   └── shared/
 │       
 ├── pkg/

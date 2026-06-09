@@ -28,6 +28,7 @@ handler -> service -> repository
 - Calls repository interfaces for persistence.
 - Coordinates cross-module application service calls.
 - Enforces inventory dimensions such as warehouse when changing stock.
+- Enforces idempotency for inventory mutation operations.
 - Manages transactions when a use case requires atomic changes.
 - Must not depend on Gin or HTTP-specific types.
 
@@ -37,6 +38,7 @@ handler -> service -> repository
 - Uses `pgx` and `sqlc` generated queries.
 - Maps database records to domain or application data structures.
 - Persists warehouse identifiers as part of inventory records and movement records when required by the service layer.
+- Persists idempotency keys and movement records when required by the service layer.
 - Must not contain business rules.
 - Must not call handlers or services.
 - Must not manage application workflows.
