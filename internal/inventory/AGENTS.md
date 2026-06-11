@@ -53,7 +53,9 @@ Rules:
 - `warehouse_id` is required for every inventory query and mutation.
 - `sku_id` is required for every inventory query and mutation.
 - `batch_id` is optional.
-- If `batch_id` is provided, the operation targets that batch.
+- Inventory queries may include inactive warehouses.
+- Inventory mutation operations must reject inactive warehouses.
+- If `batch_id` is provided, the operation targets that batch.In this case, there are two scenarios: if the target batch has sufficient quantity, the operation is performed entirely from that batch; if the batch quantity is insufficient, the remaining portion is still processed according to FIFO.
 - If `batch_id` is not provided for stock-out operations, inventory must allocate stock by FIFO.
 - FIFO allocation must be based on stable batch ordering, such as `received_at`, then `batch_id` as a deterministic tiebreaker.
 - Stock may be queried as a warehouse + SKU summary or as warehouse + SKU + batch details.
@@ -243,6 +245,8 @@ Movement records are audit records. They must not be updated to correct stock st
 
 - Inventory may depend on SKU through SKU application services or stable application contracts.
 - Inventory may validate warehouse existence through a warehouse application service or stable application contract when a warehouse module exists.
+- Inventory must validate that a warehouse is active before stock mutation operations.
+- Inventory may query stock for inactive warehouses.
 - Inventory must not access material repositories directly.
 - External business systems must not write inventory repositories or stock tables directly.
 - External business systems must use inventory application services or HTTP APIs for stock changes.
