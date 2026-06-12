@@ -10,9 +10,9 @@
 <number>_<description>.down.sql # Backward migration (revert changes)
 ```
 
-- Number: 11 digits, the first eight digits represent year, month and day. The last 3 digits are the serial number. (`20260101001`)
+- Number: 12 digits, the first eight digits represent year, month and day. The last 4 digits are the serial number. (`202601010001`)
 - Description: snake_case.
-- Next serial number = current day max serial number + 1.
+- Next serial number = current max serial number + 1.
 
 
 ## Must include basic fields when creating a new table.
