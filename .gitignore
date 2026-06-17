@@ -1,1 +1,25 @@
 .DS_Store
+# Environment variables
+.env
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/bin
+/vendor
+
+# Temporary files
+*.log
+*.tmp
