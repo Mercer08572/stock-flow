@@ -2,7 +2,7 @@ version: "2"
 sql:
   - engine: "postgresql"
     schema:
-      - "migrations/202606110001_create_basic_master_data_tables.up.sql"
+      - "sql/schema/schema.sql"
     queries:
       - "sql/queries/materials.sql"
     gen:
@@ -14,3 +14,4 @@ sql:
         emit_db_tags: true
         emit_pointers_for_null_types: true
         emit_interface: true
+        omit_unused_structs: true
