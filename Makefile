@@ -7,7 +7,7 @@ SQLC_VERSION := v1.29.0
 API_PACKAGE := ./cmd/api
 PG_DUMP ?= pg_dump
 
-.PHONY: help fmt test run sqlc schema-dump schema-sync migrate-up migrate-down migrate-down-all migrate-version migrate-force require-database-url
+.PHONY: help fmt test run sqlc schema-dump migrate-up migrate-down migrate-down-all migrate-version migrate-force require-database-url
 
 help:
 	@echo "Available commands:"
@@ -19,8 +19,7 @@ help:
 	@echo ""
 	@echo "Code generation:"
 	@echo "  make sqlc              - Generate sqlc Go code"
-	@echo "  make schema-dump       - Dump current database schema for sqlc"
-	@echo "  make schema-sync       - Apply migrations, dump schema, then generate sqlc code"
+	@echo "  make schema-dump       - Dump current database schema for sqlc (requires pg_dump)"
 	@echo ""
 	@echo "Database migrations:"
 	@echo "  make migrate-up        - Apply all pending migrations"
@@ -52,8 +51,6 @@ schema-dump: require-database-url
 	$(PG_DUMP) --schema-only --no-owner --no-privileges --no-comments --schema=public --file "$$tmp_file" "$(DATABASE_URL)"; \
 	sed '/^\\/d' "$$tmp_file" > "$(SCHEMA_PATH)"; \
 	rm -f "$$tmp_file"
-
-schema-sync: migrate-up schema-dump sqlc
 
 migrate-up: require-database-url
 	migrate -path $(MIGRATIONS_PATH) -database "$(DATABASE_URL)" up

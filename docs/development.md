@@ -57,23 +57,17 @@ make sqlc
 make test
 ```
 
-There is also a combined target:
-
-```bash
-make schema-sync
-```
-
-It runs migrations, dumps the current schema snapshot, and regenerates sqlc code.
-
 ## Dumping The Current PostgreSQL Schema
 
 PostgreSQL provides `pg_dump --schema-only` for exporting database structure without table data.
 
-The Makefile target is:
+The optional Makefile target is:
 
 ```bash
 make schema-dump
 ```
+
+This target requires PostgreSQL client tools because it calls `pg_dump`.
 
 It writes the current database schema to:
 
