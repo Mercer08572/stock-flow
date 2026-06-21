@@ -14,12 +14,74 @@ make run
 make sqlc
 ```
 
-Database migration commands require `DATABASE_URL` from `.env` or the shell environment.
+## Runtime Configuration
+
+The API loads configuration with this priority:
+
+```text
+default values < config file < environment variables
+```
+
+`APP_ENV` selects an implicit config file:
+
+```bash
+APP_ENV=development go run ./cmd/api
+```
+
+This looks for:
+
+```text
+configs/development.yaml
+```
+
+`CONFIG_FILE` can be used to explicitly choose a config file:
+
+```bash
+CONFIG_FILE=configs/development.yaml go run ./cmd/api
+```
+
+Environment variables override config file values:
+
+```bash
+APP_ENV=production DATABASE_URL=postgres://... ./stock-flow
+```
+
+Supported config keys:
+
+```yaml
+app_env: development
+gin_mode: debug
+http_addr: ":8080"
+database_url: "postgres://postgres:postgres@localhost:5432/stock_flow_dev?sslmode=disable"
+shutdown_timeout: "10s"
+```
+
+The equivalent environment variables are:
+
+```text
+APP_ENV
+CONFIG_FILE
+GIN_MODE
+HTTP_ADDR
+PORT
+DATABASE_URL
+SHUTDOWN_TIMEOUT
+```
+
+Real `configs/*.yaml` files are ignored by git. Commit only `*.example.yaml` templates.
+
+Database migration commands resolve `database_url` through the same Go config loader used by the API, so `APP_ENV`, `CONFIG_FILE`, and `DATABASE_URL` work consistently for Makefile migration commands too.
 
 ```bash
 make migrate-up
 make migrate-down
 make migrate-version
+```
+
+You can inspect the resolved migration database URL with:
+
+```bash
+make config-database-url
 ```
 
 ## Database Schema Sources

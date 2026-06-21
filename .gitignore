@@ -2,6 +2,12 @@
 # Environment variables
 .env
 
+# Local config files
+configs/*.yaml
+configs/*.yml
+!configs/*.example.yaml
+!configs/*.example.yml
+
 # IDE
 .idea
 .vscode

@@ -1,0 +1,5 @@
+app_env: production
+gin_mode: release
+http_addr: ":8080"
+database_url: "postgres://user:password@postgres:5432/stock_flow?sslmode=require"
+shutdown_timeout: "10s"

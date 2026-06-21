@@ -1,0 +1,5 @@
+app_env: test
+gin_mode: test
+http_addr: ":8081"
+database_url: "postgres://postgres:postgres@localhost:5432/stock_flow_test?sslmode=disable"
+shutdown_timeout: "10s"

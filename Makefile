@@ -1,13 +1,11 @@
-# Load environment variables from .env file when present.
--include .env
-
 MIGRATIONS_PATH := migrations
 SCHEMA_PATH := sql/schema/schema.sql
 SQLC_VERSION := v1.29.0
 API_PACKAGE := ./cmd/api
+CONFIG_PACKAGE := ./cmd/config
 PG_DUMP ?= pg_dump
 
-.PHONY: help fmt test run sqlc schema-dump migrate-up migrate-down migrate-down-all migrate-version migrate-force require-database-url
+.PHONY: help fmt test run sqlc config-database-url schema-dump migrate-up migrate-down migrate-down-all migrate-version migrate-force
 
 help:
 	@echo "Available commands:"
@@ -20,6 +18,7 @@ help:
 	@echo "Code generation:"
 	@echo "  make sqlc              - Generate sqlc Go code"
 	@echo "  make schema-dump       - Dump current database schema for sqlc (requires pg_dump)"
+	@echo "  make config-database-url - Print resolved database_url"
 	@echo ""
 	@echo "Database migrations:"
 	@echo "  make migrate-up        - Apply all pending migrations"
@@ -45,33 +44,39 @@ run:
 sqlc:
 	go run github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION) generate
 
-schema-dump: require-database-url
+config-database-url:
+	go run $(CONFIG_PACKAGE) -key database_url
+
+schema-dump:
 	@mkdir -p $(dir $(SCHEMA_PATH))
-	@tmp_file="$(SCHEMA_PATH).tmp"; \
-	$(PG_DUMP) --schema-only --no-owner --no-privileges --no-comments --schema=public --file "$$tmp_file" "$(DATABASE_URL)"; \
+	@db_url="$$(go run $(CONFIG_PACKAGE) -key database_url)"; \
+	tmp_file="$(SCHEMA_PATH).tmp"; \
+	$(PG_DUMP) --schema-only --no-owner --no-privileges --no-comments --schema=public --file "$$tmp_file" "$$db_url"; \
 	sed '/^\\/d' "$$tmp_file" > "$(SCHEMA_PATH)"; \
 	rm -f "$$tmp_file"
 
-migrate-up: require-database-url
-	migrate -path $(MIGRATIONS_PATH) -database "$(DATABASE_URL)" up
+migrate-up:
+	@db_url="$$(go run $(CONFIG_PACKAGE) -key database_url)"; \
+	migrate -path $(MIGRATIONS_PATH) -database "$$db_url" up
 
-migrate-down: require-database-url
-	migrate -path $(MIGRATIONS_PATH) -database "$(DATABASE_URL)" down 1
+migrate-down:
+	@db_url="$$(go run $(CONFIG_PACKAGE) -key database_url)"; \
+	migrate -path $(MIGRATIONS_PATH) -database "$$db_url" down 1
 
-migrate-down-all: require-database-url
+migrate-down-all:
 	@echo "WARNING: This will rollback ALL migrations!"
 	@echo "Press Ctrl+C to cancel, or press Enter to continue..."
 	@read confirm
-	migrate -path $(MIGRATIONS_PATH) -database "$(DATABASE_URL)" down
+	@db_url="$$(go run $(CONFIG_PACKAGE) -key database_url)"; \
+	migrate -path $(MIGRATIONS_PATH) -database "$$db_url" down
 
-migrate-version: require-database-url
-	migrate -path $(MIGRATIONS_PATH) -database "$(DATABASE_URL)" version
+migrate-version:
+	@db_url="$$(go run $(CONFIG_PACKAGE) -key database_url)"; \
+	migrate -path $(MIGRATIONS_PATH) -database "$$db_url" version
 
-migrate-force: require-database-url
+migrate-force:
 ifndef VERSION
 	$(error VERSION is required. Usage: make migrate-force VERSION=202606120003)
 endif
-	migrate -path $(MIGRATIONS_PATH) -database "$(DATABASE_URL)" force $(VERSION)
-
-require-database-url:
-	@test -n "$(DATABASE_URL)" || (echo "DATABASE_URL is not set. Please create .env from .env.example" >&2; exit 1)
+	@db_url="$$(go run $(CONFIG_PACKAGE) -key database_url)"; \
+	migrate -path $(MIGRATIONS_PATH) -database "$$db_url" force $(VERSION)
