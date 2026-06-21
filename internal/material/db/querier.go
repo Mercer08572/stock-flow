@@ -10,13 +10,25 @@ import (
 
 type Querier interface {
 	CreateMaterial(ctx context.Context, arg CreateMaterialParams) (CreateMaterialRow, error)
+	CreateMaterialCategory(ctx context.Context, arg CreateMaterialCategoryParams) (CreateMaterialCategoryRow, error)
+	CreateUnit(ctx context.Context, arg CreateUnitParams) (CreateUnitRow, error)
 	GetMaterialByID(ctx context.Context, id int64) (GetMaterialByIDRow, error)
+	GetMaterialCategoryByID(ctx context.Context, id int64) (GetMaterialCategoryByIDRow, error)
+	GetUnitByID(ctx context.Context, id int64) (GetUnitByIDRow, error)
+	ListMaterialCategories(ctx context.Context, arg ListMaterialCategoriesParams) ([]ListMaterialCategoriesRow, error)
 	ListMaterials(ctx context.Context, arg ListMaterialsParams) ([]ListMaterialsRow, error)
+	ListUnits(ctx context.Context, arg ListUnitsParams) ([]ListUnitsRow, error)
+	MaterialCategoryCodeExists(ctx context.Context, arg MaterialCategoryCodeExistsParams) (bool, error)
 	MaterialCategoryExists(ctx context.Context, id int64) (bool, error)
 	MaterialCodeExists(ctx context.Context, arg MaterialCodeExistsParams) (bool, error)
 	SoftDeleteMaterial(ctx context.Context, id int64) (int64, error)
+	SoftDeleteMaterialCategory(ctx context.Context, id int64) (int64, error)
+	SoftDeleteUnit(ctx context.Context, id int64) (int64, error)
+	UnitCodeExists(ctx context.Context, arg UnitCodeExistsParams) (bool, error)
 	UnitExists(ctx context.Context, id int64) (bool, error)
 	UpdateMaterial(ctx context.Context, arg UpdateMaterialParams) (UpdateMaterialRow, error)
+	UpdateMaterialCategory(ctx context.Context, arg UpdateMaterialCategoryParams) (UpdateMaterialCategoryRow, error)
+	UpdateUnit(ctx context.Context, arg UpdateUnitParams) (UpdateUnitRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

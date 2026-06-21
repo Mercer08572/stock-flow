@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Mercer08572/stock-flow/internal/material"
+	"github.com/Mercer08572/stock-flow/internal/material/material"
 )
 
 func TestServiceCreateMaterial(t *testing.T) {

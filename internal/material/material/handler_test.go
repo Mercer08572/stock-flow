@@ -11,7 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Mercer08572/stock-flow/internal/material"
+	"github.com/Mercer08572/stock-flow/internal/material/material"
 	"github.com/Mercer08572/stock-flow/internal/shared/http/middleware"
 	"github.com/Mercer08572/stock-flow/pkg/response"
 )
