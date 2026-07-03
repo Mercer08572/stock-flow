@@ -44,7 +44,7 @@ Frontend
 - Pinia
 - Vue Router
 
-This Frontend is not in the project.
+This Frontend is not in this project.
 
 ## Architecture 
 
