@@ -18,7 +18,7 @@ type handler struct {
 	service Service
 }
 
-type createMaterialRequest struct {
+type CreateMaterialRequest struct {
 	Code       string  `json:"code"`
 	Name       string  `json:"name"`
 	CategoryID int64   `json:"category_id"`
@@ -27,7 +27,7 @@ type createMaterialRequest struct {
 	Remark     *string `json:"remark"`
 }
 
-type updateMaterialRequest struct {
+type UpdateMaterialRequest struct {
 	Code       string  `json:"code"`
 	Name       string  `json:"name"`
 	CategoryID int64   `json:"category_id"`
@@ -49,6 +49,18 @@ func (h *handler) RegisterRoutes(router gin.IRouter) {
 	materials.DELETE("/:id", h.Delete)
 }
 
+// List godoc
+// @Summary List materials
+// @Tags Materials
+// @Produce json
+// @Param status query string false "Material status" Enums(active,inactive)
+// @Param category_id query int false "Material category ID"
+// @Param limit query int false "Page size"
+// @Param offset query int false "Page offset"
+// @Success 200 {object} response.Body{data=ListResult}
+// @Failure 400 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /materials [get]
 func (h *handler) List(c *gin.Context) {
 	filter, err := parseListFilter(c)
 	if err != nil {
@@ -65,6 +77,16 @@ func (h *handler) List(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Get godoc
+// @Summary Get a material
+// @Tags Materials
+// @Produce json
+// @Param id path int true "Material ID"
+// @Success 200 {object} response.Body{data=Material}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /materials/{id} [get]
 func (h *handler) Get(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
@@ -81,8 +103,19 @@ func (h *handler) Get(c *gin.Context) {
 	response.Success(c, material)
 }
 
+// Create godoc
+// @Summary Create a material
+// @Tags Materials
+// @Accept json
+// @Produce json
+// @Param body body CreateMaterialRequest true "Material payload"
+// @Success 201 {object} response.Body{data=Material}
+// @Failure 400 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /materials [post]
 func (h *handler) Create(c *gin.Context) {
-	var req createMaterialRequest
+	var req CreateMaterialRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeError(c, NewValidationError("request body must be valid JSON"))
 		return
@@ -104,6 +137,19 @@ func (h *handler) Create(c *gin.Context) {
 	response.Created(c, material)
 }
 
+// Update godoc
+// @Summary Update a material
+// @Tags Materials
+// @Accept json
+// @Produce json
+// @Param id path int true "Material ID"
+// @Param body body UpdateMaterialRequest true "Material payload"
+// @Success 200 {object} response.Body{data=Material}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /materials/{id} [put]
 func (h *handler) Update(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
@@ -111,7 +157,7 @@ func (h *handler) Update(c *gin.Context) {
 		return
 	}
 
-	var req updateMaterialRequest
+	var req UpdateMaterialRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeError(c, NewValidationError("request body must be valid JSON"))
 		return
@@ -134,6 +180,16 @@ func (h *handler) Update(c *gin.Context) {
 	response.Success(c, material)
 }
 
+// Delete godoc
+// @Summary Delete a material
+// @Tags Materials
+// @Produce json
+// @Param id path int true "Material ID"
+// @Success 200 {object} response.Body
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /materials/{id} [delete]
 func (h *handler) Delete(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {

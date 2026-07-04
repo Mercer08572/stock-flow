@@ -29,6 +29,18 @@ func (h *handler) RegisterRoutes(router gin.IRouter) {
 	stocks.GET("/:warehouse_id/:sku_id", h.GetStock)
 }
 
+// ListStocks godoc
+// @Summary List stock balances
+// @Tags Inventory
+// @Produce json
+// @Param warehouse_id query int false "Warehouse ID"
+// @Param sku_id query int false "SKU ID"
+// @Param limit query int false "Page size"
+// @Param offset query int false "Page offset"
+// @Success 200 {object} response.Body{data=StockListResult}
+// @Failure 400 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /inventory/stocks [get]
 func (h *handler) ListStocks(c *gin.Context) {
 	filter, err := parseListStocksFilter(c)
 	if err != nil {
@@ -45,6 +57,18 @@ func (h *handler) ListStocks(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// GetStock godoc
+// @Summary Get a stock balance
+// @Tags Inventory
+// @Produce json
+// @Param warehouse_id path int true "Warehouse ID"
+// @Param sku_id path int true "SKU ID"
+// @Param include_layers query bool false "Include stock layers"
+// @Success 200 {object} response.Body{data=StockBalance}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /inventory/stocks/{warehouse_id}/{sku_id} [get]
 func (h *handler) GetStock(c *gin.Context) {
 	warehouseID, skuID, err := parseWarehouseAndSKUID(c)
 	if err != nil {
@@ -74,6 +98,19 @@ func (h *handler) GetStock(c *gin.Context) {
 	response.Success(c, stock)
 }
 
+// ListLayers godoc
+// @Summary List stock layers
+// @Tags Inventory
+// @Produce json
+// @Param warehouse_id path int true "Warehouse ID"
+// @Param sku_id path int true "SKU ID"
+// @Param batch_id query int false "Batch ID"
+// @Param limit query int false "Page size"
+// @Param offset query int false "Page offset"
+// @Success 200 {object} response.Body{data=LayerListResult}
+// @Failure 400 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /inventory/stocks/{warehouse_id}/{sku_id}/layers [get]
 func (h *handler) ListLayers(c *gin.Context) {
 	filter, err := parseListLayersFilter(c)
 	if err != nil {

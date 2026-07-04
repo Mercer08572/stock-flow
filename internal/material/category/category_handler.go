@@ -18,7 +18,7 @@ type categoryHandler struct {
 	service CategoryService
 }
 
-type createCategoryRequest struct {
+type CreateCategoryRequest struct {
 	Code     string  `json:"code"`
 	Name     string  `json:"name"`
 	ParentID *int64  `json:"parent_id"`
@@ -26,7 +26,7 @@ type createCategoryRequest struct {
 	Remark   *string `json:"remark"`
 }
 
-type updateCategoryRequest struct {
+type UpdateCategoryRequest struct {
 	Code     string  `json:"code"`
 	Name     string  `json:"name"`
 	ParentID *int64  `json:"parent_id"`
@@ -47,6 +47,18 @@ func (h *categoryHandler) RegisterRoutes(router gin.IRouter) {
 	categories.DELETE("/:id", h.Delete)
 }
 
+// List godoc
+// @Summary List material categories
+// @Tags Material Categories
+// @Produce json
+// @Param status query string false "Category status" Enums(active,inactive)
+// @Param parent_id query int false "Parent category ID"
+// @Param limit query int false "Page size"
+// @Param offset query int false "Page offset"
+// @Success 200 {object} response.Body{data=CategoryListResult}
+// @Failure 400 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /material-categories [get]
 func (h *categoryHandler) List(c *gin.Context) {
 	filter, err := parseCategoryListFilter(c)
 	if err != nil {
@@ -63,6 +75,16 @@ func (h *categoryHandler) List(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Get godoc
+// @Summary Get a material category
+// @Tags Material Categories
+// @Produce json
+// @Param id path int true "Material category ID"
+// @Success 200 {object} response.Body{data=Category}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /material-categories/{id} [get]
 func (h *categoryHandler) Get(c *gin.Context) {
 	id, err := parseCategoryID(c)
 	if err != nil {
@@ -79,8 +101,19 @@ func (h *categoryHandler) Get(c *gin.Context) {
 	response.Success(c, category)
 }
 
+// Create godoc
+// @Summary Create a material category
+// @Tags Material Categories
+// @Accept json
+// @Produce json
+// @Param body body CreateCategoryRequest true "Material category payload"
+// @Success 201 {object} response.Body{data=Category}
+// @Failure 400 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /material-categories [post]
 func (h *categoryHandler) Create(c *gin.Context) {
-	var req createCategoryRequest
+	var req CreateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeCategoryError(c, NewValidationError("request body must be valid JSON"))
 		return
@@ -101,6 +134,19 @@ func (h *categoryHandler) Create(c *gin.Context) {
 	response.Created(c, category)
 }
 
+// Update godoc
+// @Summary Update a material category
+// @Tags Material Categories
+// @Accept json
+// @Produce json
+// @Param id path int true "Material category ID"
+// @Param body body UpdateCategoryRequest true "Material category payload"
+// @Success 200 {object} response.Body{data=Category}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /material-categories/{id} [put]
 func (h *categoryHandler) Update(c *gin.Context) {
 	id, err := parseCategoryID(c)
 	if err != nil {
@@ -108,7 +154,7 @@ func (h *categoryHandler) Update(c *gin.Context) {
 		return
 	}
 
-	var req updateCategoryRequest
+	var req UpdateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeCategoryError(c, NewValidationError("request body must be valid JSON"))
 		return
@@ -130,6 +176,16 @@ func (h *categoryHandler) Update(c *gin.Context) {
 	response.Success(c, category)
 }
 
+// Delete godoc
+// @Summary Delete a material category
+// @Tags Material Categories
+// @Produce json
+// @Param id path int true "Material category ID"
+// @Success 200 {object} response.Body
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /material-categories/{id} [delete]
 func (h *categoryHandler) Delete(c *gin.Context) {
 	id, err := parseCategoryID(c)
 	if err != nil {

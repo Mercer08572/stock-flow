@@ -26,7 +26,7 @@ Stock-Flow 是一个面向库存管理场景的后端 API 服务。项目采用 
 
 ## 技术栈
 
-- Go 1.22+
+- Go 1.25+
 - Gin
 - PostgreSQL
 - pgx
@@ -40,7 +40,7 @@ Stock-Flow 是一个面向库存管理场景的后端 API 服务。项目采用 
 
 本地需要安装：
 
-- Go 1.22 或更高版本
+- Go 1.25 或更高版本
 - PostgreSQL
 - golang-migrate
 - PostgreSQL 客户端工具，只有执行 `make schema-dump` 时才需要 `pg_dump`

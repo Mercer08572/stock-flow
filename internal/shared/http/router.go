@@ -3,6 +3,8 @@ package httpserver
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	inventory "github.com/Mercer08572/stock-flow/internal/inventory"
 	category "github.com/Mercer08572/stock-flow/internal/material/category"
@@ -29,6 +31,7 @@ type Dependencies struct {
 func NewRouter(deps Dependencies) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery(), middleware.TraceID())
+	router.GET("/api-docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	api := router.Group("/api/v1")
 	health.NewHandler().RegisterRoutes(api)

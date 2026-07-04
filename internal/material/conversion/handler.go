@@ -21,20 +21,20 @@ type handler struct {
 	service Service
 }
 
-type decimalString struct {
-	Value string
+type DecimalString struct {
+	Value string `json:"-"`
 }
 
-type createConversionRequest struct {
+type CreateConversionRequest struct {
 	FromUnitID int64         `json:"from_unit_id"`
 	ToUnitID   int64         `json:"to_unit_id"`
-	Factor     decimalString `json:"factor"`
+	Factor     DecimalString `json:"factor" swaggertype:"string" example:"1.000000"`
 }
 
-type updateConversionRequest struct {
+type UpdateConversionRequest struct {
 	FromUnitID int64         `json:"from_unit_id"`
 	ToUnitID   int64         `json:"to_unit_id"`
-	Factor     decimalString `json:"factor"`
+	Factor     DecimalString `json:"factor" swaggertype:"string" example:"1.000000"`
 }
 
 func NewHandler(service Service) Handler {
@@ -50,7 +50,7 @@ func (h *handler) RegisterRoutes(router gin.IRouter) {
 	conversions.DELETE("/:conversion_id", h.Delete)
 }
 
-func (d *decimalString) UnmarshalJSON(src []byte) error {
+func (d *DecimalString) UnmarshalJSON(src []byte) error {
 	trimmed := bytes.TrimSpace(src)
 	if bytes.Equal(trimmed, []byte("null")) {
 		return errors.New("factor is required")
@@ -69,6 +69,19 @@ func (d *decimalString) UnmarshalJSON(src []byte) error {
 	return nil
 }
 
+// List godoc
+// @Summary List material unit conversions
+// @Tags Material Unit Conversions
+// @Produce json
+// @Param id path int true "Material ID"
+// @Param from_unit_id query int false "Source unit ID"
+// @Param to_unit_id query int false "Target unit ID"
+// @Param limit query int false "Page size"
+// @Param offset query int false "Page offset"
+// @Success 200 {object} response.Body{data=ListResult}
+// @Failure 400 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /materials/{id}/unit-conversions [get]
 func (h *handler) List(c *gin.Context) {
 	filter, err := parseListFilter(c)
 	if err != nil {
@@ -85,6 +98,17 @@ func (h *handler) List(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Get godoc
+// @Summary Get a material unit conversion
+// @Tags Material Unit Conversions
+// @Produce json
+// @Param id path int true "Material ID"
+// @Param conversion_id path int true "Material unit conversion ID"
+// @Success 200 {object} response.Body{data=MaterialUnitConversion}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /materials/{id}/unit-conversions/{conversion_id} [get]
 func (h *handler) Get(c *gin.Context) {
 	materialID, conversionID, err := parseMaterialAndConversionID(c)
 	if err != nil {
@@ -101,6 +125,18 @@ func (h *handler) Get(c *gin.Context) {
 	response.Success(c, conversion)
 }
 
+// Create godoc
+// @Summary Create a material unit conversion
+// @Tags Material Unit Conversions
+// @Accept json
+// @Produce json
+// @Param id path int true "Material ID"
+// @Param body body CreateConversionRequest true "Material unit conversion payload"
+// @Success 201 {object} response.Body{data=MaterialUnitConversion}
+// @Failure 400 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /materials/{id}/unit-conversions [post]
 func (h *handler) Create(c *gin.Context) {
 	materialID, err := parseMaterialID(c)
 	if err != nil {
@@ -108,7 +144,7 @@ func (h *handler) Create(c *gin.Context) {
 		return
 	}
 
-	var req createConversionRequest
+	var req CreateConversionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeError(c, NewValidationError("request body must be valid JSON"))
 		return
@@ -128,6 +164,20 @@ func (h *handler) Create(c *gin.Context) {
 	response.Created(c, conversion)
 }
 
+// Update godoc
+// @Summary Update a material unit conversion
+// @Tags Material Unit Conversions
+// @Accept json
+// @Produce json
+// @Param id path int true "Material ID"
+// @Param conversion_id path int true "Material unit conversion ID"
+// @Param body body UpdateConversionRequest true "Material unit conversion payload"
+// @Success 200 {object} response.Body{data=MaterialUnitConversion}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /materials/{id}/unit-conversions/{conversion_id} [put]
 func (h *handler) Update(c *gin.Context) {
 	materialID, conversionID, err := parseMaterialAndConversionID(c)
 	if err != nil {
@@ -135,7 +185,7 @@ func (h *handler) Update(c *gin.Context) {
 		return
 	}
 
-	var req updateConversionRequest
+	var req UpdateConversionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeError(c, NewValidationError("request body must be valid JSON"))
 		return
@@ -156,6 +206,17 @@ func (h *handler) Update(c *gin.Context) {
 	response.Success(c, conversion)
 }
 
+// Delete godoc
+// @Summary Delete a material unit conversion
+// @Tags Material Unit Conversions
+// @Produce json
+// @Param id path int true "Material ID"
+// @Param conversion_id path int true "Material unit conversion ID"
+// @Success 200 {object} response.Body
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /materials/{id}/unit-conversions/{conversion_id} [delete]
 func (h *handler) Delete(c *gin.Context) {
 	materialID, conversionID, err := parseMaterialAndConversionID(c)
 	if err != nil {
@@ -256,6 +317,6 @@ func writeError(c *gin.Context, err error) {
 	}
 }
 
-func (d decimalString) String() string {
+func (d DecimalString) String() string {
 	return strings.TrimSpace(d.Value)
 }

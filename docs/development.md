@@ -2,6 +2,13 @@
 
 This document records the local development workflow for Stock-Flow.
 
+## Requirements
+
+- Go 1.25 or later
+- PostgreSQL
+- golang-migrate
+- PostgreSQL client tools, only when running `make schema-dump`
+
 ## Commands
 
 Use the project Makefile as the main command entrypoint.

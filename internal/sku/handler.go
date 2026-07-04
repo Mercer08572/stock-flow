@@ -18,7 +18,7 @@ type handler struct {
 	service Service
 }
 
-type createSKURequest struct {
+type CreateSKURequest struct {
 	MaterialID int64   `json:"material_id"`
 	Code       string  `json:"code"`
 	Name       string  `json:"name"`
@@ -27,7 +27,7 @@ type createSKURequest struct {
 	Remark     *string `json:"remark"`
 }
 
-type updateSKURequest struct {
+type UpdateSKURequest struct {
 	MaterialID int64   `json:"material_id"`
 	Code       string  `json:"code"`
 	Name       string  `json:"name"`
@@ -49,6 +49,19 @@ func (h *handler) RegisterRoutes(router gin.IRouter) {
 	skus.DELETE("/:id", h.Delete)
 }
 
+// List godoc
+// @Summary List SKUs
+// @Tags SKUs
+// @Produce json
+// @Param status query string false "SKU status" Enums(active,inactive)
+// @Param material_id query int false "Material ID"
+// @Param unit_id query int false "Unit ID"
+// @Param limit query int false "Page size"
+// @Param offset query int false "Page offset"
+// @Success 200 {object} response.Body{data=ListResult}
+// @Failure 400 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /skus [get]
 func (h *handler) List(c *gin.Context) {
 	filter, err := parseListFilter(c)
 	if err != nil {
@@ -65,6 +78,16 @@ func (h *handler) List(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Get godoc
+// @Summary Get a SKU
+// @Tags SKUs
+// @Produce json
+// @Param id path int true "SKU ID"
+// @Success 200 {object} response.Body{data=SKU}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /skus/{id} [get]
 func (h *handler) Get(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
@@ -81,8 +104,19 @@ func (h *handler) Get(c *gin.Context) {
 	response.Success(c, item)
 }
 
+// Create godoc
+// @Summary Create a SKU
+// @Tags SKUs
+// @Accept json
+// @Produce json
+// @Param body body CreateSKURequest true "SKU payload"
+// @Success 201 {object} response.Body{data=SKU}
+// @Failure 400 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /skus [post]
 func (h *handler) Create(c *gin.Context) {
-	var req createSKURequest
+	var req CreateSKURequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeError(c, NewValidationError("request body must be valid JSON"))
 		return
@@ -104,6 +138,19 @@ func (h *handler) Create(c *gin.Context) {
 	response.Created(c, item)
 }
 
+// Update godoc
+// @Summary Update a SKU
+// @Tags SKUs
+// @Accept json
+// @Produce json
+// @Param id path int true "SKU ID"
+// @Param body body UpdateSKURequest true "SKU payload"
+// @Success 200 {object} response.Body{data=SKU}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /skus/{id} [put]
 func (h *handler) Update(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
@@ -111,7 +158,7 @@ func (h *handler) Update(c *gin.Context) {
 		return
 	}
 
-	var req updateSKURequest
+	var req UpdateSKURequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeError(c, NewValidationError("request body must be valid JSON"))
 		return
@@ -134,6 +181,16 @@ func (h *handler) Update(c *gin.Context) {
 	response.Success(c, item)
 }
 
+// Delete godoc
+// @Summary Delete a SKU
+// @Tags SKUs
+// @Produce json
+// @Param id path int true "SKU ID"
+// @Success 200 {object} response.Body
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /skus/{id} [delete]
 func (h *handler) Delete(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {

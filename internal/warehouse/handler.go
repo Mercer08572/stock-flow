@@ -18,7 +18,7 @@ type handler struct {
 	service Service
 }
 
-type createWarehouseRequest struct {
+type CreateWarehouseRequest struct {
 	Code         string  `json:"code"`
 	Name         string  `json:"name"`
 	Type         Type    `json:"type"`
@@ -29,7 +29,7 @@ type createWarehouseRequest struct {
 	Remark       *string `json:"remark"`
 }
 
-type updateWarehouseRequest struct {
+type UpdateWarehouseRequest struct {
 	Code         string  `json:"code"`
 	Name         string  `json:"name"`
 	Type         Type    `json:"type"`
@@ -54,6 +54,18 @@ func (h *handler) RegisterRoutes(router gin.IRouter) {
 	warehouses.PUT("/:id/disable", h.Disable)
 }
 
+// List godoc
+// @Summary List warehouses
+// @Tags Warehouses
+// @Produce json
+// @Param status query string false "Warehouse status" Enums(active,inactive)
+// @Param type query string false "Warehouse type" Enums(normal,virtual)
+// @Param limit query int false "Page size"
+// @Param offset query int false "Page offset"
+// @Success 200 {object} response.Body{data=ListResult}
+// @Failure 400 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /warehouses [get]
 func (h *handler) List(c *gin.Context) {
 	filter, err := parseListFilter(c)
 	if err != nil {
@@ -70,6 +82,16 @@ func (h *handler) List(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Get godoc
+// @Summary Get a warehouse
+// @Tags Warehouses
+// @Produce json
+// @Param id path int true "Warehouse ID"
+// @Success 200 {object} response.Body{data=Warehouse}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /warehouses/{id} [get]
 func (h *handler) Get(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
@@ -86,8 +108,19 @@ func (h *handler) Get(c *gin.Context) {
 	response.Success(c, warehouse)
 }
 
+// Create godoc
+// @Summary Create a warehouse
+// @Tags Warehouses
+// @Accept json
+// @Produce json
+// @Param body body CreateWarehouseRequest true "Warehouse payload"
+// @Success 201 {object} response.Body{data=Warehouse}
+// @Failure 400 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /warehouses [post]
 func (h *handler) Create(c *gin.Context) {
-	var req createWarehouseRequest
+	var req CreateWarehouseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeError(c, NewValidationError("request body must be valid JSON"))
 		return
@@ -111,6 +144,19 @@ func (h *handler) Create(c *gin.Context) {
 	response.Created(c, warehouse)
 }
 
+// Update godoc
+// @Summary Update a warehouse
+// @Tags Warehouses
+// @Accept json
+// @Produce json
+// @Param id path int true "Warehouse ID"
+// @Param body body UpdateWarehouseRequest true "Warehouse payload"
+// @Success 200 {object} response.Body{data=Warehouse}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /warehouses/{id} [put]
 func (h *handler) Update(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
@@ -118,7 +164,7 @@ func (h *handler) Update(c *gin.Context) {
 		return
 	}
 
-	var req updateWarehouseRequest
+	var req UpdateWarehouseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeError(c, NewValidationError("request body must be valid JSON"))
 		return
@@ -143,6 +189,16 @@ func (h *handler) Update(c *gin.Context) {
 	response.Success(c, warehouse)
 }
 
+// Delete godoc
+// @Summary Delete a warehouse
+// @Tags Warehouses
+// @Produce json
+// @Param id path int true "Warehouse ID"
+// @Success 200 {object} response.Body
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /warehouses/{id} [delete]
 func (h *handler) Delete(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
@@ -158,6 +214,16 @@ func (h *handler) Delete(c *gin.Context) {
 	response.NoContent(c)
 }
 
+// Disable godoc
+// @Summary Disable a warehouse
+// @Tags Warehouses
+// @Produce json
+// @Param id path int true "Warehouse ID"
+// @Success 200 {object} response.Body{data=Warehouse}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /warehouses/{id}/disable [put]
 func (h *handler) Disable(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {

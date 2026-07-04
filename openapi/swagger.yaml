@@ -1,0 +1,1900 @@
+basePath: /api/v1
+definitions:
+  category.Category:
+    properties:
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      parent_id:
+        type: integer
+      remark:
+        type: string
+      status:
+        $ref: '#/definitions/category.Status'
+      updated_at:
+        type: string
+    type: object
+  category.CategoryListResult:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/category.Category'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  category.CreateCategoryRequest:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+      parent_id:
+        type: integer
+      remark:
+        type: string
+      status:
+        $ref: '#/definitions/category.Status'
+    type: object
+  category.Status:
+    enum:
+    - active
+    - inactive
+    type: string
+    x-enum-varnames:
+    - StatusActive
+    - StatusInactive
+  category.UpdateCategoryRequest:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+      parent_id:
+        type: integer
+      remark:
+        type: string
+      status:
+        $ref: '#/definitions/category.Status'
+    type: object
+  conversion.CreateConversionRequest:
+    properties:
+      factor:
+        example: "1.000000"
+        type: string
+      from_unit_id:
+        type: integer
+      to_unit_id:
+        type: integer
+    type: object
+  conversion.ListResult:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/conversion.MaterialUnitConversion'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  conversion.MaterialUnitConversion:
+    properties:
+      created_at:
+        type: string
+      factor:
+        type: string
+      from_unit_id:
+        type: integer
+      id:
+        type: integer
+      material_id:
+        type: integer
+      to_unit_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  conversion.UpdateConversionRequest:
+    properties:
+      factor:
+        example: "1.000000"
+        type: string
+      from_unit_id:
+        type: integer
+      to_unit_id:
+        type: integer
+    type: object
+  health.StatusResponse:
+    properties:
+      service:
+        type: string
+      status:
+        type: string
+    type: object
+  inventory.LayerListResult:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/inventory.StockLayer'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  inventory.StockBalance:
+    properties:
+      available_qty:
+        type: string
+      layers:
+        items:
+          $ref: '#/definitions/inventory.StockLayer'
+        type: array
+      on_hand_qty:
+        type: string
+      reserved_qty:
+        type: string
+      sku_id:
+        type: integer
+      updated_at:
+        type: string
+      warehouse_id:
+        type: integer
+    type: object
+  inventory.StockLayer:
+    properties:
+      available_qty:
+        type: string
+      batch_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      on_hand_qty:
+        type: string
+      received_at:
+        type: string
+      reserved_qty:
+        type: string
+      sku_id:
+        type: integer
+      updated_at:
+        type: string
+      warehouse_id:
+        type: integer
+    type: object
+  inventory.StockListResult:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/inventory.StockBalance'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  material.CreateMaterialRequest:
+    properties:
+      base_unit_id:
+        type: integer
+      category_id:
+        type: integer
+      code:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        $ref: '#/definitions/material.Status'
+    type: object
+  material.ListResult:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/material.Material'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  material.Material:
+    properties:
+      base_unit_id:
+        type: integer
+      category_id:
+        type: integer
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        $ref: '#/definitions/material.Status'
+      updated_at:
+        type: string
+    type: object
+  material.Status:
+    enum:
+    - active
+    - inactive
+    type: string
+    x-enum-varnames:
+    - StatusActive
+    - StatusInactive
+  material.UpdateMaterialRequest:
+    properties:
+      base_unit_id:
+        type: integer
+      category_id:
+        type: integer
+      code:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        $ref: '#/definitions/material.Status'
+    type: object
+  response.Body:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+      timestamp:
+        type: integer
+      trace_id:
+        type: string
+    type: object
+  sku.CreateSKURequest:
+    properties:
+      code:
+        type: string
+      material_id:
+        type: integer
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        $ref: '#/definitions/sku.Status'
+      unit_id:
+        type: integer
+    type: object
+  sku.ListResult:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/sku.SKU'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  sku.SKU:
+    properties:
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      material_id:
+        type: integer
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        $ref: '#/definitions/sku.Status'
+      unit_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  sku.Status:
+    enum:
+    - active
+    - inactive
+    type: string
+    x-enum-varnames:
+    - StatusActive
+    - StatusInactive
+  sku.UpdateSKURequest:
+    properties:
+      code:
+        type: string
+      material_id:
+        type: integer
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        $ref: '#/definitions/sku.Status'
+      unit_id:
+        type: integer
+    type: object
+  unit.CreateUnitRequest:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+      precision:
+        type: integer
+      status:
+        $ref: '#/definitions/unit.Status'
+      symbol:
+        type: string
+      unit_type:
+        $ref: '#/definitions/unit.UnitType'
+    type: object
+  unit.Status:
+    enum:
+    - active
+    - inactive
+    type: string
+    x-enum-varnames:
+    - StatusActive
+    - StatusInactive
+  unit.Unit:
+    properties:
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      precision:
+        type: integer
+      status:
+        $ref: '#/definitions/unit.Status'
+      symbol:
+        type: string
+      unit_type:
+        $ref: '#/definitions/unit.UnitType'
+      updated_at:
+        type: string
+    type: object
+  unit.UnitListResult:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/unit.Unit'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  unit.UnitType:
+    enum:
+    - count
+    - weight
+    - length
+    - area
+    - volume
+    - package
+    - time
+    - other
+    type: string
+    x-enum-varnames:
+    - UnitTypeCount
+    - UnitTypeWeight
+    - UnitTypeLength
+    - UnitTypeArea
+    - UnitTypeVolume
+    - UnitTypePackage
+    - UnitTypeTime
+    - UnitTypeOther
+  unit.UpdateUnitRequest:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+      precision:
+        type: integer
+      status:
+        $ref: '#/definitions/unit.Status'
+      symbol:
+        type: string
+      unit_type:
+        $ref: '#/definitions/unit.UnitType'
+    type: object
+  warehouse.CreateWarehouseRequest:
+    properties:
+      code:
+        type: string
+      contact_name:
+        type: string
+      contact_phone:
+        type: string
+      location:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        $ref: '#/definitions/warehouse.Status'
+      type:
+        $ref: '#/definitions/warehouse.Type'
+    type: object
+  warehouse.ListResult:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/warehouse.Warehouse'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  warehouse.Status:
+    enum:
+    - active
+    - inactive
+    type: string
+    x-enum-varnames:
+    - StatusActive
+    - StatusInactive
+  warehouse.Type:
+    enum:
+    - normal
+    - virtual
+    type: string
+    x-enum-varnames:
+    - TypeNormal
+    - TypeVirtual
+  warehouse.UpdateWarehouseRequest:
+    properties:
+      code:
+        type: string
+      contact_name:
+        type: string
+      contact_phone:
+        type: string
+      location:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        $ref: '#/definitions/warehouse.Status'
+      type:
+        $ref: '#/definitions/warehouse.Type'
+    type: object
+  warehouse.Warehouse:
+    properties:
+      code:
+        type: string
+      contact_name:
+        type: string
+      contact_phone:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      location:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        $ref: '#/definitions/warehouse.Status'
+      type:
+        $ref: '#/definitions/warehouse.Type'
+      updated_at:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Back-end API service for the Stock-Flow inventory management system.
+  title: Stock-Flow API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/health.StatusResponse'
+              type: object
+      summary: Health check
+      tags:
+      - Health
+  /inventory/stocks:
+    get:
+      parameters:
+      - description: Warehouse ID
+        in: query
+        name: warehouse_id
+        type: integer
+      - description: SKU ID
+        in: query
+        name: sku_id
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Page offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.StockListResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: List stock balances
+      tags:
+      - Inventory
+  /inventory/stocks/{warehouse_id}/{sku_id}:
+    get:
+      parameters:
+      - description: Warehouse ID
+        in: path
+        name: warehouse_id
+        required: true
+        type: integer
+      - description: SKU ID
+        in: path
+        name: sku_id
+        required: true
+        type: integer
+      - description: Include stock layers
+        in: query
+        name: include_layers
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.StockBalance'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Get a stock balance
+      tags:
+      - Inventory
+  /inventory/stocks/{warehouse_id}/{sku_id}/layers:
+    get:
+      parameters:
+      - description: Warehouse ID
+        in: path
+        name: warehouse_id
+        required: true
+        type: integer
+      - description: SKU ID
+        in: path
+        name: sku_id
+        required: true
+        type: integer
+      - description: Batch ID
+        in: query
+        name: batch_id
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Page offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.LayerListResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: List stock layers
+      tags:
+      - Inventory
+  /material-categories:
+    get:
+      parameters:
+      - description: Category status
+        enum:
+        - active
+        - inactive
+        in: query
+        name: status
+        type: string
+      - description: Parent category ID
+        in: query
+        name: parent_id
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Page offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/category.CategoryListResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: List material categories
+      tags:
+      - Material Categories
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Material category payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/category.CreateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/category.Category'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Create a material category
+      tags:
+      - Material Categories
+  /material-categories/{id}:
+    delete:
+      parameters:
+      - description: Material category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Delete a material category
+      tags:
+      - Material Categories
+    get:
+      parameters:
+      - description: Material category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/category.Category'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Get a material category
+      tags:
+      - Material Categories
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Material category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Material category payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/category.UpdateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/category.Category'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Update a material category
+      tags:
+      - Material Categories
+  /materials:
+    get:
+      parameters:
+      - description: Material status
+        enum:
+        - active
+        - inactive
+        in: query
+        name: status
+        type: string
+      - description: Material category ID
+        in: query
+        name: category_id
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Page offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/material.ListResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: List materials
+      tags:
+      - Materials
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Material payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/material.CreateMaterialRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/material.Material'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Create a material
+      tags:
+      - Materials
+  /materials/{id}:
+    delete:
+      parameters:
+      - description: Material ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Delete a material
+      tags:
+      - Materials
+    get:
+      parameters:
+      - description: Material ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/material.Material'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Get a material
+      tags:
+      - Materials
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Material ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Material payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/material.UpdateMaterialRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/material.Material'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Update a material
+      tags:
+      - Materials
+  /materials/{id}/unit-conversions:
+    get:
+      parameters:
+      - description: Material ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Source unit ID
+        in: query
+        name: from_unit_id
+        type: integer
+      - description: Target unit ID
+        in: query
+        name: to_unit_id
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Page offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/conversion.ListResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: List material unit conversions
+      tags:
+      - Material Unit Conversions
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Material ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Material unit conversion payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/conversion.CreateConversionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/conversion.MaterialUnitConversion'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Create a material unit conversion
+      tags:
+      - Material Unit Conversions
+  /materials/{id}/unit-conversions/{conversion_id}:
+    delete:
+      parameters:
+      - description: Material ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Material unit conversion ID
+        in: path
+        name: conversion_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Delete a material unit conversion
+      tags:
+      - Material Unit Conversions
+    get:
+      parameters:
+      - description: Material ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Material unit conversion ID
+        in: path
+        name: conversion_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/conversion.MaterialUnitConversion'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Get a material unit conversion
+      tags:
+      - Material Unit Conversions
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Material ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Material unit conversion ID
+        in: path
+        name: conversion_id
+        required: true
+        type: integer
+      - description: Material unit conversion payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/conversion.UpdateConversionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/conversion.MaterialUnitConversion'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Update a material unit conversion
+      tags:
+      - Material Unit Conversions
+  /skus:
+    get:
+      parameters:
+      - description: SKU status
+        enum:
+        - active
+        - inactive
+        in: query
+        name: status
+        type: string
+      - description: Material ID
+        in: query
+        name: material_id
+        type: integer
+      - description: Unit ID
+        in: query
+        name: unit_id
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Page offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/sku.ListResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: List SKUs
+      tags:
+      - SKUs
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: SKU payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sku.CreateSKURequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/sku.SKU'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Create a SKU
+      tags:
+      - SKUs
+  /skus/{id}:
+    delete:
+      parameters:
+      - description: SKU ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Delete a SKU
+      tags:
+      - SKUs
+    get:
+      parameters:
+      - description: SKU ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/sku.SKU'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Get a SKU
+      tags:
+      - SKUs
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: SKU ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: SKU payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sku.UpdateSKURequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/sku.SKU'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Update a SKU
+      tags:
+      - SKUs
+  /units:
+    get:
+      parameters:
+      - description: Unit status
+        enum:
+        - active
+        - inactive
+        in: query
+        name: status
+        type: string
+      - description: Unit type
+        enum:
+        - count
+        - weight
+        - length
+        - area
+        - volume
+        - package
+        - time
+        - other
+        in: query
+        name: unit_type
+        type: string
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Page offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/unit.UnitListResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: List units
+      tags:
+      - Units
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Unit payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/unit.CreateUnitRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/unit.Unit'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Create a unit
+      tags:
+      - Units
+  /units/{id}:
+    delete:
+      parameters:
+      - description: Unit ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Delete a unit
+      tags:
+      - Units
+    get:
+      parameters:
+      - description: Unit ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/unit.Unit'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Get a unit
+      tags:
+      - Units
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Unit ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Unit payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/unit.UpdateUnitRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/unit.Unit'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Update a unit
+      tags:
+      - Units
+  /warehouses:
+    get:
+      parameters:
+      - description: Warehouse status
+        enum:
+        - active
+        - inactive
+        in: query
+        name: status
+        type: string
+      - description: Warehouse type
+        enum:
+        - normal
+        - virtual
+        in: query
+        name: type
+        type: string
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Page offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/warehouse.ListResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: List warehouses
+      tags:
+      - Warehouses
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Warehouse payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/warehouse.CreateWarehouseRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/warehouse.Warehouse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Create a warehouse
+      tags:
+      - Warehouses
+  /warehouses/{id}:
+    delete:
+      parameters:
+      - description: Warehouse ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Delete a warehouse
+      tags:
+      - Warehouses
+    get:
+      parameters:
+      - description: Warehouse ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/warehouse.Warehouse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Get a warehouse
+      tags:
+      - Warehouses
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Warehouse ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Warehouse payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/warehouse.UpdateWarehouseRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/warehouse.Warehouse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Update a warehouse
+      tags:
+      - Warehouses
+  /warehouses/{id}/disable:
+    put:
+      parameters:
+      - description: Warehouse ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/warehouse.Warehouse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Disable a warehouse
+      tags:
+      - Warehouses
+swagger: "2.0"

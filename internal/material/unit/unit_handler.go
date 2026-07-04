@@ -18,7 +18,7 @@ type unitHandler struct {
 	service UnitService
 }
 
-type createUnitRequest struct {
+type CreateUnitRequest struct {
 	Code      string   `json:"code"`
 	Name      string   `json:"name"`
 	Symbol    string   `json:"symbol"`
@@ -27,7 +27,7 @@ type createUnitRequest struct {
 	Status    Status   `json:"status"`
 }
 
-type updateUnitRequest struct {
+type UpdateUnitRequest struct {
 	Code      string   `json:"code"`
 	Name      string   `json:"name"`
 	Symbol    string   `json:"symbol"`
@@ -49,6 +49,18 @@ func (h *unitHandler) RegisterRoutes(router gin.IRouter) {
 	units.DELETE("/:id", h.Delete)
 }
 
+// List godoc
+// @Summary List units
+// @Tags Units
+// @Produce json
+// @Param status query string false "Unit status" Enums(active,inactive)
+// @Param unit_type query string false "Unit type" Enums(count,weight,length,area,volume,package,time,other)
+// @Param limit query int false "Page size"
+// @Param offset query int false "Page offset"
+// @Success 200 {object} response.Body{data=UnitListResult}
+// @Failure 400 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /units [get]
 func (h *unitHandler) List(c *gin.Context) {
 	filter, err := parseUnitListFilter(c)
 	if err != nil {
@@ -65,6 +77,16 @@ func (h *unitHandler) List(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Get godoc
+// @Summary Get a unit
+// @Tags Units
+// @Produce json
+// @Param id path int true "Unit ID"
+// @Success 200 {object} response.Body{data=Unit}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /units/{id} [get]
 func (h *unitHandler) Get(c *gin.Context) {
 	id, err := parseUnitID(c)
 	if err != nil {
@@ -81,8 +103,19 @@ func (h *unitHandler) Get(c *gin.Context) {
 	response.Success(c, unit)
 }
 
+// Create godoc
+// @Summary Create a unit
+// @Tags Units
+// @Accept json
+// @Produce json
+// @Param body body CreateUnitRequest true "Unit payload"
+// @Success 201 {object} response.Body{data=Unit}
+// @Failure 400 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /units [post]
 func (h *unitHandler) Create(c *gin.Context) {
-	var req createUnitRequest
+	var req CreateUnitRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeUnitError(c, NewValidationError("request body must be valid JSON"))
 		return
@@ -104,6 +137,19 @@ func (h *unitHandler) Create(c *gin.Context) {
 	response.Created(c, unit)
 }
 
+// Update godoc
+// @Summary Update a unit
+// @Tags Units
+// @Accept json
+// @Produce json
+// @Param id path int true "Unit ID"
+// @Param body body UpdateUnitRequest true "Unit payload"
+// @Success 200 {object} response.Body{data=Unit}
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /units/{id} [put]
 func (h *unitHandler) Update(c *gin.Context) {
 	id, err := parseUnitID(c)
 	if err != nil {
@@ -111,7 +157,7 @@ func (h *unitHandler) Update(c *gin.Context) {
 		return
 	}
 
-	var req updateUnitRequest
+	var req UpdateUnitRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		writeUnitError(c, NewValidationError("request body must be valid JSON"))
 		return
@@ -134,6 +180,16 @@ func (h *unitHandler) Update(c *gin.Context) {
 	response.Success(c, unit)
 }
 
+// Delete godoc
+// @Summary Delete a unit
+// @Tags Units
+// @Produce json
+// @Param id path int true "Unit ID"
+// @Success 200 {object} response.Body
+// @Failure 400 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /units/{id} [delete]
 func (h *unitHandler) Delete(c *gin.Context) {
 	id, err := parseUnitID(c)
 	if err != nil {

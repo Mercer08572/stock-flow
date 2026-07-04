@@ -30,7 +30,7 @@ Future modules may include:
 
 Backend
 
-- **Language**：Go 1.22+
+- **Language**：Go 1.25+
 - **Web framework**：Gin
 - **Database**：PostgreSQL（use `pgx` driver + `sqlc`）
 - **Migration tool**：golang-migrate

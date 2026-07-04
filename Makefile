@@ -1,11 +1,12 @@
 MIGRATIONS_PATH := migrations
 SCHEMA_PATH := sql/schema/schema.sql
 SQLC_VERSION := v1.29.0
+SWAG_VERSION := v1.8.12
 API_PACKAGE := ./cmd/api
 CONFIG_PACKAGE := ./cmd/config
 PG_DUMP ?= pg_dump
 
-.PHONY: help fmt test run sqlc config-database-url schema-dump migrate-up migrate-down migrate-down-all migrate-version migrate-force
+.PHONY: help fmt test run swagger sqlc config-database-url schema-dump migrate-up migrate-down migrate-down-all migrate-version migrate-force
 
 help:
 	@echo "Available commands:"
@@ -16,6 +17,7 @@ help:
 	@echo "  make run               - Run API server"
 	@echo ""
 	@echo "Code generation:"
+	@echo "  make swagger           - Generate Swagger/OpenAPI documentation"
 	@echo "  make sqlc              - Generate sqlc Go code"
 	@echo "  make schema-dump       - Dump current database schema for sqlc (requires pg_dump)"
 	@echo "  make config-database-url - Print resolved database_url"
@@ -40,6 +42,12 @@ test:
 
 run:
 	go run $(API_PACKAGE)
+
+swagger:
+	go run github.com/swaggo/swag/cmd/swag@$(SWAG_VERSION) init \
+	 -g cmd/api/main.go \
+	 --parseInternal \
+	 -o openapi
 
 sqlc:
 	go run github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION) generate

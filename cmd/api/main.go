@@ -14,8 +14,13 @@ import (
 	"github.com/Mercer08572/stock-flow/internal/shared/config"
 	"github.com/Mercer08572/stock-flow/internal/shared/database"
 	httpserver "github.com/Mercer08572/stock-flow/internal/shared/http"
+	_ "github.com/Mercer08572/stock-flow/openapi"
 )
 
+// @title Stock-Flow API
+// @version 1.0
+// @description Back-end API service for the Stock-Flow inventory management system.
+// @BasePath /api/v1
 func main() {
 	if err := run(); err != nil {
 		log.Fatalf("api stopped: %v", err)
