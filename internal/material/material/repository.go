@@ -21,6 +21,7 @@ type Repository interface {
 	MaterialCodeExists(ctx context.Context, code string, excludeID int64) (bool, error)
 	MaterialCategoryExists(ctx context.Context, id int64) (bool, error)
 	UnitExists(ctx context.Context, id int64) (bool, error)
+	MaterialSKUUnitAllowed(ctx context.Context, materialID int64, unitID int64) (bool, error)
 }
 
 type postgresRepository struct {
@@ -135,6 +136,18 @@ func (r *postgresRepository) UnitExists(ctx context.Context, id int64) (bool, er
 	}
 
 	return exists, nil
+}
+
+func (r *postgresRepository) MaterialSKUUnitAllowed(ctx context.Context, materialID int64, unitID int64) (bool, error) {
+	allowed, err := r.queries.MaterialSKUUnitAllowed(ctx, materialdb.MaterialSKUUnitAllowedParams{
+		MaterialID: materialID,
+		UnitID:     unitID,
+	})
+	if err != nil {
+		return false, mapPostgresError(err)
+	}
+
+	return allowed, nil
 }
 
 func mapPostgresError(err error) error {

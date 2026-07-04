@@ -94,3 +94,12 @@ SELECT EXISTS (
     WHERE id = $1
       AND deleted_at IS NULL
 ) AS exists;
+
+-- name: MaterialSKUUnitAllowed :one
+SELECT EXISTS (
+    SELECT 1
+    FROM material_unit_conversions
+    WHERE material_id = sqlc.arg('material_id')::bigint
+      AND deleted_at IS NULL
+      AND (from_unit_id = sqlc.arg('unit_id')::bigint OR to_unit_id = sqlc.arg('unit_id')::bigint)
+) AS exists;

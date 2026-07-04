@@ -21,6 +21,7 @@ type Querier interface {
 	MaterialCategoryCodeExists(ctx context.Context, arg MaterialCategoryCodeExistsParams) (bool, error)
 	MaterialCategoryExists(ctx context.Context, id int64) (bool, error)
 	MaterialCodeExists(ctx context.Context, arg MaterialCodeExistsParams) (bool, error)
+	MaterialSKUUnitAllowed(ctx context.Context, arg MaterialSKUUnitAllowedParams) (bool, error)
 	SoftDeleteMaterial(ctx context.Context, id int64) (int64, error)
 	SoftDeleteMaterialCategory(ctx context.Context, id int64) (int64, error)
 	SoftDeleteUnit(ctx context.Context, id int64) (int64, error)

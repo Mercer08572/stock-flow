@@ -1,6 +1,6 @@
 # WH-001 Warehouse CRUD
 
-Status: Ready
+Status: Done
 Owner: coding-agent
 Module: warehouse
 Related:

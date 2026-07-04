@@ -128,19 +128,62 @@ func TestServiceListNormalizesFilter(t *testing.T) {
 	}
 }
 
+func TestServiceValidateSKUUnitAllowsBaseUnit(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepository()
+	repo.units[20] = true
+	repo.materials[1] = material.Material{ID: 1, BaseUnitID: 20}
+
+	service := material.NewService(repo)
+	if err := service.ValidateSKUUnit(ctx, 1, 20); err != nil {
+		t.Fatalf("validate sku unit: %v", err)
+	}
+}
+
+func TestServiceValidateSKUUnitAllowsConvertibleUnit(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepository()
+	repo.units[20] = true
+	repo.units[30] = true
+	repo.materials[1] = material.Material{ID: 1, BaseUnitID: 20}
+	repo.allowedSKUUnits[[2]int64{1, 30}] = true
+
+	service := material.NewService(repo)
+	if err := service.ValidateSKUUnit(ctx, 1, 30); err != nil {
+		t.Fatalf("validate sku unit: %v", err)
+	}
+}
+
+func TestServiceValidateSKUUnitRejectsUnrelatedUnit(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepository()
+	repo.units[20] = true
+	repo.units[30] = true
+	repo.materials[1] = material.Material{ID: 1, BaseUnitID: 20}
+
+	service := material.NewService(repo)
+	err := service.ValidateSKUUnit(ctx, 1, 30)
+
+	if !errors.Is(err, material.ErrSKUUnitNotAllowed) {
+		t.Fatalf("expected sku unit not allowed, got %v", err)
+	}
+}
+
 type fakeRepository struct {
-	materials  map[int64]material.Material
-	categories map[int64]bool
-	units      map[int64]bool
-	nextID     int64
+	materials       map[int64]material.Material
+	categories      map[int64]bool
+	units           map[int64]bool
+	allowedSKUUnits map[[2]int64]bool
+	nextID          int64
 }
 
 func newFakeRepository() *fakeRepository {
 	return &fakeRepository{
-		materials:  make(map[int64]material.Material),
-		categories: make(map[int64]bool),
-		units:      make(map[int64]bool),
-		nextID:     1,
+		materials:       make(map[int64]material.Material),
+		categories:      make(map[int64]bool),
+		units:           make(map[int64]bool),
+		allowedSKUUnits: make(map[[2]int64]bool),
+		nextID:          1,
 	}
 }
 
@@ -232,4 +275,8 @@ func (r *fakeRepository) MaterialCategoryExists(_ context.Context, id int64) (bo
 
 func (r *fakeRepository) UnitExists(_ context.Context, id int64) (bool, error) {
 	return r.units[id], nil
+}
+
+func (r *fakeRepository) MaterialSKUUnitAllowed(_ context.Context, materialID int64, unitID int64) (bool, error) {
+	return r.allowedSKUUnits[[2]int64{materialID, unitID}], nil
 }

@@ -3,10 +3,11 @@ package material
 import "errors"
 
 var (
-	ErrNotFound         = errors.New("material not found")
-	ErrDuplicateCode    = errors.New("material code already exists")
-	ErrCategoryNotFound = errors.New("material category not found")
-	ErrBaseUnitNotFound = errors.New("material base unit not found")
+	ErrNotFound          = errors.New("material not found")
+	ErrDuplicateCode     = errors.New("material code already exists")
+	ErrCategoryNotFound  = errors.New("material category not found")
+	ErrBaseUnitNotFound  = errors.New("material base unit not found")
+	ErrSKUUnitNotAllowed = errors.New("sku unit is not allowed for material")
 )
 
 type ValidationError struct {

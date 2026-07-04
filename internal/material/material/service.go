@@ -11,6 +11,7 @@ type Service interface {
 	Create(ctx context.Context, input CreateInput) (*Material, error)
 	Update(ctx context.Context, input UpdateInput) (*Material, error)
 	Delete(ctx context.Context, id int64) error
+	ValidateSKUUnit(ctx context.Context, materialID int64, unitID int64) error
 }
 
 type service struct {
@@ -95,6 +96,42 @@ func (s *service) Delete(ctx context.Context, id int64) error {
 	}
 
 	return s.repo.SoftDelete(ctx, id)
+}
+
+func (s *service) ValidateSKUUnit(ctx context.Context, materialID int64, unitID int64) error {
+	if materialID <= 0 {
+		return NewValidationError("material id must be greater than zero")
+	}
+	if unitID <= 0 {
+		return NewValidationError("unit id must be greater than zero")
+	}
+
+	item, err := s.repo.GetByID(ctx, materialID)
+	if err != nil {
+		return err
+	}
+
+	unitExists, err := s.repo.UnitExists(ctx, unitID)
+	if err != nil {
+		return err
+	}
+	if !unitExists {
+		return ErrBaseUnitNotFound
+	}
+
+	if item.BaseUnitID == unitID {
+		return nil
+	}
+
+	allowed, err := s.repo.MaterialSKUUnitAllowed(ctx, materialID, unitID)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return ErrSKUUnitNotAllowed
+	}
+
+	return nil
 }
 
 func (s *service) validateReferences(ctx context.Context, categoryID int64, baseUnitID int64) error {

@@ -224,6 +224,28 @@ func (q *Queries) MaterialCodeExists(ctx context.Context, arg MaterialCodeExists
 	return exists, err
 }
 
+const materialSKUUnitAllowed = `-- name: MaterialSKUUnitAllowed :one
+SELECT EXISTS (
+    SELECT 1
+    FROM material_unit_conversions
+    WHERE material_id = $1::bigint
+      AND deleted_at IS NULL
+      AND (from_unit_id = $2::bigint OR to_unit_id = $2::bigint)
+) AS exists
+`
+
+type MaterialSKUUnitAllowedParams struct {
+	MaterialID int64 `db:"material_id" json:"material_id"`
+	UnitID     int64 `db:"unit_id" json:"unit_id"`
+}
+
+func (q *Queries) MaterialSKUUnitAllowed(ctx context.Context, arg MaterialSKUUnitAllowedParams) (bool, error) {
+	row := q.db.QueryRow(ctx, materialSKUUnitAllowed, arg.MaterialID, arg.UnitID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const softDeleteMaterial = `-- name: SoftDeleteMaterial :execrows
 UPDATE materials
 SET deleted_at = NOW(),

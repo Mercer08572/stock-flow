@@ -124,11 +124,12 @@ func newMaterialRouter(service material.Service) *gin.Engine {
 }
 
 type fakeService struct {
-	listFunc   func(context.Context, material.ListFilter) (material.ListResult, error)
-	getFunc    func(context.Context, int64) (*material.Material, error)
-	createFunc func(context.Context, material.CreateInput) (*material.Material, error)
-	updateFunc func(context.Context, material.UpdateInput) (*material.Material, error)
-	deleteFunc func(context.Context, int64) error
+	listFunc            func(context.Context, material.ListFilter) (material.ListResult, error)
+	getFunc             func(context.Context, int64) (*material.Material, error)
+	createFunc          func(context.Context, material.CreateInput) (*material.Material, error)
+	updateFunc          func(context.Context, material.UpdateInput) (*material.Material, error)
+	deleteFunc          func(context.Context, int64) error
+	validateSKUUnitFunc func(context.Context, int64, int64) error
 }
 
 func (s *fakeService) List(ctx context.Context, filter material.ListFilter) (material.ListResult, error) {
@@ -162,6 +163,13 @@ func (s *fakeService) Update(ctx context.Context, input material.UpdateInput) (*
 func (s *fakeService) Delete(ctx context.Context, id int64) error {
 	if s.deleteFunc != nil {
 		return s.deleteFunc(ctx, id)
+	}
+	return nil
+}
+
+func (s *fakeService) ValidateSKUUnit(ctx context.Context, materialID int64, unitID int64) error {
+	if s.validateSKUUnitFunc != nil {
+		return s.validateSKUUnitFunc(ctx, materialID, unitID)
 	}
 	return nil
 }
