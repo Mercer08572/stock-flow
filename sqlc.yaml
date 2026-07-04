@@ -7,6 +7,7 @@ sql:
       - "sql/queries/materials.sql"
       - "sql/queries/material_categories.sql"
       - "sql/queries/units.sql"
+      - "sql/queries/material_unit_conversions.sql"
     gen:
       go:
         package: "materialdb"

@@ -224,6 +224,22 @@ func (q *Queries) MaterialCodeExists(ctx context.Context, arg MaterialCodeExists
 	return exists, err
 }
 
+const materialExists = `-- name: MaterialExists :one
+SELECT EXISTS (
+    SELECT 1
+    FROM materials
+    WHERE id = $1
+      AND deleted_at IS NULL
+) AS exists
+`
+
+func (q *Queries) MaterialExists(ctx context.Context, id int64) (bool, error) {
+	row := q.db.QueryRow(ctx, materialExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const materialSKUUnitAllowed = `-- name: MaterialSKUUnitAllowed :one
 SELECT EXISTS (
     SELECT 1

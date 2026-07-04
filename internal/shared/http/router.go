@@ -5,6 +5,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	category "github.com/Mercer08572/stock-flow/internal/material/category"
+	conversion "github.com/Mercer08572/stock-flow/internal/material/conversion"
 	material "github.com/Mercer08572/stock-flow/internal/material/material"
 	unit "github.com/Mercer08572/stock-flow/internal/material/unit"
 	"github.com/Mercer08572/stock-flow/internal/shared/health"
@@ -14,12 +15,13 @@ import (
 )
 
 type Dependencies struct {
-	DB               *pgxpool.Pool
-	MaterialService  material.Service
-	UnitService      unit.UnitService
-	CategoryService  category.CategoryService
-	SKUService       sku.Service
-	WarehouseService warehouse.Service
+	DB                *pgxpool.Pool
+	MaterialService   material.Service
+	UnitService       unit.UnitService
+	CategoryService   category.CategoryService
+	ConversionService conversion.Service
+	SKUService        sku.Service
+	WarehouseService  warehouse.Service
 }
 
 func NewRouter(deps Dependencies) *gin.Engine {
@@ -30,6 +32,7 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	health.NewHandler().RegisterRoutes(api)
 	registerUnitRoutes(api, deps)
 	registerCategoryRoutes(api, deps)
+	registerConversionRoutes(api, deps)
 	registerMaterialRoutes(api, deps)
 	registerSKURoutes(api, deps)
 	registerWarehouseRoutes(api, deps)
@@ -74,6 +77,19 @@ func registerMaterialRoutes(router gin.IRouter, deps Dependencies) {
 	}
 
 	material.NewHandler(service).RegisterRoutes(router)
+}
+
+func registerConversionRoutes(router gin.IRouter, deps Dependencies) {
+	service := deps.ConversionService
+	if service == nil && deps.DB != nil {
+		service = conversion.NewService(conversion.NewPostgresRepository(deps.DB))
+	}
+
+	if service == nil {
+		return
+	}
+
+	conversion.NewHandler(service).RegisterRoutes(router)
 }
 
 func registerWarehouseRoutes(router gin.IRouter, deps Dependencies) {

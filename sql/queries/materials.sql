@@ -87,6 +87,14 @@ SELECT EXISTS (
       AND deleted_at IS NULL
 ) AS exists;
 
+-- name: MaterialExists :one
+SELECT EXISTS (
+    SELECT 1
+    FROM materials
+    WHERE id = $1
+      AND deleted_at IS NULL
+) AS exists;
+
 -- name: UnitExists :one
 SELECT EXISTS (
     SELECT 1
