@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	inventory "github.com/Mercer08572/stock-flow/internal/inventory"
 	category "github.com/Mercer08572/stock-flow/internal/material/category"
 	conversion "github.com/Mercer08572/stock-flow/internal/material/conversion"
 	material "github.com/Mercer08572/stock-flow/internal/material/material"
@@ -21,6 +22,7 @@ type Dependencies struct {
 	CategoryService   category.CategoryService
 	ConversionService conversion.Service
 	SKUService        sku.Service
+	InventoryService  inventory.Service
 	WarehouseService  warehouse.Service
 }
 
@@ -36,6 +38,7 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	registerMaterialRoutes(api, deps)
 	registerSKURoutes(api, deps)
 	registerWarehouseRoutes(api, deps)
+	registerInventoryRoutes(api, deps)
 
 	return router
 }
@@ -103,6 +106,33 @@ func registerWarehouseRoutes(router gin.IRouter, deps Dependencies) {
 	}
 
 	warehouse.NewHandler(service).RegisterRoutes(router)
+}
+
+func registerInventoryRoutes(router gin.IRouter, deps Dependencies) {
+	service := deps.InventoryService
+	if service == nil && deps.DB != nil {
+		warehouseReader := deps.WarehouseService
+		if warehouseReader == nil {
+			warehouseReader = warehouse.NewService(warehouse.NewPostgresRepository(deps.DB))
+		}
+
+		skuReader := deps.SKUService
+		if skuReader == nil {
+			materialValidator := deps.MaterialService
+			if materialValidator == nil {
+				materialValidator = material.NewService(material.NewPostgresRepository(deps.DB))
+			}
+			skuReader = sku.NewService(sku.NewPostgresRepository(deps.DB), materialValidator)
+		}
+
+		service = inventory.NewService(inventory.NewPostgresRepository(deps.DB), warehouseReader, skuReader)
+	}
+
+	if service == nil {
+		return
+	}
+
+	inventory.NewHandler(service).RegisterRoutes(router)
 }
 
 func registerSKURoutes(router gin.IRouter, deps Dependencies) {
