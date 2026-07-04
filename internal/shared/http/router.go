@@ -9,13 +9,15 @@ import (
 	unit "github.com/Mercer08572/stock-flow/internal/material/unit"
 	"github.com/Mercer08572/stock-flow/internal/shared/health"
 	"github.com/Mercer08572/stock-flow/internal/shared/http/middleware"
+	warehouse "github.com/Mercer08572/stock-flow/internal/warehouse"
 )
 
 type Dependencies struct {
-	DB              *pgxpool.Pool
-	MaterialService material.Service
-	UnitService     unit.UnitService
-	CategoryService category.CategoryService
+	DB               *pgxpool.Pool
+	MaterialService  material.Service
+	UnitService      unit.UnitService
+	CategoryService  category.CategoryService
+	WarehouseService warehouse.Service
 }
 
 func NewRouter(deps Dependencies) *gin.Engine {
@@ -27,6 +29,7 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	registerUnitRoutes(api, deps)
 	registerCategoryRoutes(api, deps)
 	registerMaterialRoutes(api, deps)
+	registerWarehouseRoutes(api, deps)
 
 	return router
 }
@@ -68,4 +71,17 @@ func registerMaterialRoutes(router gin.IRouter, deps Dependencies) {
 	}
 
 	material.NewHandler(service).RegisterRoutes(router)
+}
+
+func registerWarehouseRoutes(router gin.IRouter, deps Dependencies) {
+	service := deps.WarehouseService
+	if service == nil && deps.DB != nil {
+		service = warehouse.NewService(warehouse.NewPostgresRepository(deps.DB))
+	}
+
+	if service == nil {
+		return
+	}
+
+	warehouse.NewHandler(service).RegisterRoutes(router)
 }
