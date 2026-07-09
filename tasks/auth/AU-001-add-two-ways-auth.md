@@ -20,7 +20,7 @@ Related:
 
 Stock-Flow is an independent inventory service.
 
-It needs two simple authentication methods:
+It needs two simple auth methods:
 
 - Admin users log in to manage Stock-Flow data.
 - External business systems call Stock-Flow APIs with an app ID and a secret.
@@ -29,18 +29,16 @@ The project does not have an auth module yet.
 
 ## Goal
 
-Add an auth module for two request types.
+Add an auth module for admin users and external API callers.
 
 The completed task should support:
 
 - Admin login with username and password.
-- Admin login state with session and cookie.
-- Protected Stock-Flow APIs can be called by authenticated admins.
-- Protected Stock-Flow APIs can be called by authenticated external business systems.
+- Admin session with cookie.
 - API app registration by Stock-Flow.
 - Secret issuing for an API app.
 - API authentication with `app_id` and `secret`.
-- Auth information in request context, so later operation logs can record the caller.
+- A unified caller context for later operation logs.
 
 ## Non-Goals
 
@@ -48,7 +46,7 @@ The completed task should support:
 - Do not implement multiple admin roles.
 - Do not implement OAuth, JWT, or third-party login.
 - Do not build a frontend login page.
-- Do not implement a full operation log module.
+- Do not implement persistent operation logs.
 - Do not persist admin sessions in the database.
 - Do not modify existing migration files.
 - Do not change the unified response format.
@@ -82,6 +80,7 @@ Should not modify:
 Admin auth:
 
 - This task only supports one admin account.
+- The first admin account must be created by a migration seed.
 - The admin account has `username` and `password_hash`.
 - The password must never be stored as plain text.
 - The password hash must use an encoded Argon2id string.
@@ -91,12 +90,11 @@ Admin auth:
 - Session data does not need to be saved in the database.
 - Session expiration is required.
 - Logout must invalidate the current session.
-- Admin session authentication is accepted by protected Stock-Flow APIs.
-- `POST /auth/admin/login`, `POST /auth/admin/logout`, and `GET /auth/admin/me` are admin-session lifecycle APIs and do not require API app secret authentication.
 
 API app auth:
 
 - External systems must use an `app_id` and a `secret`.
+- Admin users must not use API app secrets.
 - The `app_id` must be registered by Stock-Flow.
 - The secret must be issued by Stock-Flow.
 - The plain secret is shown only once when it is created.
@@ -104,20 +102,25 @@ API app auth:
 - An API app can be active or inactive.
 - A secret can be active or blocked.
 - Inactive apps and blocked secrets cannot authenticate requests.
-- A secret can bind simple metadata for logs, such as system name, owner, or purpose.
-- Auth middleware should put app information into request context.
+- A secret can bind simple metadata, such as system name, owner, or purpose.
 
 Protected API auth:
 
-- Except admin-session lifecycle APIs, every Stock-Flow API must support both admin session authentication and API app secret authentication.
-- Admin callers authenticate through the admin session cookie created by `POST /auth/admin/login`.
-- External business systems authenticate through `X-Stock-Flow-App-ID` and `X-Stock-Flow-Secret` headers.
-- If both authentication methods are provided in one request, the handler must reject the request as ambiguous instead of choosing one silently.
+- Every protected Stock-Flow API must support two auth methods:
+  - admin session cookie
+  - API app secret headers
+- Admin users should call protected APIs with the session cookie from login.
+- External systems should call protected APIs with app secret headers.
+- API app secret headers are only for external systems.
+- A request must use only one auth method.
+- If both auth methods are provided, reject the request as ambiguous.
+- The login API is public.
+- Logout and `me` APIs require a valid admin session, but they do not require an API app secret.
 - Auth middleware must put a unified caller identity into request context.
-- The caller identity must distinguish at least `admin` and `api_app` caller types.
-- Admin caller context should include the admin user id and username.
-- API app caller context should include the API app id, app identifier, secret id, and bound metadata.
-- This task only provides auth context for later operation logs; it does not persist operation logs.
+- The caller identity must distinguish `admin` and `api_app`.
+- Admin caller context should include admin user id and username.
+- API app caller context should include app id, app identifier, secret id, and bound metadata.
+- This task only provides auth context for a later log task.
 
 ## API
 
@@ -156,13 +159,6 @@ External systems should send credentials by headers:
 - `X-Stock-Flow-App-ID`
 - `X-Stock-Flow-Secret`
 
-Protected API authentication:
-
-- All APIs except `POST /api/v1/auth/admin/login`, `POST /api/v1/auth/admin/logout`, and `GET /api/v1/auth/admin/me` must accept a valid admin session cookie.
-- All APIs except `POST /api/v1/auth/admin/login`, `POST /api/v1/auth/admin/logout`, and `GET /api/v1/auth/admin/me` must also accept valid API app credentials through headers.
-- A request with neither valid admin session authentication nor valid API app secret authentication must be rejected as unauthenticated.
-- A request with both admin session authentication and API app secret authentication must be rejected as ambiguous.
-
 All responses must use `pkg/response`.
 
 ## Data Model
@@ -172,7 +168,6 @@ New migration is expected for this task.
 Expected tables:
 
 - `admin_users`
-- `admin_sessions`
 - `api_apps`
 - `api_secrets`
 
@@ -182,18 +177,6 @@ Expected tables:
 - `username`
 - `password_hash`
 - `status`
-- `created_at`
-- `updated_at`
-- `deleted_at`
-
-`admin_sessions` should include:
-
-- `id`
-- `admin_user_id`
-- `session_token_hash`
-- `status`
-- `expires_at`
-- `last_used_at`
 - `created_at`
 - `updated_at`
 - `deleted_at`
@@ -243,33 +226,35 @@ Required sqlc work:
 - Handler owns HTTP parsing and response writing only.
 - Use `crypto/rand` for session token and secret generation.
 - Use constant-time comparison for secret verification.
-- Store only hashes for passwords, session tokens, and API secrets.
-- Persist admin sessions in `admin_sessions` so session authentication works consistently across protected APIs.
-- Add an admin auth middleware for admin-only routes.
-- Add an API app auth middleware for business API routes.
-- Add a protected API auth middleware that accepts either a valid admin session or valid API app secret credentials.
+- Store only hashes for passwords and API secrets.
+- Keep admin session storage simple and in memory for this task.
+- Add an admin session middleware.
+- Add an API app secret middleware for external business systems.
+- Add a protected API middleware that accepts either admin session or API app secret.
 - Put unified caller information into request context.
-- Reject requests that provide both admin session and API app secret credentials.
+- Reject requests that provide both auth methods.
 - Do not expose the plain secret after creation.
 - Seed the first admin account through a new migration.
-- The seeded admin password hash must be an Argon2id encoded string and must not contain a plain password in source code comments.
-- This task only provides auth context for later operation logs; do not implement persistent auth or operation logs in this task.
+- The seeded admin password hash must be an Argon2id encoded string.
+- The source code and comments must not contain the plain admin password.
+- Do not implement persistent operation logs in this task.
 
 ## Acceptance Criteria
 
+- The first admin account is created by a new migration seed.
 - Admin can log in with a valid username and password.
 - Admin login sets a session cookie.
 - Invalid admin credentials return an error.
 - `GET /api/v1/auth/admin/me` returns the current admin when the session is valid.
 - Admin logout invalidates the current session.
 - Admin password is stored as an Argon2id encoded string.
-- The first admin account is created by a new migration seed.
 - Protected APIs accept valid admin session authentication.
 - Protected APIs accept valid API app secret authentication.
 - Protected APIs reject unauthenticated requests.
-- Protected APIs reject requests that include both admin session and API app secret authentication.
+- Protected APIs reject requests that include both auth methods.
 - An admin can create, list, update, and soft delete API apps.
 - An admin can issue a secret for an API app.
+- Admin users do not receive or use API app secrets for their own requests.
 - The plain secret is returned only when it is created.
 - The database stores only the secret hash.
 - A blocked secret cannot authenticate a request.
@@ -278,18 +263,22 @@ Required sqlc work:
 - Protected API auth middleware adds a unified caller identity to request context.
 - API app caller context includes app identity and bound metadata.
 - Admin caller context includes admin identity.
-- Auth context is available for a later operation log task, but this task does not persist operation logs.
+- Auth context is available for a later operation log task.
+- This task does not persist operation logs.
 - Handler tests cover admin login and at least one auth error.
-- Middleware or handler tests cover protected API authentication by admin session, API app secret, missing credentials, and ambiguous credentials.
-- Service tests cover password verification, persisted session expiration, secret issuing, and blocked secret behavior.
+- Middleware or handler tests cover admin session auth, API app secret auth, missing credentials, and ambiguous credentials.
+- Service tests cover password verification, session expiration, secret issuing, and blocked secret behavior.
 - `go test ./...` passes.
 - `make sqlc` generated files are committed with the implementation.
 
 ## Resolved Decisions
 
 - The first admin account is created by a migration seed.
-- Except `POST /api/v1/auth/admin/login`, `POST /api/v1/auth/admin/logout`, and `GET /api/v1/auth/admin/me`, every Stock-Flow API must support both admin session authentication and API app secret authentication.
-- This task only provides auth context for a later operation log task. It must not persist operation logs.
+- Protected APIs support two auth methods: admin session cookie or API app secret headers.
+- A request must use only one auth method.
+- Admin users use session only.
+- API app secrets are only for external business systems.
+- This task only provides auth context for a later operation log task.
 
 ## Open Questions
 
