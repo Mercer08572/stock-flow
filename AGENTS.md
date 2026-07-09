@@ -175,9 +175,8 @@ All responses must be returned through the `pkg/response` package, with a fixed 
 5. Add tests when business logic changes.
 
 
-## Documentation Hierarchy
-
-Priority order:
+## Documentation Priority order:
+0. The user explicitly requested this time.
 1. AGENTS.md
 2. Sub AGENTS.md in package
 3. tasks

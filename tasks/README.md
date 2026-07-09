@@ -107,6 +107,7 @@ ARCH-001-module-boundary-rules.md
 
 | 前缀 | 目录 | 含义 |
 | --- | --- | --- |
+| `AU` | `auth/` | 认证模块 |
 | `MAT` | `material/` | Material 物料模块 |
 | `SKU` | `sku/` | SKU 模块 |
 | `INV` | `inventory/` | Inventory 库存模块 |
