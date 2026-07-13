@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	auth "github.com/Mercer08572/stock-flow/internal/auth"
 	"github.com/Mercer08572/stock-flow/internal/material/conversion"
 	material "github.com/Mercer08572/stock-flow/internal/material/material"
 	httpserver "github.com/Mercer08572/stock-flow/internal/shared/http"
@@ -60,12 +61,14 @@ func TestMaterialConversionRouteRegistration(t *testing.T) {
 	router := httpserver.NewRouter(httpserver.Dependencies{
 		MaterialService:   &fakeMaterialService{},
 		ConversionService: &fakeConversionService{},
+		Authenticator:     &fakeAuthenticator{},
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/materials/10/unit-conversions", bytes.NewBufferString(`{
 		"from_unit_id":30,
 		"to_unit_id":20,
 		"factor":"12"
 	}`))
+	req.AddCookie(&http.Cookie{Name: auth.DefaultSessionCookieName, Value: "router-test-session"})
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
@@ -85,6 +88,24 @@ func TestMaterialConversionRouteRegistration(t *testing.T) {
 	if body.Data.MaterialID != 10 {
 		t.Fatalf("expected material id 10, got %d", body.Data.MaterialID)
 	}
+}
+
+type fakeAuthenticator struct{}
+
+func (a *fakeAuthenticator) AuthenticateAdminSession(context.Context, string) (auth.Caller, error) {
+	return auth.Caller{
+		Type:  auth.CallerTypeAdmin,
+		Admin: &auth.AdminCaller{AdminUserID: 1, Username: "admin"},
+	}, nil
+}
+
+func (a *fakeAuthenticator) AuthenticateAPIApp(context.Context, string, string) (auth.Caller, error) {
+	return auth.Caller{
+		Type: auth.CallerTypeAPIApp,
+		APIApp: &auth.APIAppCaller{
+			APIAppID: 2, AppID: "app_test", SecretRecordID: 3, SecretID: "key_test",
+		},
+	}, nil
 }
 
 type fakeMaterialService struct{}

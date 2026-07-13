@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS api_secrets;
+DROP TABLE IF EXISTS api_apps;
+DROP TABLE IF EXISTS admin_users;

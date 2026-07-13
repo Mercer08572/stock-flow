@@ -1,11 +1,14 @@
 package httpserver
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
+	auth "github.com/Mercer08572/stock-flow/internal/auth"
 	inventory "github.com/Mercer08572/stock-flow/internal/inventory"
 	category "github.com/Mercer08572/stock-flow/internal/material/category"
 	conversion "github.com/Mercer08572/stock-flow/internal/material/conversion"
@@ -19,6 +22,10 @@ import (
 
 type Dependencies struct {
 	DB                *pgxpool.Pool
+	AuthService       auth.Service
+	Authenticator     auth.Authenticator
+	AuthSessionTTL    time.Duration
+	AuthCookieSecure  bool
 	MaterialService   material.Service
 	UnitService       unit.UnitService
 	CategoryService   category.CategoryService
@@ -35,15 +42,44 @@ func NewRouter(deps Dependencies) *gin.Engine {
 
 	api := router.Group("/api/v1")
 	health.NewHandler().RegisterRoutes(api)
-	registerUnitRoutes(api, deps)
-	registerCategoryRoutes(api, deps)
-	registerConversionRoutes(api, deps)
-	registerMaterialRoutes(api, deps)
-	registerSKURoutes(api, deps)
-	registerWarehouseRoutes(api, deps)
-	registerInventoryRoutes(api, deps)
+
+	authService := resolveAuthService(deps)
+	authenticator := deps.Authenticator
+	if authenticator == nil {
+		authenticator = authService
+	}
+	authMiddleware := auth.NewMiddleware(authenticator, auth.MiddlewareOptions{})
+	if authService != nil {
+		auth.NewHandler(authService, auth.CookieOptions{Secure: deps.AuthCookieSecure}).RegisterRoutes(api, authMiddleware.AdminSession())
+	}
+
+	protected := api.Group("")
+	protected.Use(authMiddleware.Protected())
+	registerUnitRoutes(protected, deps)
+	registerCategoryRoutes(protected, deps)
+	registerConversionRoutes(protected, deps)
+	registerMaterialRoutes(protected, deps)
+	registerSKURoutes(protected, deps)
+	registerWarehouseRoutes(protected, deps)
+	registerInventoryRoutes(protected, deps)
 
 	return router
+}
+
+func resolveAuthService(deps Dependencies) auth.Service {
+	if deps.AuthService != nil {
+		return deps.AuthService
+	}
+	if deps.DB == nil {
+		return nil
+	}
+
+	return auth.NewService(
+		auth.NewPostgresRepository(deps.DB),
+		auth.NewInMemorySessionStore(),
+		auth.NewArgon2idPasswordHasher(auth.Argon2idParams{}),
+		auth.ServiceOptions{SessionTTL: deps.AuthSessionTTL},
+	)
 }
 
 func registerUnitRoutes(router gin.IRouter, deps Dependencies) {

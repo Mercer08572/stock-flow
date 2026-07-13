@@ -45,8 +45,11 @@ func run() error {
 	defer db.Close()
 
 	server := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           httpserver.NewRouter(httpserver.Dependencies{DB: db}),
+		Addr: cfg.HTTPAddr,
+		Handler: httpserver.NewRouter(httpserver.Dependencies{
+			DB:               db,
+			AuthCookieSecure: cfg.Environment == "production",
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
