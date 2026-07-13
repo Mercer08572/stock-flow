@@ -8,6 +8,16 @@ PG_DUMP ?= pg_dump
 
 .PHONY: help fmt test run swagger sqlc config-database-url schema-dump migrate-up migrate-down migrate-down-all migrate-version migrate-force
 
+# Allow an optional positional step count, for example: make migrate-up 2.
+ifeq ($(firstword $(MAKECMDGOALS)),migrate-up)
+MIGRATE_UP_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+ifneq ($(strip $(MIGRATE_UP_ARGS)),)
+.PHONY: $(MIGRATE_UP_ARGS)
+$(MIGRATE_UP_ARGS):
+	@:
+endif
+endif
+
 help:
 	@echo "Available commands:"
 	@echo ""
@@ -23,7 +33,7 @@ help:
 	@echo "  make config-database-url - Print resolved database_url"
 	@echo ""
 	@echo "Database migrations:"
-	@echo "  make migrate-up        - Apply all pending migrations"
+	@echo "  make migrate-up [N]    - Apply all pending migrations, or the next N migrations"
 	@echo "  make migrate-down      - Rollback the last migration"
 	@echo "  make migrate-down-all  - Rollback all migrations (use with caution)"
 	@echo "  make migrate-version   - Show current migration version"
@@ -32,6 +42,8 @@ help:
 	@echo "Examples:"
 	@echo "  make sqlc"
 	@echo "  make schema-dump"
+	@echo "  make migrate-up 1"
+	@echo "  make migrate-up 2"
 	@echo "  make migrate-force VERSION=202606120003"
 
 fmt:
@@ -64,8 +76,21 @@ schema-dump:
 	rm -f "$$tmp_file"
 
 migrate-up:
-	@db_url="$$(go run $(CONFIG_PACKAGE) -key database_url)"; \
-	migrate -path $(MIGRATIONS_PATH) -database "$$db_url" up
+	@steps="$(strip $(MIGRATE_UP_ARGS))"; \
+	if [ "$(words $(MIGRATE_UP_ARGS))" -gt 1 ]; then \
+		echo "ERROR: only one migration step count is allowed. Usage: make migrate-up [N]" >&2; \
+		exit 1; \
+	fi; \
+	case "$$steps" in \
+		"") ;; \
+		*[!0-9]*|0) echo "ERROR: migration step count must be a positive integer. Usage: make migrate-up [N]" >&2; exit 1 ;; \
+	esac; \
+	db_url="$$(go run $(CONFIG_PACKAGE) -key database_url)"; \
+	if [ -n "$$steps" ]; then \
+		migrate -path $(MIGRATIONS_PATH) -database "$$db_url" up "$$steps"; \
+	else \
+		migrate -path $(MIGRATIONS_PATH) -database "$$db_url" up; \
+	fi
 
 migrate-down:
 	@db_url="$$(go run $(CONFIG_PACKAGE) -key database_url)"; \
