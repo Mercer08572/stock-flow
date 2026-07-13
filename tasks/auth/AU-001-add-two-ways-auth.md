@@ -1,6 +1,6 @@
 # AU-001 Two Auth Methods
 
-Status: Ready
+Status: Done
 Owner: coding-agent
 Module: auth
 Related:
