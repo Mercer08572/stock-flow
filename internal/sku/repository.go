@@ -49,6 +49,15 @@ func (r *postgresRepository) GetByID(ctx context.Context, id int64) (*SKU, error
 	return &item, nil
 }
 
+func (r *postgresRepository) GetReference(ctx context.Context, id int64) (*Reference, error) {
+	row, err := r.queries.GetSKUReference(ctx, id)
+	if err != nil {
+		return nil, mapPostgresError(err)
+	}
+
+	return &Reference{ID: row.ID, Code: row.Code, Name: row.Name, Deleted: row.DeletedAt.Valid}, nil
+}
+
 func (r *postgresRepository) Create(ctx context.Context, input CreateInput) (*SKU, error) {
 	row, err := r.queries.CreateSKU(ctx, skudb.CreateSKUParams{
 		MaterialID: input.MaterialID,

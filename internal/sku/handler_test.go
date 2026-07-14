@@ -124,6 +124,33 @@ func TestHandlerMapsActiveSKUConflict(t *testing.T) {
 	}
 }
 
+func TestHandlerMapsInventoryReferenceConflict(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service := &fakeService{
+		deleteFunc: func(context.Context, int64) error {
+			return sku.ErrReferencedByInventory
+		},
+	}
+	router := newSKURouter(service)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/skus/1", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d", http.StatusConflict, rec.Code)
+	}
+	var body struct {
+		Code int `json:"code"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if body.Code != response.CodeConflict {
+		t.Fatalf("expected response code %d, got %d", response.CodeConflict, body.Code)
+	}
+}
+
 func newSKURouter(service sku.Service) *gin.Engine {
 	router := gin.New()
 	router.Use(middleware.TraceID())
@@ -152,6 +179,10 @@ func (s *fakeService) Get(ctx context.Context, id int64) (*sku.SKU, error) {
 	if s.getFunc != nil {
 		return s.getFunc(ctx, id)
 	}
+	return nil, sku.ErrNotFound
+}
+
+func (s *fakeService) GetReference(context.Context, int64) (*sku.Reference, error) {
 	return nil, sku.ErrNotFound
 }
 

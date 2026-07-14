@@ -67,3 +67,43 @@ SELECT EXISTS (
       AND sku_id = sqlc.arg('sku_id')::bigint
       AND deleted_at IS NULL
 ) AS exists;
+
+-- name: HasWarehouseInventoryReferences :one
+SELECT EXISTS (
+    SELECT 1 FROM inventory_stocks AS stocks
+    WHERE stocks.warehouse_id = sqlc.arg('warehouse_id')::bigint
+      AND stocks.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_stock_layers AS layers
+    WHERE layers.warehouse_id = sqlc.arg('warehouse_id')::bigint
+      AND layers.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_reservations AS reservations
+    WHERE reservations.warehouse_id = sqlc.arg('warehouse_id')::bigint
+      AND reservations.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_movements AS movements
+    WHERE movements.warehouse_id = sqlc.arg('warehouse_id')::bigint
+) AS exists;
+
+-- name: HasSKUInventoryReferences :one
+SELECT EXISTS (
+    SELECT 1 FROM inventory_batches AS batches
+    WHERE batches.sku_id = sqlc.arg('sku_id')::bigint
+      AND batches.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_stocks AS stocks
+    WHERE stocks.sku_id = sqlc.arg('sku_id')::bigint
+      AND stocks.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_stock_layers AS layers
+    WHERE layers.sku_id = sqlc.arg('sku_id')::bigint
+      AND layers.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_reservations AS reservations
+    WHERE reservations.sku_id = sqlc.arg('sku_id')::bigint
+      AND reservations.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_movements AS movements
+    WHERE movements.sku_id = sqlc.arg('sku_id')::bigint
+) AS exists;

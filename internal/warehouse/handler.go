@@ -197,6 +197,7 @@ func (h *handler) Update(c *gin.Context) {
 // @Success 200 {object} response.Body
 // @Failure 400 {object} response.Body
 // @Failure 404 {object} response.Body
+// @Failure 409 {object} response.Body
 // @Failure 500 {object} response.Body
 // @Router /warehouses/{id} [delete]
 func (h *handler) Delete(c *gin.Context) {
@@ -288,7 +289,7 @@ func writeError(c *gin.Context, err error) {
 	switch {
 	case IsValidationError(err):
 		response.Error(c, http.StatusBadRequest, response.CodeBadRequest, err.Error())
-	case errors.Is(err, ErrDuplicateCode):
+	case errors.Is(err, ErrDuplicateCode), errors.Is(err, ErrReferencedByInventory):
 		response.Error(c, http.StatusConflict, response.CodeConflict, err.Error())
 	case errors.Is(err, ErrNotFound):
 		response.Error(c, http.StatusNotFound, response.CodeNotFound, err.Error())

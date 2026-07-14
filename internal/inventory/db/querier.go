@@ -10,6 +10,8 @@ import (
 
 type Querier interface {
 	GetInventoryStock(ctx context.Context, arg GetInventoryStockParams) (GetInventoryStockRow, error)
+	HasSKUInventoryReferences(ctx context.Context, skuID int64) (bool, error)
+	HasWarehouseInventoryReferences(ctx context.Context, warehouseID int64) (bool, error)
 	InventoryBatchExistsForSKU(ctx context.Context, arg InventoryBatchExistsForSKUParams) (bool, error)
 	ListInventoryStockLayers(ctx context.Context, arg ListInventoryStockLayersParams) ([]ListInventoryStockLayersRow, error)
 	ListInventoryStocks(ctx context.Context, arg ListInventoryStocksParams) ([]ListInventoryStocksRow, error)

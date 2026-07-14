@@ -26,6 +26,13 @@ type SKU struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+type Reference struct {
+	ID      int64  `json:"id"`
+	Code    string `json:"code"`
+	Name    string `json:"name"`
+	Deleted bool   `json:"deleted"`
+}
+
 type CreateInput struct {
 	MaterialID int64
 	Code       string

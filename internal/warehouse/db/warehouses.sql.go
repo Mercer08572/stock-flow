@@ -182,6 +182,34 @@ func (q *Queries) GetWarehouseByID(ctx context.Context, id int64) (GetWarehouseB
 	return i, err
 }
 
+const getWarehouseReference = `-- name: GetWarehouseReference :one
+SELECT id,
+       code,
+       name,
+       deleted_at
+FROM warehouses
+WHERE id = $1
+`
+
+type GetWarehouseReferenceRow struct {
+	ID        int64              `db:"id" json:"id"`
+	Code      string             `db:"code" json:"code"`
+	Name      string             `db:"name" json:"name"`
+	DeletedAt pgtype.Timestamptz `db:"deleted_at" json:"deleted_at"`
+}
+
+func (q *Queries) GetWarehouseReference(ctx context.Context, id int64) (GetWarehouseReferenceRow, error) {
+	row := q.db.QueryRow(ctx, getWarehouseReference, id)
+	var i GetWarehouseReferenceRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const listWarehouses = `-- name: ListWarehouses :many
 SELECT id,
        code,

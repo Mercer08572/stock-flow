@@ -52,6 +52,62 @@ func (q *Queries) GetInventoryStock(ctx context.Context, arg GetInventoryStockPa
 	return i, err
 }
 
+const hasSKUInventoryReferences = `-- name: HasSKUInventoryReferences :one
+SELECT EXISTS (
+    SELECT 1 FROM inventory_batches AS batches
+    WHERE batches.sku_id = $1::bigint
+      AND batches.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_stocks AS stocks
+    WHERE stocks.sku_id = $1::bigint
+      AND stocks.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_stock_layers AS layers
+    WHERE layers.sku_id = $1::bigint
+      AND layers.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_reservations AS reservations
+    WHERE reservations.sku_id = $1::bigint
+      AND reservations.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_movements AS movements
+    WHERE movements.sku_id = $1::bigint
+) AS exists
+`
+
+func (q *Queries) HasSKUInventoryReferences(ctx context.Context, skuID int64) (bool, error) {
+	row := q.db.QueryRow(ctx, hasSKUInventoryReferences, skuID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const hasWarehouseInventoryReferences = `-- name: HasWarehouseInventoryReferences :one
+SELECT EXISTS (
+    SELECT 1 FROM inventory_stocks AS stocks
+    WHERE stocks.warehouse_id = $1::bigint
+      AND stocks.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_stock_layers AS layers
+    WHERE layers.warehouse_id = $1::bigint
+      AND layers.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_reservations AS reservations
+    WHERE reservations.warehouse_id = $1::bigint
+      AND reservations.deleted_at IS NULL
+    UNION ALL
+    SELECT 1 FROM inventory_movements AS movements
+    WHERE movements.warehouse_id = $1::bigint
+) AS exists
+`
+
+func (q *Queries) HasWarehouseInventoryReferences(ctx context.Context, warehouseID int64) (bool, error) {
+	row := q.db.QueryRow(ctx, hasWarehouseInventoryReferences, warehouseID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const inventoryBatchExistsForSKU = `-- name: InventoryBatchExistsForSKU :one
 SELECT EXISTS (
     SELECT 1

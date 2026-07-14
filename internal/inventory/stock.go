@@ -1,6 +1,11 @@
 package inventory
 
-import "time"
+import (
+	"time"
+
+	"github.com/Mercer08572/stock-flow/internal/sku"
+	"github.com/Mercer08572/stock-flow/internal/warehouse"
+)
 
 const (
 	DefaultListLimit int32 = 20
@@ -8,26 +13,30 @@ const (
 )
 
 type StockBalance struct {
-	WarehouseID  int64        `json:"warehouse_id"`
-	SKUID        int64        `json:"sku_id"`
-	OnHandQty    string       `json:"on_hand_qty"`
-	ReservedQty  string       `json:"reserved_qty"`
-	AvailableQty string       `json:"available_qty"`
-	UpdatedAt    *time.Time   `json:"updated_at"`
-	Layers       []StockLayer `json:"layers,omitempty"`
+	WarehouseID  int64                `json:"warehouse_id"`
+	SKUID        int64                `json:"sku_id"`
+	Warehouse    *warehouse.Reference `json:"warehouse,omitempty"`
+	SKU          *sku.Reference       `json:"sku,omitempty"`
+	OnHandQty    string               `json:"on_hand_qty"`
+	ReservedQty  string               `json:"reserved_qty"`
+	AvailableQty string               `json:"available_qty"`
+	UpdatedAt    *time.Time           `json:"updated_at"`
+	Layers       []StockLayer         `json:"layers,omitempty"`
 }
 
 type StockLayer struct {
-	ID           int64     `json:"id"`
-	WarehouseID  int64     `json:"warehouse_id"`
-	SKUID        int64     `json:"sku_id"`
-	BatchID      *int64    `json:"batch_id"`
-	ReceivedAt   time.Time `json:"received_at"`
-	OnHandQty    string    `json:"on_hand_qty"`
-	ReservedQty  string    `json:"reserved_qty"`
-	AvailableQty string    `json:"available_qty"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           int64                `json:"id"`
+	WarehouseID  int64                `json:"warehouse_id"`
+	SKUID        int64                `json:"sku_id"`
+	Warehouse    *warehouse.Reference `json:"warehouse,omitempty"`
+	SKU          *sku.Reference       `json:"sku,omitempty"`
+	BatchID      *int64               `json:"batch_id"`
+	ReceivedAt   time.Time            `json:"received_at"`
+	OnHandQty    string               `json:"on_hand_qty"`
+	ReservedQty  string               `json:"reserved_qty"`
+	AvailableQty string               `json:"available_qty"`
+	CreatedAt    time.Time            `json:"created_at"`
+	UpdatedAt    time.Time            `json:"updated_at"`
 }
 
 type ListStocksFilter struct {

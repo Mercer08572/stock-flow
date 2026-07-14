@@ -137,7 +137,8 @@ func registerConversionRoutes(router gin.IRouter, deps Dependencies) {
 func registerWarehouseRoutes(router gin.IRouter, deps Dependencies) {
 	service := deps.WarehouseService
 	if service == nil && deps.DB != nil {
-		service = warehouse.NewService(warehouse.NewPostgresRepository(deps.DB))
+		inventoryReferences := inventory.NewReferenceService(inventory.NewPostgresRepository(deps.DB))
+		service = warehouse.NewService(warehouse.NewPostgresRepository(deps.DB), inventoryReferences)
 	}
 
 	if service == nil {
@@ -181,7 +182,8 @@ func registerSKURoutes(router gin.IRouter, deps Dependencies) {
 		if materialValidator == nil {
 			materialValidator = material.NewService(material.NewPostgresRepository(deps.DB))
 		}
-		service = sku.NewService(sku.NewPostgresRepository(deps.DB), materialValidator)
+		inventoryReferences := inventory.NewReferenceService(inventory.NewPostgresRepository(deps.DB))
+		service = sku.NewService(sku.NewPostgresRepository(deps.DB), materialValidator, inventoryReferences)
 	}
 
 	if service == nil {

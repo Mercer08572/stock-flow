@@ -12,6 +12,7 @@ type Querier interface {
 	CreateWarehouse(ctx context.Context, arg CreateWarehouseParams) (CreateWarehouseRow, error)
 	DisableWarehouse(ctx context.Context, id int64) (DisableWarehouseRow, error)
 	GetWarehouseByID(ctx context.Context, id int64) (GetWarehouseByIDRow, error)
+	GetWarehouseReference(ctx context.Context, id int64) (GetWarehouseReferenceRow, error)
 	ListWarehouses(ctx context.Context, arg ListWarehousesParams) ([]ListWarehousesRow, error)
 	SoftDeleteWarehouse(ctx context.Context, id int64) (int64, error)
 	UpdateWarehouse(ctx context.Context, arg UpdateWarehouseParams) (UpdateWarehouseRow, error)

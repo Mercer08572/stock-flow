@@ -21,14 +21,16 @@ type Repository interface {
 	GetStock(ctx context.Context, warehouseID int64, skuID int64) (*StockBalance, error)
 	ListLayers(ctx context.Context, filter ListLayersFilter) ([]StockLayer, error)
 	BatchExistsForSKU(ctx context.Context, batchID int64, skuID int64) (bool, error)
+	HasWarehouseReferences(ctx context.Context, warehouseID int64) (bool, error)
+	HasSKUReferences(ctx context.Context, skuID int64) (bool, error)
 }
 
 type WarehouseReader interface {
-	Get(ctx context.Context, id int64) (*warehouse.Warehouse, error)
+	GetReference(ctx context.Context, id int64) (*warehouse.Reference, error)
 }
 
 type SKUReader interface {
-	Get(ctx context.Context, id int64) (*sku.SKU, error)
+	GetReference(ctx context.Context, id int64) (*sku.Reference, error)
 }
 
 type service struct {
@@ -52,12 +54,12 @@ func (s *service) ListStocks(ctx context.Context, filter ListStocksFilter) (Stoc
 	}
 
 	if normalized.WarehouseID != nil {
-		if err := s.validateWarehouse(ctx, *normalized.WarehouseID); err != nil {
+		if _, err := s.getWarehouseReference(ctx, *normalized.WarehouseID); err != nil {
 			return StockListResult{}, err
 		}
 	}
 	if normalized.SKUID != nil {
-		if err := s.validateSKU(ctx, *normalized.SKUID); err != nil {
+		if _, err := s.getSKUReference(ctx, *normalized.SKUID); err != nil {
 			return StockListResult{}, err
 		}
 	}
@@ -68,6 +70,9 @@ func (s *service) ListStocks(ctx context.Context, filter ListStocksFilter) (Stoc
 	}
 	for i := range items {
 		if err := applyStockAvailable(&items[i]); err != nil {
+			return StockListResult{}, err
+		}
+		if err := s.applyStockReferences(ctx, &items[i]); err != nil {
 			return StockListResult{}, err
 		}
 	}
@@ -84,10 +89,12 @@ func (s *service) GetStock(ctx context.Context, query GetStockQuery) (*StockBala
 	if err != nil {
 		return nil, err
 	}
-	if err := s.validateWarehouse(ctx, normalized.WarehouseID); err != nil {
+	warehouseReference, err := s.getWarehouseReference(ctx, normalized.WarehouseID)
+	if err != nil {
 		return nil, err
 	}
-	if err := s.validateSKU(ctx, normalized.SKUID); err != nil {
+	skuReference, err := s.getSKUReference(ctx, normalized.SKUID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -101,6 +108,8 @@ func (s *service) GetStock(ctx context.Context, query GetStockQuery) (*StockBala
 	if err := applyStockAvailable(stock); err != nil {
 		return nil, err
 	}
+	stock.Warehouse = warehouseReference
+	stock.SKU = skuReference
 
 	if normalized.IncludeLayers {
 		layers, err := s.repo.ListLayers(ctx, ListLayersFilter{
@@ -116,6 +125,8 @@ func (s *service) GetStock(ctx context.Context, query GetStockQuery) (*StockBala
 			if err := applyLayerAvailable(&layers[i]); err != nil {
 				return nil, err
 			}
+			layers[i].Warehouse = warehouseReference
+			layers[i].SKU = skuReference
 		}
 		stock.Layers = layers
 	}
@@ -128,10 +139,12 @@ func (s *service) ListLayers(ctx context.Context, filter ListLayersFilter) (Laye
 	if err != nil {
 		return LayerListResult{}, err
 	}
-	if err := s.validateWarehouse(ctx, normalized.WarehouseID); err != nil {
+	warehouseReference, err := s.getWarehouseReference(ctx, normalized.WarehouseID)
+	if err != nil {
 		return LayerListResult{}, err
 	}
-	if err := s.validateSKU(ctx, normalized.SKUID); err != nil {
+	skuReference, err := s.getSKUReference(ctx, normalized.SKUID)
+	if err != nil {
 		return LayerListResult{}, err
 	}
 	if normalized.BatchID != nil {
@@ -152,6 +165,8 @@ func (s *service) ListLayers(ctx context.Context, filter ListLayersFilter) (Laye
 		if err := applyLayerAvailable(&items[i]); err != nil {
 			return LayerListResult{}, err
 		}
+		items[i].Warehouse = warehouseReference
+		items[i].SKU = skuReference
 	}
 
 	return LayerListResult{
@@ -161,37 +176,54 @@ func (s *service) ListLayers(ctx context.Context, filter ListLayersFilter) (Laye
 	}, nil
 }
 
-func (s *service) validateWarehouse(ctx context.Context, id int64) error {
+func (s *service) getWarehouseReference(ctx context.Context, id int64) (*warehouse.Reference, error) {
 	if s.warehouseReader == nil {
-		return errors.New("inventory warehouse reader is required")
+		return nil, errors.New("inventory warehouse reader is required")
 	}
-	if _, err := s.warehouseReader.Get(ctx, id); err != nil {
+	reference, err := s.warehouseReader.GetReference(ctx, id)
+	if err != nil {
 		if errors.Is(err, warehouse.ErrNotFound) {
-			return ErrWarehouseNotFound
+			return nil, ErrWarehouseNotFound
 		}
 		if warehouse.IsValidationError(err) {
-			return NewValidationError(err.Error())
+			return nil, NewValidationError(err.Error())
 		}
-		return err
+		return nil, err
 	}
 
-	return nil
+	return reference, nil
 }
 
-func (s *service) validateSKU(ctx context.Context, id int64) error {
+func (s *service) getSKUReference(ctx context.Context, id int64) (*sku.Reference, error) {
 	if s.skuReader == nil {
-		return errors.New("inventory sku reader is required")
+		return nil, errors.New("inventory sku reader is required")
 	}
-	if _, err := s.skuReader.Get(ctx, id); err != nil {
+	reference, err := s.skuReader.GetReference(ctx, id)
+	if err != nil {
 		if errors.Is(err, sku.ErrNotFound) {
-			return ErrSKUNotFound
+			return nil, ErrSKUNotFound
 		}
 		if sku.IsValidationError(err) {
-			return NewValidationError(err.Error())
+			return nil, NewValidationError(err.Error())
 		}
+		return nil, err
+	}
+
+	return reference, nil
+}
+
+func (s *service) applyStockReferences(ctx context.Context, stock *StockBalance) error {
+	warehouseReference, err := s.getWarehouseReference(ctx, stock.WarehouseID)
+	if err != nil {
+		return err
+	}
+	skuReference, err := s.getSKUReference(ctx, stock.SKUID)
+	if err != nil {
 		return err
 	}
 
+	stock.Warehouse = warehouseReference
+	stock.SKU = skuReference
 	return nil
 }
 

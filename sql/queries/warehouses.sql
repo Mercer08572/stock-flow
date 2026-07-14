@@ -33,6 +33,14 @@ FROM warehouses
 WHERE id = $1
   AND deleted_at IS NULL;
 
+-- name: GetWarehouseReference :one
+SELECT id,
+       code,
+       name,
+       deleted_at
+FROM warehouses
+WHERE id = $1;
+
 -- name: CreateWarehouse :one
 INSERT INTO warehouses (code, name, type, status, location, contact_name, contact_phone, remark)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)

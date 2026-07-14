@@ -181,6 +181,37 @@ func TestServiceDeleteValidatesID(t *testing.T) {
 	}
 }
 
+func TestServiceDeleteRejectsInventoryReference(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepository()
+	repo.skus[1] = sku.SKU{ID: 1, Code: "SKU-001"}
+	checker := &fakeInventoryReferenceChecker{skuReferenced: true}
+
+	service := sku.NewService(repo, &fakeMaterialValidator{}, checker)
+	err := service.Delete(ctx, 1)
+
+	if !errors.Is(err, sku.ErrReferencedByInventory) {
+		t.Fatalf("expected inventory reference conflict, got %v", err)
+	}
+	if _, exists := repo.skus[1]; !exists {
+		t.Fatal("expected referenced sku to remain")
+	}
+}
+
+func TestServiceDeleteAllowsUnreferencedSKU(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepository()
+	repo.skus[1] = sku.SKU{ID: 1, Code: "SKU-001"}
+
+	service := sku.NewService(repo, &fakeMaterialValidator{}, &fakeInventoryReferenceChecker{})
+	if err := service.Delete(ctx, 1); err != nil {
+		t.Fatalf("delete sku: %v", err)
+	}
+	if _, exists := repo.skus[1]; exists {
+		t.Fatal("expected unreferenced sku to be deleted")
+	}
+}
+
 type fakeRepository struct {
 	skus   map[int64]sku.SKU
 	nextID int64
@@ -218,6 +249,14 @@ func (r *fakeRepository) GetByID(_ context.Context, id int64) (*sku.SKU, error) 
 	}
 
 	return &item, nil
+}
+
+func (r *fakeRepository) GetReference(_ context.Context, id int64) (*sku.Reference, error) {
+	item, ok := r.skus[id]
+	if !ok {
+		return nil, sku.ErrNotFound
+	}
+	return &sku.Reference{ID: item.ID, Code: item.Code, Name: item.Name}, nil
 }
 
 func (r *fakeRepository) Create(_ context.Context, input sku.CreateInput) (*sku.SKU, error) {
@@ -291,6 +330,15 @@ func (r *fakeRepository) ActiveSKUExistsForMaterial(_ context.Context, materialI
 type fakeMaterialValidator struct {
 	err   error
 	calls [][2]int64
+}
+
+type fakeInventoryReferenceChecker struct {
+	skuReferenced bool
+	err           error
+}
+
+func (c *fakeInventoryReferenceChecker) HasSKUReferences(context.Context, int64) (bool, error) {
+	return c.skuReferenced, c.err
 }
 
 func (v *fakeMaterialValidator) ValidateSKUUnit(_ context.Context, materialID int64, unitID int64) error {

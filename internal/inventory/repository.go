@@ -95,6 +95,24 @@ func (r *postgresRepository) BatchExistsForSKU(ctx context.Context, batchID int6
 	return exists, nil
 }
 
+func (r *postgresRepository) HasWarehouseReferences(ctx context.Context, warehouseID int64) (bool, error) {
+	referenced, err := r.queries.HasWarehouseInventoryReferences(ctx, warehouseID)
+	if err != nil {
+		return false, mapPostgresError(err)
+	}
+
+	return referenced, nil
+}
+
+func (r *postgresRepository) HasSKUReferences(ctx context.Context, skuID int64) (bool, error) {
+	referenced, err := r.queries.HasSKUInventoryReferences(ctx, skuID)
+	if err != nil {
+		return false, mapPostgresError(err)
+	}
+
+	return referenced, nil
+}
+
 func mapPostgresError(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound

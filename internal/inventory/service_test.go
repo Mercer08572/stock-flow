@@ -35,6 +35,36 @@ func TestServiceGetStockCalculatesAvailableQty(t *testing.T) {
 	if got.OnHandQty != "10.5" || got.ReservedQty != "3.125" {
 		t.Fatalf("expected normalized quantities, got on_hand=%q reserved=%q", got.OnHandQty, got.ReservedQty)
 	}
+	if got.Warehouse == nil || got.Warehouse.ID != 1 || got.SKU == nil || got.SKU.ID != 2 {
+		t.Fatalf("expected warehouse and sku references, got %#v", got)
+	}
+}
+
+func TestServiceGetStockAllowsDeletedMasterDataReferences(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepository()
+	repo.stocks[[2]int64{1, 2}] = inventory.StockBalance{
+		WarehouseID: 1,
+		SKUID:       2,
+		OnHandQty:   "0",
+		ReservedQty: "0",
+	}
+	warehouseReader := newFakeWarehouseReader(1)
+	warehouseReader.references[1] = warehouse.Reference{ID: 1, Code: "WH-001", Name: "Main", Deleted: true}
+	skuReader := newFakeSKUReader(2)
+	skuReader.references[2] = sku.Reference{ID: 2, Code: "SKU-001", Name: "Item", Deleted: true}
+
+	service := inventory.NewService(repo, warehouseReader, skuReader)
+	got, err := service.GetStock(ctx, inventory.GetStockQuery{WarehouseID: 1, SKUID: 2})
+	if err != nil {
+		t.Fatalf("get historical stock: %v", err)
+	}
+	if got.Warehouse == nil || !got.Warehouse.Deleted || got.Warehouse.Code != "WH-001" {
+		t.Fatalf("expected deleted warehouse reference, got %#v", got.Warehouse)
+	}
+	if got.SKU == nil || !got.SKU.Deleted || got.SKU.Code != "SKU-001" {
+		t.Fatalf("expected deleted sku reference, got %#v", got.SKU)
+	}
 }
 
 func TestServiceGetStockReturnsZeroBalanceForMissingStock(t *testing.T) {
@@ -224,40 +254,60 @@ func (r *fakeRepository) BatchExistsForSKU(_ context.Context, batchID int64, sku
 	return r.batches[[2]int64{batchID, skuID}], nil
 }
 
+func (r *fakeRepository) HasWarehouseReferences(_ context.Context, warehouseID int64) (bool, error) {
+	for key := range r.stocks {
+		if key[0] == warehouseID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (r *fakeRepository) HasSKUReferences(_ context.Context, skuID int64) (bool, error) {
+	for key := range r.stocks {
+		if key[1] == skuID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 type fakeWarehouseReader struct {
-	warehouses map[int64]bool
+	references map[int64]warehouse.Reference
 }
 
 func newFakeWarehouseReader(ids ...int64) *fakeWarehouseReader {
-	reader := &fakeWarehouseReader{warehouses: make(map[int64]bool)}
+	reader := &fakeWarehouseReader{references: make(map[int64]warehouse.Reference)}
 	for _, id := range ids {
-		reader.warehouses[id] = true
+		reader.references[id] = warehouse.Reference{ID: id}
 	}
 	return reader
 }
 
-func (r *fakeWarehouseReader) Get(_ context.Context, id int64) (*warehouse.Warehouse, error) {
-	if !r.warehouses[id] {
+func (r *fakeWarehouseReader) GetReference(_ context.Context, id int64) (*warehouse.Reference, error) {
+	reference, exists := r.references[id]
+	if !exists {
 		return nil, warehouse.ErrNotFound
 	}
-	return &warehouse.Warehouse{ID: id}, nil
+	return &reference, nil
 }
 
 type fakeSKUReader struct {
-	skus map[int64]bool
+	references map[int64]sku.Reference
 }
 
 func newFakeSKUReader(ids ...int64) *fakeSKUReader {
-	reader := &fakeSKUReader{skus: make(map[int64]bool)}
+	reader := &fakeSKUReader{references: make(map[int64]sku.Reference)}
 	for _, id := range ids {
-		reader.skus[id] = true
+		reader.references[id] = sku.Reference{ID: id}
 	}
 	return reader
 }
 
-func (r *fakeSKUReader) Get(_ context.Context, id int64) (*sku.SKU, error) {
-	if !r.skus[id] {
+func (r *fakeSKUReader) GetReference(_ context.Context, id int64) (*sku.Reference, error) {
+	reference, exists := r.references[id]
+	if !exists {
 		return nil, sku.ErrNotFound
 	}
-	return &sku.SKU{ID: id}, nil
+	return &reference, nil
 }

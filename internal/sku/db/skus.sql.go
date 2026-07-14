@@ -137,6 +137,34 @@ func (q *Queries) GetSKUByID(ctx context.Context, id int64) (GetSKUByIDRow, erro
 	return i, err
 }
 
+const getSKUReference = `-- name: GetSKUReference :one
+SELECT id,
+       code,
+       name,
+       deleted_at
+FROM skus
+WHERE id = $1
+`
+
+type GetSKUReferenceRow struct {
+	ID        int64              `db:"id" json:"id"`
+	Code      string             `db:"code" json:"code"`
+	Name      string             `db:"name" json:"name"`
+	DeletedAt pgtype.Timestamptz `db:"deleted_at" json:"deleted_at"`
+}
+
+func (q *Queries) GetSKUReference(ctx context.Context, id int64) (GetSKUReferenceRow, error) {
+	row := q.db.QueryRow(ctx, getSKUReference, id)
+	var i GetSKUReferenceRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const listSKUs = `-- name: ListSKUs :many
 SELECT id,
        material_id,

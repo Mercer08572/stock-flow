@@ -49,6 +49,15 @@ func (r *postgresRepository) GetByID(ctx context.Context, id int64) (*Warehouse,
 	return &warehouse, nil
 }
 
+func (r *postgresRepository) GetReference(ctx context.Context, id int64) (*Reference, error) {
+	row, err := r.queries.GetWarehouseReference(ctx, id)
+	if err != nil {
+		return nil, mapPostgresError(err)
+	}
+
+	return &Reference{ID: row.ID, Code: row.Code, Name: row.Name, Deleted: row.DeletedAt.Valid}, nil
+}
+
 func (r *postgresRepository) Create(ctx context.Context, input CreateInput) (*Warehouse, error) {
 	row, err := r.queries.CreateWarehouse(ctx, warehousedb.CreateWarehouseParams{
 		Code:         input.Code,

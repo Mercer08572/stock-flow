@@ -12,6 +12,7 @@ type Querier interface {
 	ActiveSKUExistsForMaterial(ctx context.Context, arg ActiveSKUExistsForMaterialParams) (bool, error)
 	CreateSKU(ctx context.Context, arg CreateSKUParams) (CreateSKURow, error)
 	GetSKUByID(ctx context.Context, id int64) (GetSKUByIDRow, error)
+	GetSKUReference(ctx context.Context, id int64) (GetSKUReferenceRow, error)
 	ListSKUs(ctx context.Context, arg ListSKUsParams) ([]ListSKUsRow, error)
 	SKUCodeExists(ctx context.Context, arg SKUCodeExistsParams) (bool, error)
 	SoftDeleteSKU(ctx context.Context, id int64) (int64, error)

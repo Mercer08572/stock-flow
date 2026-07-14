@@ -11,6 +11,7 @@ import (
 type Service interface {
 	List(ctx context.Context, filter ListFilter) (ListResult, error)
 	Get(ctx context.Context, id int64) (*SKU, error)
+	GetReference(ctx context.Context, id int64) (*Reference, error)
 	Create(ctx context.Context, input CreateInput) (*SKU, error)
 	Update(ctx context.Context, input UpdateInput) (*SKU, error)
 	Delete(ctx context.Context, id int64) error
@@ -19,6 +20,7 @@ type Service interface {
 type Repository interface {
 	List(ctx context.Context, filter ListFilter) ([]SKU, error)
 	GetByID(ctx context.Context, id int64) (*SKU, error)
+	GetReference(ctx context.Context, id int64) (*Reference, error)
 	Create(ctx context.Context, input CreateInput) (*SKU, error)
 	Update(ctx context.Context, input UpdateInput) (*SKU, error)
 	SoftDelete(ctx context.Context, id int64) error
@@ -30,15 +32,26 @@ type MaterialValidator interface {
 	ValidateSKUUnit(ctx context.Context, materialID int64, unitID int64) error
 }
 
+type InventoryReferenceChecker interface {
+	HasSKUReferences(ctx context.Context, skuID int64) (bool, error)
+}
+
 type service struct {
 	repo              Repository
 	materialValidator MaterialValidator
+	referenceChecker  InventoryReferenceChecker
 }
 
-func NewService(repo Repository, materialValidator MaterialValidator) Service {
+func NewService(repo Repository, materialValidator MaterialValidator, referenceCheckers ...InventoryReferenceChecker) Service {
+	var referenceChecker InventoryReferenceChecker
+	if len(referenceCheckers) > 0 {
+		referenceChecker = referenceCheckers[0]
+	}
+
 	return &service{
 		repo:              repo,
 		materialValidator: materialValidator,
+		referenceChecker:  referenceChecker,
 	}
 }
 
@@ -66,6 +79,14 @@ func (s *service) Get(ctx context.Context, id int64) (*SKU, error) {
 	}
 
 	return s.repo.GetByID(ctx, id)
+}
+
+func (s *service) GetReference(ctx context.Context, id int64) (*Reference, error) {
+	if id <= 0 {
+		return nil, NewValidationError("sku id must be greater than zero")
+	}
+
+	return s.repo.GetReference(ctx, id)
 }
 
 func (s *service) Create(ctx context.Context, input CreateInput) (*SKU, error) {
@@ -133,6 +154,17 @@ func (s *service) Update(ctx context.Context, input UpdateInput) (*SKU, error) {
 func (s *service) Delete(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return NewValidationError("sku id must be greater than zero")
+	}
+	if s.referenceChecker == nil {
+		return errors.New("sku inventory reference checker is required")
+	}
+
+	referenced, err := s.referenceChecker.HasSKUReferences(ctx, id)
+	if err != nil {
+		return err
+	}
+	if referenced {
+		return ErrReferencedByInventory
 	}
 
 	return s.repo.SoftDelete(ctx, id)

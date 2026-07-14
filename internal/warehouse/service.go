@@ -2,12 +2,14 @@ package warehouse
 
 import (
 	"context"
+	"errors"
 	"strings"
 )
 
 type Service interface {
 	List(ctx context.Context, filter ListFilter) (ListResult, error)
 	Get(ctx context.Context, id int64) (*Warehouse, error)
+	GetReference(ctx context.Context, id int64) (*Reference, error)
 	Create(ctx context.Context, input CreateInput) (*Warehouse, error)
 	Update(ctx context.Context, input UpdateInput) (*Warehouse, error)
 	Delete(ctx context.Context, id int64) error
@@ -17,6 +19,7 @@ type Service interface {
 type Repository interface {
 	List(ctx context.Context, filter ListFilter) ([]Warehouse, error)
 	GetByID(ctx context.Context, id int64) (*Warehouse, error)
+	GetReference(ctx context.Context, id int64) (*Reference, error)
 	Create(ctx context.Context, input CreateInput) (*Warehouse, error)
 	Update(ctx context.Context, input UpdateInput) (*Warehouse, error)
 	SoftDelete(ctx context.Context, id int64) error
@@ -24,12 +27,22 @@ type Repository interface {
 	WarehouseCodeExists(ctx context.Context, code string, excludeID int64) (bool, error)
 }
 
-type service struct {
-	repo Repository
+type InventoryReferenceChecker interface {
+	HasWarehouseReferences(ctx context.Context, warehouseID int64) (bool, error)
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+type service struct {
+	repo             Repository
+	referenceChecker InventoryReferenceChecker
+}
+
+func NewService(repo Repository, referenceCheckers ...InventoryReferenceChecker) Service {
+	var referenceChecker InventoryReferenceChecker
+	if len(referenceCheckers) > 0 {
+		referenceChecker = referenceCheckers[0]
+	}
+
+	return &service{repo: repo, referenceChecker: referenceChecker}
 }
 
 func (s *service) List(ctx context.Context, filter ListFilter) (ListResult, error) {
@@ -56,6 +69,14 @@ func (s *service) Get(ctx context.Context, id int64) (*Warehouse, error) {
 	}
 
 	return s.repo.GetByID(ctx, id)
+}
+
+func (s *service) GetReference(ctx context.Context, id int64) (*Reference, error) {
+	if id <= 0 {
+		return nil, NewValidationError("warehouse id must be greater than zero")
+	}
+
+	return s.repo.GetReference(ctx, id)
 }
 
 func (s *service) Create(ctx context.Context, input CreateInput) (*Warehouse, error) {
@@ -95,6 +116,17 @@ func (s *service) Update(ctx context.Context, input UpdateInput) (*Warehouse, er
 func (s *service) Delete(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return NewValidationError("warehouse id must be greater than zero")
+	}
+	if s.referenceChecker == nil {
+		return errors.New("warehouse inventory reference checker is required")
+	}
+
+	referenced, err := s.referenceChecker.HasWarehouseReferences(ctx, id)
+	if err != nil {
+		return err
+	}
+	if referenced {
+		return ErrReferencedByInventory
 	}
 
 	return s.repo.SoftDelete(ctx, id)

@@ -30,6 +30,14 @@ FROM skus
 WHERE id = $1
   AND deleted_at IS NULL;
 
+-- name: GetSKUReference :one
+SELECT id,
+       code,
+       name,
+       deleted_at
+FROM skus
+WHERE id = $1;
+
 -- name: CreateSKU :one
 INSERT INTO skus (material_id, code, name, unit_id, status, remark)
 VALUES ($1, $2, $3, $4, $5, $6)

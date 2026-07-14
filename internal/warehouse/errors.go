@@ -3,8 +3,9 @@ package warehouse
 import "errors"
 
 var (
-	ErrNotFound      = errors.New("warehouse not found")
-	ErrDuplicateCode = errors.New("warehouse code already exists")
+	ErrNotFound              = errors.New("warehouse not found")
+	ErrDuplicateCode         = errors.New("warehouse code already exists")
+	ErrReferencedByInventory = errors.New("warehouse is referenced by inventory and cannot be deleted")
 )
 
 type ValidationError struct {

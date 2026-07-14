@@ -132,6 +132,37 @@ func TestServiceDisableWarehouse(t *testing.T) {
 	}
 }
 
+func TestServiceDeleteRejectsInventoryReference(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepository()
+	repo.warehouses[1] = warehouse.Warehouse{ID: 1, Code: "WH-001"}
+	checker := &fakeInventoryReferenceChecker{warehouseReferenced: true}
+
+	service := warehouse.NewService(repo, checker)
+	err := service.Delete(ctx, 1)
+
+	if !errors.Is(err, warehouse.ErrReferencedByInventory) {
+		t.Fatalf("expected inventory reference conflict, got %v", err)
+	}
+	if _, exists := repo.warehouses[1]; !exists {
+		t.Fatal("expected referenced warehouse to remain")
+	}
+}
+
+func TestServiceDeleteAllowsUnreferencedWarehouse(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepository()
+	repo.warehouses[1] = warehouse.Warehouse{ID: 1, Code: "WH-001"}
+
+	service := warehouse.NewService(repo, &fakeInventoryReferenceChecker{})
+	if err := service.Delete(ctx, 1); err != nil {
+		t.Fatalf("delete warehouse: %v", err)
+	}
+	if _, exists := repo.warehouses[1]; exists {
+		t.Fatal("expected unreferenced warehouse to be deleted")
+	}
+}
+
 type fakeRepository struct {
 	warehouses map[int64]warehouse.Warehouse
 	nextID     int64
@@ -166,6 +197,14 @@ func (r *fakeRepository) GetByID(_ context.Context, id int64) (*warehouse.Wareho
 	}
 
 	return &item, nil
+}
+
+func (r *fakeRepository) GetReference(_ context.Context, id int64) (*warehouse.Reference, error) {
+	item, ok := r.warehouses[id]
+	if !ok {
+		return nil, warehouse.ErrNotFound
+	}
+	return &warehouse.Reference{ID: item.ID, Code: item.Code, Name: item.Name}, nil
 }
 
 func (r *fakeRepository) Create(_ context.Context, input warehouse.CreateInput) (*warehouse.Warehouse, error) {
@@ -241,4 +280,13 @@ func (r *fakeRepository) WarehouseCodeExists(_ context.Context, code string, exc
 	}
 
 	return false, nil
+}
+
+type fakeInventoryReferenceChecker struct {
+	warehouseReferenced bool
+	err                 error
+}
+
+func (c *fakeInventoryReferenceChecker) HasWarehouseReferences(context.Context, int64) (bool, error) {
+	return c.warehouseReferenced, c.err
 }
