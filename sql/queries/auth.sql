@@ -1,7 +1,34 @@
 -- name: GetAdminByUsername :one
-SELECT id, username, password_hash, status, created_at, updated_at
+SELECT id, username, password_hash, password_initialized, must_change_password, password_changed_at, status, created_at, updated_at
 FROM admin_users
 WHERE username = $1
+  AND deleted_at IS NULL;
+
+-- name: GetAdminByID :one
+SELECT id, username, password_hash, password_initialized, must_change_password, password_changed_at, status, created_at, updated_at
+FROM admin_users
+WHERE id = $1
+  AND deleted_at IS NULL;
+
+-- name: InitializeAdminPassword :one
+UPDATE admin_users
+SET password_hash = $2,
+    password_initialized = TRUE,
+    must_change_password = TRUE,
+    password_changed_at = NULL,
+    updated_at = NOW()
+WHERE username = $1
+  AND password_initialized = FALSE
+  AND deleted_at IS NULL
+RETURNING id;
+
+-- name: ChangeAdminPassword :execrows
+UPDATE admin_users
+SET password_hash = $2,
+    must_change_password = FALSE,
+    password_changed_at = $3,
+    updated_at = NOW()
+WHERE id = $1
   AND deleted_at IS NULL;
 
 -- name: ListAPIApps :many

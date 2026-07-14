@@ -34,17 +34,21 @@ const (
 type Metadata map[string]any
 
 type AdminUser struct {
-	ID           int64     `json:"id"`
-	Username     string    `json:"username"`
-	PasswordHash string    `json:"-"`
-	Status       Status    `json:"status"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID                  int64      `json:"id"`
+	Username            string     `json:"username"`
+	PasswordHash        string     `json:"-"`
+	PasswordInitialized bool       `json:"-"`
+	MustChangePassword  bool       `json:"must_change_password"`
+	PasswordChangedAt   *time.Time `json:"password_changed_at,omitempty"`
+	Status              Status     `json:"status"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 type AdminIdentity struct {
-	ID       int64  `json:"id"`
-	Username string `json:"username"`
+	ID                 int64  `json:"id"`
+	Username           string `json:"username"`
+	MustChangePassword bool   `json:"must_change_password"`
 }
 
 type APIApp struct {
@@ -79,8 +83,9 @@ type Caller struct {
 }
 
 type AdminCaller struct {
-	AdminUserID int64  `json:"admin_user_id"`
-	Username    string `json:"username"`
+	AdminUserID        int64  `json:"admin_user_id"`
+	Username           string `json:"username"`
+	MustChangePassword bool   `json:"must_change_password"`
 }
 
 type APIAppCaller struct {
@@ -95,6 +100,13 @@ type APIAppCaller struct {
 type LoginInput struct {
 	Username string
 	Password string
+	ClientIP string
+}
+
+type ChangePasswordInput struct {
+	Token           string
+	CurrentPassword string
+	NewPassword     string
 }
 
 type LoginResult struct {
@@ -143,10 +155,11 @@ type IssuedSecret struct {
 }
 
 type Session struct {
-	Token       string
-	AdminUserID int64
-	Username    string
-	ExpiresAt   time.Time
+	Token              string
+	AdminUserID        int64
+	Username           string
+	MustChangePassword bool
+	ExpiresAt          time.Time
 }
 
 func (s Status) IsValid() bool {

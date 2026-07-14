@@ -29,10 +29,10 @@ func TestHandlerAdminLoginSetsSessionCookie(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
 	cookies := rec.Result().Cookies()
-	if len(cookies) != 1 || cookies[0].Name != DefaultSessionCookieName || !cookies[0].HttpOnly || cookies[0].Value == "" {
+	if len(cookies) != 1 || cookies[0].Name != DefaultSessionCookieName || !cookies[0].HttpOnly || cookies[0].SameSite != http.SameSiteLaxMode || cookies[0].Value == "" {
 		t.Fatalf("unexpected login cookie: %+v", cookies)
 	}
-	if strings.Contains(rec.Body.String(), "password") || strings.Contains(rec.Body.String(), "sess_") {
+	if strings.Contains(rec.Body.String(), "admin-test-password") || strings.Contains(rec.Body.String(), "password_hash") || strings.Contains(rec.Body.String(), "sess_") {
 		t.Fatalf("login response exposed sensitive data: %s", rec.Body.String())
 	}
 
@@ -70,7 +70,7 @@ func newHandlerTestRouter(t *testing.T) (Service, *gin.Engine) {
 	if err != nil {
 		t.Fatalf("hash password: %v", err)
 	}
-	repo := &fakeRepository{admin: &AdminUser{ID: 1, Username: "admin", PasswordHash: encoded, Status: StatusActive}}
+	repo := &fakeRepository{admin: &AdminUser{ID: 1, Username: "admin", PasswordHash: encoded, PasswordInitialized: true, Status: StatusActive}}
 	service := NewService(repo, NewInMemorySessionStore(), hasher, ServiceOptions{
 		Random: &sequenceRandom{values: []string{"handler-session"}},
 	})
@@ -78,6 +78,6 @@ func newHandlerTestRouter(t *testing.T) (Service, *gin.Engine) {
 	router := gin.New()
 	router.Use(sharedmiddleware.TraceID())
 	api := router.Group("/api/v1")
-	NewHandler(service, CookieOptions{}).RegisterRoutes(api, middleware.AdminSession())
+	NewHandler(service, CookieOptions{}).RegisterRoutes(api, middleware.AdminSession(), middleware.AdminSessionAllowPasswordChange())
 	return service, router
 }

@@ -3,3 +3,10 @@ gin_mode: release
 http_addr: ":8080"
 database_url: "postgres://user:password@postgres:5432/stock_flow?sslmode=require"
 shutdown_timeout: "10s"
+auth_admin_session_ttl: "8h"
+auth_admin_cookie_same_site: "lax"
+auth_admin_cookie_secure: true
+auth_login_failure_max_attempts: 5
+auth_login_failure_window: "15m"
+auth_login_lockout: "15m"
+auth_login_ip_max_attempts: 30

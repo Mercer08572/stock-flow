@@ -57,6 +57,30 @@ func (q *Queries) BlockAPISecret(ctx context.Context, arg BlockAPISecretParams) 
 	return i, err
 }
 
+const changeAdminPassword = `-- name: ChangeAdminPassword :execrows
+UPDATE admin_users
+SET password_hash = $2,
+    must_change_password = FALSE,
+    password_changed_at = $3,
+    updated_at = NOW()
+WHERE id = $1
+  AND deleted_at IS NULL
+`
+
+type ChangeAdminPasswordParams struct {
+	ID                int64              `db:"id" json:"id"`
+	PasswordHash      string             `db:"password_hash" json:"password_hash"`
+	PasswordChangedAt pgtype.Timestamptz `db:"password_changed_at" json:"password_changed_at"`
+}
+
+func (q *Queries) ChangeAdminPassword(ctx context.Context, arg ChangeAdminPasswordParams) (int64, error) {
+	result, err := q.db.Exec(ctx, changeAdminPassword, arg.ID, arg.PasswordHash, arg.PasswordChangedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createAPIApp = `-- name: CreateAPIApp :one
 INSERT INTO api_apps (app_id, name, description, status, metadata)
 VALUES ($1, $2, $3, $4, $5)
@@ -233,20 +257,59 @@ func (q *Queries) GetAPIAppByIdentifier(ctx context.Context, appID string) (GetA
 	return i, err
 }
 
+const getAdminByID = `-- name: GetAdminByID :one
+SELECT id, username, password_hash, password_initialized, must_change_password, password_changed_at, status, created_at, updated_at
+FROM admin_users
+WHERE id = $1
+  AND deleted_at IS NULL
+`
+
+type GetAdminByIDRow struct {
+	ID                  int64              `db:"id" json:"id"`
+	Username            string             `db:"username" json:"username"`
+	PasswordHash        string             `db:"password_hash" json:"password_hash"`
+	PasswordInitialized bool               `db:"password_initialized" json:"password_initialized"`
+	MustChangePassword  bool               `db:"must_change_password" json:"must_change_password"`
+	PasswordChangedAt   pgtype.Timestamptz `db:"password_changed_at" json:"password_changed_at"`
+	Status              string             `db:"status" json:"status"`
+	CreatedAt           pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+func (q *Queries) GetAdminByID(ctx context.Context, id int64) (GetAdminByIDRow, error) {
+	row := q.db.QueryRow(ctx, getAdminByID, id)
+	var i GetAdminByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.PasswordInitialized,
+		&i.MustChangePassword,
+		&i.PasswordChangedAt,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getAdminByUsername = `-- name: GetAdminByUsername :one
-SELECT id, username, password_hash, status, created_at, updated_at
+SELECT id, username, password_hash, password_initialized, must_change_password, password_changed_at, status, created_at, updated_at
 FROM admin_users
 WHERE username = $1
   AND deleted_at IS NULL
 `
 
 type GetAdminByUsernameRow struct {
-	ID           int64              `db:"id" json:"id"`
-	Username     string             `db:"username" json:"username"`
-	PasswordHash string             `db:"password_hash" json:"password_hash"`
-	Status       string             `db:"status" json:"status"`
-	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID                  int64              `db:"id" json:"id"`
+	Username            string             `db:"username" json:"username"`
+	PasswordHash        string             `db:"password_hash" json:"password_hash"`
+	PasswordInitialized bool               `db:"password_initialized" json:"password_initialized"`
+	MustChangePassword  bool               `db:"must_change_password" json:"must_change_password"`
+	PasswordChangedAt   pgtype.Timestamptz `db:"password_changed_at" json:"password_changed_at"`
+	Status              string             `db:"status" json:"status"`
+	CreatedAt           pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
 
 func (q *Queries) GetAdminByUsername(ctx context.Context, username string) (GetAdminByUsernameRow, error) {
@@ -256,11 +319,39 @@ func (q *Queries) GetAdminByUsername(ctx context.Context, username string) (GetA
 		&i.ID,
 		&i.Username,
 		&i.PasswordHash,
+		&i.PasswordInitialized,
+		&i.MustChangePassword,
+		&i.PasswordChangedAt,
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const initializeAdminPassword = `-- name: InitializeAdminPassword :one
+UPDATE admin_users
+SET password_hash = $2,
+    password_initialized = TRUE,
+    must_change_password = TRUE,
+    password_changed_at = NULL,
+    updated_at = NOW()
+WHERE username = $1
+  AND password_initialized = FALSE
+  AND deleted_at IS NULL
+RETURNING id
+`
+
+type InitializeAdminPasswordParams struct {
+	Username     string `db:"username" json:"username"`
+	PasswordHash string `db:"password_hash" json:"password_hash"`
+}
+
+func (q *Queries) InitializeAdminPassword(ctx context.Context, arg InitializeAdminPasswordParams) (int64, error) {
+	row := q.db.QueryRow(ctx, initializeAdminPassword, arg.Username, arg.PasswordHash)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const listAPIApps = `-- name: ListAPIApps :many

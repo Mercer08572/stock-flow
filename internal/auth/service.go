@@ -25,6 +25,8 @@ type Service interface {
 	Login(ctx context.Context, input LoginInput) (LoginResult, error)
 	Logout(ctx context.Context, token string) error
 	Me(ctx context.Context, token string) (AdminIdentity, error)
+	ChangePassword(ctx context.Context, input ChangePasswordInput) (LoginResult, error)
+	InitializeAdminPassword(ctx context.Context, username string, password string) error
 	ListAPIApps(ctx context.Context, filter ListFilter) (APIAppListResult, error)
 	GetAPIApp(ctx context.Context, id int64) (*APIApp, error)
 	CreateAPIApp(ctx context.Context, input CreateAPIAppInput) (*APIApp, error)
@@ -37,6 +39,9 @@ type Service interface {
 
 type Repository interface {
 	GetAdminByUsername(ctx context.Context, username string) (*AdminUser, error)
+	GetAdminByID(ctx context.Context, id int64) (*AdminUser, error)
+	InitializeAdminPassword(ctx context.Context, username string, passwordHash string) error
+	ChangeAdminPassword(ctx context.Context, id int64, passwordHash string, changedAt time.Time) error
 	ListAPIApps(ctx context.Context, filter ListFilter) ([]APIApp, error)
 	GetAPIAppByID(ctx context.Context, id int64) (*APIApp, error)
 	GetAPIAppByIdentifier(ctx context.Context, appID string) (*APIApp, error)
@@ -55,18 +60,24 @@ type RandomGenerator interface {
 }
 
 type ServiceOptions struct {
-	SessionTTL time.Duration
-	Now        func() time.Time
-	Random     RandomGenerator
+	SessionTTL         time.Duration
+	Now                func() time.Time
+	Random             RandomGenerator
+	LoginRateLimiter   LoginRateLimiter
+	LoginFailurePolicy RateLimitPolicy
+	LoginIPPolicy      RateLimitPolicy
 }
 
 type service struct {
-	repo       Repository
-	sessions   SessionStore
-	passwords  PasswordHasher
-	sessionTTL time.Duration
-	now        func() time.Time
-	random     RandomGenerator
+	repo               Repository
+	sessions           SessionStore
+	passwords          PasswordHasher
+	sessionTTL         time.Duration
+	now                func() time.Time
+	random             RandomGenerator
+	loginRateLimiter   LoginRateLimiter
+	loginFailurePolicy RateLimitPolicy
+	loginIPPolicy      RateLimitPolicy
 }
 
 func NewService(repo Repository, sessions SessionStore, passwords PasswordHasher, options ServiceOptions) Service {
@@ -79,31 +90,67 @@ func NewService(repo Repository, sessions SessionStore, passwords PasswordHasher
 	if options.Random == nil {
 		options.Random = cryptoRandomGenerator{}
 	}
+	if options.LoginRateLimiter == nil {
+		options.LoginRateLimiter = NewInMemoryLoginRateLimiter(options.Now)
+	}
+	if options.LoginFailurePolicy.MaxAttempts <= 0 {
+		options.LoginFailurePolicy = RateLimitPolicy{MaxAttempts: 5, Window: 15 * time.Minute, Lockout: 15 * time.Minute}
+	}
+	if options.LoginIPPolicy.MaxAttempts <= 0 {
+		options.LoginIPPolicy = RateLimitPolicy{MaxAttempts: 30, Window: 15 * time.Minute, Lockout: 15 * time.Minute}
+	}
 
 	return &service{
-		repo:       repo,
-		sessions:   sessions,
-		passwords:  passwords,
-		sessionTTL: options.SessionTTL,
-		now:        options.Now,
-		random:     options.Random,
+		repo:               repo,
+		sessions:           sessions,
+		passwords:          passwords,
+		sessionTTL:         options.SessionTTL,
+		now:                options.Now,
+		random:             options.Random,
+		loginRateLimiter:   options.LoginRateLimiter,
+		loginFailurePolicy: options.LoginFailurePolicy,
+		loginIPPolicy:      options.LoginIPPolicy,
 	}
 }
 
 func (s *service) Login(ctx context.Context, input LoginInput) (LoginResult, error) {
 	input.Username = strings.TrimSpace(input.Username)
+	normalizedUsername := strings.ToLower(input.Username)
+	clientIP := strings.TrimSpace(input.ClientIP)
+	failureKey := "login:" + clientIP + ":" + normalizedUsername
+	ipKey := "login-ip:" + clientIP
+	if retryAfter, err := s.loginRateLimiter.Check(ctx, ipKey, s.loginIPPolicy); err != nil {
+		return LoginResult{}, err
+	} else if retryAfter > 0 {
+		return LoginResult{}, &RateLimitError{RetryAfter: retryAfter}
+	}
+	if retryAfter, err := s.loginRateLimiter.Check(ctx, failureKey, s.loginFailurePolicy); err != nil {
+		return LoginResult{}, err
+	} else if retryAfter > 0 {
+		return LoginResult{}, &RateLimitError{RetryAfter: retryAfter}
+	}
+	if err := s.loginRateLimiter.Record(ctx, ipKey, s.loginIPPolicy); err != nil {
+		return LoginResult{}, err
+	}
 	if input.Username == "" || input.Password == "" {
+		_ = s.loginRateLimiter.Record(ctx, failureKey, s.loginFailurePolicy)
 		return LoginResult{}, ErrInvalidCredentials
 	}
 
 	admin, err := s.repo.GetAdminByUsername(ctx, input.Username)
 	if err != nil {
 		if errors.Is(err, ErrAdminNotFound) {
+			_ = s.loginRateLimiter.Record(ctx, failureKey, s.loginFailurePolicy)
 			return LoginResult{}, ErrInvalidCredentials
 		}
 		return LoginResult{}, err
 	}
 	if admin.Status != StatusActive {
+		_ = s.loginRateLimiter.Record(ctx, failureKey, s.loginFailurePolicy)
+		return LoginResult{}, ErrInvalidCredentials
+	}
+	if !admin.PasswordInitialized {
+		_ = s.loginRateLimiter.Record(ctx, failureKey, s.loginFailurePolicy)
 		return LoginResult{}, ErrInvalidCredentials
 	}
 
@@ -112,9 +159,14 @@ func (s *service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 		return LoginResult{}, fmt.Errorf("verify admin password: %w", err)
 	}
 	if !valid {
+		_ = s.loginRateLimiter.Record(ctx, failureKey, s.loginFailurePolicy)
 		return LoginResult{}, ErrInvalidCredentials
 	}
+	_ = s.loginRateLimiter.Reset(ctx, failureKey)
+	return s.issueSession(ctx, admin)
+}
 
+func (s *service) issueSession(ctx context.Context, admin *AdminUser) (LoginResult, error) {
 	token, err := s.random.Generate("sess_", 32)
 	if err != nil {
 		return LoginResult{}, fmt.Errorf("generate admin session: %w", err)
@@ -123,19 +175,84 @@ func (s *service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 	now := s.now()
 	expiresAt := now.Add(s.sessionTTL)
 	if err := s.sessions.Save(ctx, Session{
-		Token:       token,
-		AdminUserID: admin.ID,
-		Username:    admin.Username,
-		ExpiresAt:   expiresAt,
+		Token:              token,
+		AdminUserID:        admin.ID,
+		Username:           admin.Username,
+		MustChangePassword: admin.MustChangePassword,
+		ExpiresAt:          expiresAt,
 	}); err != nil {
 		return LoginResult{}, fmt.Errorf("save admin session: %w", err)
 	}
 
 	return LoginResult{
-		Admin:     AdminIdentity{ID: admin.ID, Username: admin.Username},
+		Admin:     AdminIdentity{ID: admin.ID, Username: admin.Username, MustChangePassword: admin.MustChangePassword},
 		Token:     token,
 		ExpiresAt: expiresAt,
 	}, nil
+}
+
+func (s *service) InitializeAdminPassword(ctx context.Context, username string, password string) error {
+	username = strings.TrimSpace(username)
+	if err := validateNewPassword(username, password); err != nil {
+		return err
+	}
+	hash, err := s.passwords.Hash(password)
+	if err != nil {
+		return fmt.Errorf("hash initial admin password: %w", err)
+	}
+	return s.repo.InitializeAdminPassword(ctx, username, hash)
+}
+
+func (s *service) ChangePassword(ctx context.Context, input ChangePasswordInput) (LoginResult, error) {
+	caller, err := s.AuthenticateAdminSession(ctx, input.Token)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	admin, err := s.repo.GetAdminByID(ctx, caller.Admin.AdminUserID)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	valid, err := s.passwords.Verify(input.CurrentPassword, admin.PasswordHash)
+	if err != nil {
+		return LoginResult{}, fmt.Errorf("verify current admin password: %w", err)
+	}
+	if !valid {
+		return LoginResult{}, ErrInvalidCredentials
+	}
+	if same, err := s.passwords.Verify(input.NewPassword, admin.PasswordHash); err != nil {
+		return LoginResult{}, fmt.Errorf("compare new admin password: %w", err)
+	} else if same {
+		return LoginResult{}, NewValidationError("new password must differ from current password")
+	}
+	if err := validateNewPassword(admin.Username, input.NewPassword); err != nil {
+		return LoginResult{}, err
+	}
+	hash, err := s.passwords.Hash(input.NewPassword)
+	if err != nil {
+		return LoginResult{}, fmt.Errorf("hash new admin password: %w", err)
+	}
+	changedAt := s.now()
+	if err := s.repo.ChangeAdminPassword(ctx, admin.ID, hash, changedAt); err != nil {
+		return LoginResult{}, err
+	}
+	if err := s.sessions.DeleteByAdminUserID(ctx, admin.ID); err != nil {
+		return LoginResult{}, err
+	}
+	admin.PasswordHash = hash
+	admin.MustChangePassword = false
+	admin.PasswordChangedAt = &changedAt
+	return s.issueSession(ctx, admin)
+}
+
+func validateNewPassword(username string, password string) error {
+	length := len([]rune(password))
+	if length < 12 || length > 128 {
+		return NewValidationError("password must contain 12 to 128 characters")
+	}
+	if strings.EqualFold(username, password) {
+		return NewValidationError("password must not equal username")
+	}
+	return nil
 }
 
 func (s *service) Logout(ctx context.Context, token string) error {
@@ -150,7 +267,7 @@ func (s *service) Me(ctx context.Context, token string) (AdminIdentity, error) {
 	if err != nil {
 		return AdminIdentity{}, err
 	}
-	return AdminIdentity{ID: caller.Admin.AdminUserID, Username: caller.Admin.Username}, nil
+	return AdminIdentity{ID: caller.Admin.AdminUserID, Username: caller.Admin.Username, MustChangePassword: caller.Admin.MustChangePassword}, nil
 }
 
 func (s *service) AuthenticateAdminSession(ctx context.Context, token string) (Caller, error) {
@@ -173,8 +290,9 @@ func (s *service) AuthenticateAdminSession(ctx context.Context, token string) (C
 	return Caller{
 		Type: CallerTypeAdmin,
 		Admin: &AdminCaller{
-			AdminUserID: session.AdminUserID,
-			Username:    session.Username,
+			AdminUserID:        session.AdminUserID,
+			Username:           session.Username,
+			MustChangePassword: session.MustChangePassword,
 		},
 	}, nil
 }

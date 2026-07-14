@@ -10,11 +10,14 @@ import (
 
 type Querier interface {
 	BlockAPISecret(ctx context.Context, arg BlockAPISecretParams) (BlockAPISecretRow, error)
+	ChangeAdminPassword(ctx context.Context, arg ChangeAdminPasswordParams) (int64, error)
 	CreateAPIApp(ctx context.Context, arg CreateAPIAppParams) (CreateAPIAppRow, error)
 	CreateAPISecret(ctx context.Context, arg CreateAPISecretParams) (CreateAPISecretRow, error)
 	GetAPIAppByID(ctx context.Context, id int64) (GetAPIAppByIDRow, error)
 	GetAPIAppByIdentifier(ctx context.Context, appID string) (GetAPIAppByIdentifierRow, error)
+	GetAdminByID(ctx context.Context, id int64) (GetAdminByIDRow, error)
 	GetAdminByUsername(ctx context.Context, username string) (GetAdminByUsernameRow, error)
+	InitializeAdminPassword(ctx context.Context, arg InitializeAdminPasswordParams) (int64, error)
 	ListAPIApps(ctx context.Context, arg ListAPIAppsParams) ([]ListAPIAppsRow, error)
 	ListAPISecrets(ctx context.Context, apiAppID int64) ([]ListAPISecretsRow, error)
 	ListAPISecretsForAuthentication(ctx context.Context, apiAppID int64) ([]ListAPISecretsForAuthenticationRow, error)

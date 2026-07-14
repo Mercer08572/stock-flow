@@ -16,7 +16,7 @@ func TestServiceLoginVerifiesArgon2idPassword(t *testing.T) {
 	}
 
 	repo := &fakeRepository{admin: &AdminUser{
-		ID: 1, Username: "admin", PasswordHash: encoded, Status: StatusActive,
+		ID: 1, Username: "admin", PasswordHash: encoded, PasswordInitialized: true, Status: StatusActive,
 	}}
 	now := time.Date(2026, 7, 13, 9, 0, 0, 0, time.UTC)
 	service := NewService(repo, NewInMemorySessionStore(), hasher, ServiceOptions{
@@ -75,6 +75,53 @@ func TestServiceLogoutInvalidatesSession(t *testing.T) {
 	}
 	if _, err := service.AuthenticateAdminSession(context.Background(), "current-session"); !errors.Is(err, ErrUnauthorized) {
 		t.Fatalf("expected invalidated session, got %v", err)
+	}
+}
+
+func TestServiceRequiresInitializedPassword(t *testing.T) {
+	hasher := testPasswordHasher()
+	encoded, _ := hasher.Hash("admin-test-password")
+	service := NewService(&fakeRepository{admin: &AdminUser{ID: 1, Username: "admin", PasswordHash: encoded, Status: StatusActive}}, NewInMemorySessionStore(), hasher, ServiceOptions{})
+	_, err := service.Login(context.Background(), LoginInput{Username: "admin", Password: "admin-test-password", ClientIP: "127.0.0.1"})
+	if !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("expected uninitialized password rejection, got %v", err)
+	}
+}
+
+func TestServiceChangePasswordInvalidatesOldSessionsAndIssuesNewSession(t *testing.T) {
+	hasher := testPasswordHasher()
+	encoded, _ := hasher.Hash("admin-test-password")
+	repo := &fakeRepository{admin: &AdminUser{ID: 1, Username: "admin", PasswordHash: encoded, PasswordInitialized: true, MustChangePassword: true, Status: StatusActive}}
+	store := NewInMemorySessionStore()
+	service := NewService(repo, store, hasher, ServiceOptions{Random: &sequenceRandom{values: []string{"old", "new"}}})
+	login, err := service.Login(context.Background(), LoginInput{Username: "admin", Password: "admin-test-password", ClientIP: "127.0.0.1"})
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+	changed, err := service.ChangePassword(context.Background(), ChangePasswordInput{Token: login.Token, CurrentPassword: "admin-test-password", NewPassword: "a-new-secure-password"})
+	if err != nil {
+		t.Fatalf("change password: %v", err)
+	}
+	if changed.Admin.MustChangePassword {
+		t.Fatal("expected forced-password-change state to be cleared")
+	}
+	if _, err := service.AuthenticateAdminSession(context.Background(), login.Token); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("expected old session invalidated, got %v", err)
+	}
+	if _, err := service.AuthenticateAdminSession(context.Background(), changed.Token); err != nil {
+		t.Fatalf("expected new session valid: %v", err)
+	}
+}
+
+func TestServiceRateLimitsRepeatedLoginFailures(t *testing.T) {
+	now := time.Date(2026, 7, 14, 10, 0, 0, 0, time.UTC)
+	service := NewService(&fakeRepository{}, NewInMemorySessionStore(), testPasswordHasher(), ServiceOptions{Now: func() time.Time { return now }, LoginFailurePolicy: RateLimitPolicy{MaxAttempts: 3, Window: 15 * time.Minute, Lockout: 15 * time.Minute}})
+	for range 3 {
+		_, _ = service.Login(context.Background(), LoginInput{Username: "admin", Password: "wrong", ClientIP: "127.0.0.1"})
+	}
+	_, err := service.Login(context.Background(), LoginInput{Username: "admin", Password: "wrong", ClientIP: "127.0.0.1"})
+	if !errors.Is(err, ErrRateLimited) {
+		t.Fatalf("expected rate limit, got %v", err)
 	}
 }
 
@@ -181,6 +228,34 @@ type fakeRepository struct {
 	secrets           []APISecret
 	createdSecretHash string
 	touched           bool
+}
+
+func (r *fakeRepository) GetAdminByID(_ context.Context, id int64) (*AdminUser, error) {
+	if r.admin == nil || r.admin.ID != id {
+		return nil, ErrAdminNotFound
+	}
+	copy := *r.admin
+	return &copy, nil
+}
+
+func (r *fakeRepository) InitializeAdminPassword(_ context.Context, username string, passwordHash string) error {
+	if r.admin == nil || r.admin.Username != username || r.admin.PasswordInitialized {
+		return ErrAdminNotFound
+	}
+	r.admin.PasswordHash = passwordHash
+	r.admin.PasswordInitialized = true
+	r.admin.MustChangePassword = true
+	return nil
+}
+
+func (r *fakeRepository) ChangeAdminPassword(_ context.Context, id int64, passwordHash string, changedAt time.Time) error {
+	if r.admin == nil || r.admin.ID != id {
+		return ErrAdminNotFound
+	}
+	r.admin.PasswordHash = passwordHash
+	r.admin.MustChangePassword = false
+	r.admin.PasswordChangedAt = &changedAt
+	return nil
 }
 
 func (r *fakeRepository) GetAdminByUsername(_ context.Context, username string) (*AdminUser, error) {

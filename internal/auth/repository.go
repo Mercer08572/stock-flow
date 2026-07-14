@@ -33,13 +33,46 @@ func (r *postgresRepository) GetAdminByUsername(ctx context.Context, username st
 	}
 
 	return &AdminUser{
-		ID:           row.ID,
-		Username:     row.Username,
-		PasswordHash: row.PasswordHash,
-		Status:       Status(row.Status),
-		CreatedAt:    row.CreatedAt.Time,
-		UpdatedAt:    row.UpdatedAt.Time,
+		ID:                  row.ID,
+		Username:            row.Username,
+		PasswordHash:        row.PasswordHash,
+		PasswordInitialized: row.PasswordInitialized,
+		MustChangePassword:  row.MustChangePassword,
+		PasswordChangedAt:   timePointer(row.PasswordChangedAt),
+		Status:              Status(row.Status),
+		CreatedAt:           row.CreatedAt.Time,
+		UpdatedAt:           row.UpdatedAt.Time,
 	}, nil
+}
+
+func (r *postgresRepository) GetAdminByID(ctx context.Context, id int64) (*AdminUser, error) {
+	row, err := r.queries.GetAdminByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrAdminNotFound
+		}
+		return nil, err
+	}
+	return &AdminUser{ID: row.ID, Username: row.Username, PasswordHash: row.PasswordHash, PasswordInitialized: row.PasswordInitialized, MustChangePassword: row.MustChangePassword, PasswordChangedAt: timePointer(row.PasswordChangedAt), Status: Status(row.Status), CreatedAt: row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time}, nil
+}
+
+func (r *postgresRepository) InitializeAdminPassword(ctx context.Context, username string, passwordHash string) error {
+	_, err := r.queries.InitializeAdminPassword(ctx, authdb.InitializeAdminPasswordParams{Username: username, PasswordHash: passwordHash})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrAdminNotFound
+	}
+	return err
+}
+
+func (r *postgresRepository) ChangeAdminPassword(ctx context.Context, id int64, passwordHash string, changedAt time.Time) error {
+	rows, err := r.queries.ChangeAdminPassword(ctx, authdb.ChangeAdminPasswordParams{ID: id, PasswordHash: passwordHash, PasswordChangedAt: pgtype.Timestamptz{Time: changedAt, Valid: true}})
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrAdminNotFound
+	}
+	return nil
 }
 
 func (r *postgresRepository) ListAPIApps(ctx context.Context, filter ListFilter) ([]APIApp, error) {

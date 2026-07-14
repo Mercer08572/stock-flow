@@ -12,7 +12,7 @@ import (
 )
 
 type Handler interface {
-	RegisterRoutes(router gin.IRouter, adminSessionMiddleware gin.HandlerFunc)
+	RegisterRoutes(router gin.IRouter, adminSessionMiddleware gin.HandlerFunc, passwordChangeSessionMiddleware gin.HandlerFunc)
 }
 
 type CookieOptions struct {
@@ -35,6 +35,11 @@ type LoginRequest struct {
 type LoginResponse struct {
 	Admin     AdminIdentity `json:"admin"`
 	ExpiresAt time.Time     `json:"expires_at"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
 }
 
 type CreateAPIAppRequest struct {
@@ -70,14 +75,18 @@ func NewHandler(service Service, cookie CookieOptions) Handler {
 	return &handler{service: service, cookie: cookie}
 }
 
-func (h *handler) RegisterRoutes(router gin.IRouter, adminSessionMiddleware gin.HandlerFunc) {
+func (h *handler) RegisterRoutes(router gin.IRouter, adminSessionMiddleware gin.HandlerFunc, passwordChangeSessionMiddleware gin.HandlerFunc) {
 	authRoutes := router.Group("/auth")
 	authRoutes.POST("/admin/login", h.Login)
 
+	restricted := authRoutes.Group("")
+	restricted.Use(passwordChangeSessionMiddleware)
+	restricted.POST("/admin/logout", h.Logout)
+	restricted.GET("/admin/me", h.Me)
+	restricted.PUT("/admin/password", h.ChangePassword)
+
 	admin := authRoutes.Group("")
 	admin.Use(adminSessionMiddleware)
-	admin.POST("/admin/logout", h.Logout)
-	admin.GET("/admin/me", h.Me)
 	admin.GET("/apps", h.ListAPIApps)
 	admin.POST("/apps", h.CreateAPIApp)
 	admin.GET("/apps/:id", h.GetAPIApp)
@@ -95,12 +104,32 @@ func (h *handler) Login(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.Login(c.Request.Context(), LoginInput{Username: req.Username, Password: req.Password})
+	result, err := h.service.Login(c.Request.Context(), LoginInput{Username: req.Username, Password: req.Password, ClientIP: c.ClientIP()})
 	if err != nil {
 		writeAuthError(c, err)
 		return
 	}
 
+	h.setSessionCookie(c, result.Token, result.ExpiresAt)
+	response.Success(c, LoginResponse{Admin: result.Admin, ExpiresAt: result.ExpiresAt})
+}
+
+func (h *handler) ChangePassword(c *gin.Context) {
+	var req ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeAuthError(c, NewValidationError("request body must be valid JSON"))
+		return
+	}
+	token, err := c.Cookie(h.cookie.Name)
+	if err != nil {
+		writeAuthError(c, ErrUnauthorized)
+		return
+	}
+	result, err := h.service.ChangePassword(c.Request.Context(), ChangePasswordInput{Token: token, CurrentPassword: req.CurrentPassword, NewPassword: req.NewPassword})
+	if err != nil {
+		writeAuthError(c, err)
+		return
+	}
 	h.setSessionCookie(c, result.Token, result.ExpiresAt)
 	response.Success(c, LoginResponse{Admin: result.Admin, ExpiresAt: result.ExpiresAt})
 }
@@ -324,6 +353,18 @@ func writeAuthError(c *gin.Context, err error) {
 		response.Error(c, http.StatusBadRequest, response.CodeBadRequest, err.Error())
 	case errors.Is(err, ErrInvalidCredentials), errors.Is(err, ErrUnauthorized), errors.Is(err, ErrSessionExpired):
 		response.Error(c, http.StatusUnauthorized, CodeUnauthorized, "authentication failed")
+	case errors.Is(err, ErrPasswordChangeRequired):
+		response.Error(c, http.StatusForbidden, CodeForbidden, err.Error())
+	case errors.Is(err, ErrRateLimited):
+		var limited *RateLimitError
+		if errors.As(err, &limited) {
+			seconds := int64(limited.RetryAfter.Round(time.Second) / time.Second)
+			if seconds < 1 {
+				seconds = 1
+			}
+			c.Header("Retry-After", strconv.FormatInt(seconds, 10))
+		}
+		response.Error(c, http.StatusTooManyRequests, response.CodeBadRequest, "too many login attempts")
 	case errors.Is(err, ErrAPIAppNotFound), errors.Is(err, ErrAPISecretNotFound):
 		response.Error(c, http.StatusNotFound, response.CodeNotFound, err.Error())
 	case errors.Is(err, ErrDuplicateAppID), errors.Is(err, ErrDuplicateSecretID):

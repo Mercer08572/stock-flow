@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -21,22 +22,26 @@ import (
 )
 
 type Dependencies struct {
-	DB                *pgxpool.Pool
-	AuthService       auth.Service
-	Authenticator     auth.Authenticator
-	AuthSessionTTL    time.Duration
-	AuthCookieSecure  bool
-	MaterialService   material.Service
-	UnitService       unit.UnitService
-	CategoryService   category.CategoryService
-	ConversionService conversion.Service
-	SKUService        sku.Service
-	InventoryService  inventory.Service
-	WarehouseService  warehouse.Service
+	DB                     *pgxpool.Pool
+	AuthService            auth.Service
+	Authenticator          auth.Authenticator
+	AuthSessionTTL         time.Duration
+	AuthCookieSecure       bool
+	AuthCookieSameSite     http.SameSite
+	AuthLoginFailurePolicy auth.RateLimitPolicy
+	AuthLoginIPPolicy      auth.RateLimitPolicy
+	MaterialService        material.Service
+	UnitService            unit.UnitService
+	CategoryService        category.CategoryService
+	ConversionService      conversion.Service
+	SKUService             sku.Service
+	InventoryService       inventory.Service
+	WarehouseService       warehouse.Service
 }
 
 func NewRouter(deps Dependencies) *gin.Engine {
 	router := gin.New()
+	_ = router.SetTrustedProxies(nil)
 	router.Use(gin.Logger(), gin.Recovery(), middleware.TraceID())
 	router.GET("/api-docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -50,7 +55,7 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	}
 	authMiddleware := auth.NewMiddleware(authenticator, auth.MiddlewareOptions{})
 	if authService != nil {
-		auth.NewHandler(authService, auth.CookieOptions{Secure: deps.AuthCookieSecure}).RegisterRoutes(api, authMiddleware.AdminSession())
+		auth.NewHandler(authService, auth.CookieOptions{Secure: deps.AuthCookieSecure, SameSite: deps.AuthCookieSameSite}).RegisterRoutes(api, authMiddleware.AdminSession(), authMiddleware.AdminSessionAllowPasswordChange())
 	}
 
 	protected := api.Group("")
@@ -78,7 +83,7 @@ func resolveAuthService(deps Dependencies) auth.Service {
 		auth.NewPostgresRepository(deps.DB),
 		auth.NewInMemorySessionStore(),
 		auth.NewArgon2idPasswordHasher(auth.Argon2idParams{}),
-		auth.ServiceOptions{SessionTTL: deps.AuthSessionTTL},
+		auth.ServiceOptions{SessionTTL: deps.AuthSessionTTL, LoginFailurePolicy: deps.AuthLoginFailurePolicy, LoginIPPolicy: deps.AuthLoginIPPolicy},
 	)
 }
 

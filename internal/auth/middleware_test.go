@@ -81,6 +81,30 @@ func TestProtectedMiddlewareAuthenticationModes(t *testing.T) {
 	}
 }
 
+func TestProtectedMiddlewareRejectsAdminRequiringPasswordChange(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	middleware := NewMiddleware(forcedPasswordChangeAuthenticator{}, MiddlewareOptions{})
+	router := gin.New()
+	router.Use(middleware.Protected())
+	router.GET("/protected", func(c *gin.Context) { c.Status(http.StatusOK) })
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.AddCookie(&http.Cookie{Name: DefaultSessionCookieName, Value: "valid-session"})
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+type forcedPasswordChangeAuthenticator struct{}
+
+func (forcedPasswordChangeAuthenticator) AuthenticateAdminSession(context.Context, string) (Caller, error) {
+	return Caller{Type: CallerTypeAdmin, Admin: &AdminCaller{AdminUserID: 1, Username: "admin", MustChangePassword: true}}, nil
+}
+func (forcedPasswordChangeAuthenticator) AuthenticateAPIApp(context.Context, string, string) (Caller, error) {
+	return Caller{}, ErrUnauthorized
+}
+
 type fakeAuthenticator struct{}
 
 func (a *fakeAuthenticator) AuthenticateAdminSession(context.Context, string) (Caller, error) {

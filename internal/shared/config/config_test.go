@@ -58,6 +58,7 @@ shutdown_timeout: "15s"
 	t.Setenv("DATABASE_URL", "postgres://prod:pass@localhost:5432/app?sslmode=disable")
 	t.Setenv("PORT", ":9090")
 	t.Setenv("SHUTDOWN_TIMEOUT", "30s")
+	t.Setenv("AUTH_ADMIN_COOKIE_SECURE", "true")
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -134,6 +135,13 @@ func clearConfigEnv(t *testing.T) {
 		"PORT",
 		"DATABASE_URL",
 		"SHUTDOWN_TIMEOUT",
+		"AUTH_ADMIN_SESSION_TTL",
+		"AUTH_ADMIN_COOKIE_SAME_SITE",
+		"AUTH_ADMIN_COOKIE_SECURE",
+		"AUTH_LOGIN_FAILURE_MAX_ATTEMPTS",
+		"AUTH_LOGIN_FAILURE_WINDOW",
+		"AUTH_LOGIN_LOCKOUT",
+		"AUTH_LOGIN_IP_MAX_ATTEMPTS",
 	}
 
 	for _, key := range keys {

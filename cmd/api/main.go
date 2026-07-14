@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Mercer08572/stock-flow/internal/auth"
 	"github.com/Mercer08572/stock-flow/internal/shared/config"
 	"github.com/Mercer08572/stock-flow/internal/shared/database"
 	httpserver "github.com/Mercer08572/stock-flow/internal/shared/http"
@@ -47,8 +48,12 @@ func run() error {
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpserver.NewRouter(httpserver.Dependencies{
-			DB:               db,
-			AuthCookieSecure: cfg.Environment == "production",
+			DB:                     db,
+			AuthSessionTTL:         cfg.AuthAdminSessionTTL,
+			AuthCookieSecure:       cfg.AuthAdminCookieSecure,
+			AuthCookieSameSite:     sameSiteMode(cfg.AuthAdminCookieSameSite),
+			AuthLoginFailurePolicy: auth.RateLimitPolicy{MaxAttempts: cfg.AuthLoginFailureMaxAttempts, Window: cfg.AuthLoginFailureWindow, Lockout: cfg.AuthLoginLockout},
+			AuthLoginIPPolicy:      auth.RateLimitPolicy{MaxAttempts: cfg.AuthLoginIPMaxAttempts, Window: cfg.AuthLoginFailureWindow, Lockout: cfg.AuthLoginLockout},
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
@@ -73,4 +78,15 @@ func run() error {
 	defer cancel()
 
 	return server.Shutdown(shutdownCtx)
+}
+
+func sameSiteMode(value string) http.SameSite {
+	switch value {
+	case "strict":
+		return http.SameSiteStrictMode
+	case "none":
+		return http.SameSiteNoneMode
+	default:
+		return http.SameSiteLaxMode
+	}
 }

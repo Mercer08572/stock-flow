@@ -10,6 +10,18 @@ type SessionStore interface {
 	Save(ctx context.Context, session Session) error
 	Get(ctx context.Context, token string) (Session, bool, error)
 	Delete(ctx context.Context, token string) error
+	DeleteByAdminUserID(ctx context.Context, adminUserID int64) error
+}
+
+func (s *inMemorySessionStore) DeleteByAdminUserID(_ context.Context, adminUserID int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for key, session := range s.sessions {
+		if session.AdminUserID == adminUserID {
+			delete(s.sessions, key)
+		}
+	}
+	return nil
 }
 
 type inMemorySessionStore struct {

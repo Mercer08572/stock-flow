@@ -16,10 +16,12 @@ const (
 	SecretHeader             = "X-Stock-Flow-Secret"
 	CallerGinContextKey      = "auth_caller"
 	CodeUnauthorized         = 1002
+	CodeForbidden            = 1003
 )
 
 type Middleware interface {
 	AdminSession() gin.HandlerFunc
+	AdminSessionAllowPasswordChange() gin.HandlerFunc
 	APIAppSecret() gin.HandlerFunc
 	Protected() gin.HandlerFunc
 }
@@ -41,6 +43,14 @@ func NewMiddleware(authenticator Authenticator, options MiddlewareOptions) Middl
 }
 
 func (m *authMiddleware) AdminSession() gin.HandlerFunc {
+	return m.adminSession(false)
+}
+
+func (m *authMiddleware) AdminSessionAllowPasswordChange() gin.HandlerFunc {
+	return m.adminSession(true)
+}
+
+func (m *authMiddleware) adminSession(allowPasswordChange bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := m.sessionToken(c)
 		hasAPIHeaders := hasAPIAuthHeaders(c)
@@ -56,6 +66,10 @@ func (m *authMiddleware) AdminSession() gin.HandlerFunc {
 		caller, err := m.authenticator.AuthenticateAdminSession(c.Request.Context(), token)
 		if err != nil {
 			abortAuth(c, err)
+			return
+		}
+		if caller.Admin != nil && caller.Admin.MustChangePassword && !allowPasswordChange {
+			abortAuth(c, ErrPasswordChangeRequired)
 			return
 		}
 		setCaller(c, caller)
@@ -115,6 +129,10 @@ func (m *authMiddleware) Protected() gin.HandlerFunc {
 			abortAuth(c, err)
 			return
 		}
+		if caller.Admin != nil && caller.Admin.MustChangePassword {
+			abortAuth(c, ErrPasswordChangeRequired)
+			return
+		}
 
 		setCaller(c, caller)
 		c.Next()
@@ -165,6 +183,8 @@ func abortAuth(c *gin.Context, err error) {
 		response.Error(c, http.StatusBadRequest, response.CodeBadRequest, err.Error())
 	case errors.Is(err, ErrUnauthorized), errors.Is(err, ErrInvalidCredentials), errors.Is(err, ErrSessionExpired), errors.Is(err, ErrAPISecretNotFound):
 		response.Error(c, http.StatusUnauthorized, CodeUnauthorized, "authentication failed")
+	case errors.Is(err, ErrPasswordChangeRequired):
+		response.Error(c, http.StatusForbidden, CodeForbidden, err.Error())
 	default:
 		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "internal server error")
 	}
