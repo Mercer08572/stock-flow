@@ -62,6 +62,10 @@ type IssueAPISecretRequest struct {
 	ExpiresAt     *time.Time `json:"expires_at"`
 }
 
+type APISecretListResponse struct {
+	Items []APISecret `json:"items"`
+}
+
 func NewHandler(service Service, cookie CookieOptions) Handler {
 	if cookie.Name == "" {
 		cookie.Name = DefaultSessionCookieName
@@ -97,6 +101,18 @@ func (h *handler) RegisterRoutes(router gin.IRouter, adminSessionMiddleware gin.
 	admin.POST("/apps/:id/secrets/:secret_id/block", h.BlockAPISecret)
 }
 
+// Login logs in an administrator and sets the admin session cookie.
+// @Summary Log in as an administrator
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param body body LoginRequest true "Administrator login payload"
+// @Success 200 {object} response.Body{data=LoginResponse}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 429 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/admin/login [post]
 func (h *handler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -114,6 +130,17 @@ func (h *handler) Login(c *gin.Context) {
 	response.Success(c, LoginResponse{Admin: result.Admin, ExpiresAt: result.ExpiresAt})
 }
 
+// ChangePassword changes the current administrator password and renews the session.
+// @Summary Change the administrator password
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param body body ChangePasswordRequest true "Password change payload"
+// @Success 200 {object} response.Body{data=LoginResponse}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/admin/password [put]
 func (h *handler) ChangePassword(c *gin.Context) {
 	var req ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -134,6 +161,15 @@ func (h *handler) ChangePassword(c *gin.Context) {
 	response.Success(c, LoginResponse{Admin: result.Admin, ExpiresAt: result.ExpiresAt})
 }
 
+// Logout invalidates the current administrator session.
+// @Summary Log out the current administrator
+// @Tags Authentication
+// @Produce json
+// @Success 200 {object} response.Body
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/admin/logout [post]
 func (h *handler) Logout(c *gin.Context) {
 	token, err := c.Cookie(h.cookie.Name)
 	if err != nil {
@@ -149,6 +185,15 @@ func (h *handler) Logout(c *gin.Context) {
 	response.NoContent(c)
 }
 
+// Me returns the current administrator identity.
+// @Summary Get the current administrator
+// @Tags Authentication
+// @Produce json
+// @Success 200 {object} response.Body{data=AdminIdentity}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/admin/me [get]
 func (h *handler) Me(c *gin.Context) {
 	token, err := c.Cookie(h.cookie.Name)
 	if err != nil {
@@ -163,6 +208,19 @@ func (h *handler) Me(c *gin.Context) {
 	response.Success(c, admin)
 }
 
+// ListAPIApps lists registered API applications.
+// @Summary List API applications
+// @Tags API Applications
+// @Produce json
+// @Param status query string false "API application status" Enums(active,inactive)
+// @Param limit query int false "Page size"
+// @Param offset query int false "Page offset"
+// @Success 200 {object} response.Body{data=APIAppListResult}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 403 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/apps [get]
 func (h *handler) ListAPIApps(c *gin.Context) {
 	filter, err := parseAPIAppListFilter(c)
 	if err != nil {
@@ -177,6 +235,18 @@ func (h *handler) ListAPIApps(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// GetAPIApp returns an API application by its internal ID.
+// @Summary Get an API application
+// @Tags API Applications
+// @Produce json
+// @Param id path int true "API application ID"
+// @Success 200 {object} response.Body{data=APIApp}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 403 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/apps/{id} [get]
 func (h *handler) GetAPIApp(c *gin.Context) {
 	id, err := parseAPIAppID(c)
 	if err != nil {
@@ -191,6 +261,19 @@ func (h *handler) GetAPIApp(c *gin.Context) {
 	response.Success(c, app)
 }
 
+// CreateAPIApp registers an API application.
+// @Summary Create an API application
+// @Tags API Applications
+// @Accept json
+// @Produce json
+// @Param body body CreateAPIAppRequest true "API application payload"
+// @Success 201 {object} response.Body{data=APIApp}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 403 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/apps [post]
 func (h *handler) CreateAPIApp(c *gin.Context) {
 	var req CreateAPIAppRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -207,6 +290,20 @@ func (h *handler) CreateAPIApp(c *gin.Context) {
 	response.Created(c, app)
 }
 
+// UpdateAPIApp updates an API application's basic information.
+// @Summary Update an API application
+// @Tags API Applications
+// @Accept json
+// @Produce json
+// @Param id path int true "API application ID"
+// @Param body body UpdateAPIAppRequest true "API application payload"
+// @Success 200 {object} response.Body{data=APIApp}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 403 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/apps/{id} [put]
 func (h *handler) UpdateAPIApp(c *gin.Context) {
 	id, err := parseAPIAppID(c)
 	if err != nil {
@@ -228,6 +325,18 @@ func (h *handler) UpdateAPIApp(c *gin.Context) {
 	response.Success(c, app)
 }
 
+// DeleteAPIApp soft deletes an API application.
+// @Summary Delete an API application
+// @Tags API Applications
+// @Produce json
+// @Param id path int true "API application ID"
+// @Success 200 {object} response.Body
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 403 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/apps/{id} [delete]
 func (h *handler) DeleteAPIApp(c *gin.Context) {
 	id, err := parseAPIAppID(c)
 	if err != nil {
@@ -241,6 +350,22 @@ func (h *handler) DeleteAPIApp(c *gin.Context) {
 	response.NoContent(c)
 }
 
+// IssueAPISecret issues a new API secret whose plaintext value is returned only once.
+// @Summary Issue an API application secret
+// @Description The plaintext secret is returned only in this response and is not stored by Stock-Flow.
+// @Tags API Applications
+// @Accept json
+// @Produce json
+// @Param id path int true "API application ID"
+// @Param body body IssueAPISecretRequest true "API secret payload"
+// @Success 201 {object} response.Body{data=IssuedSecret}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 403 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/apps/{id}/secrets [post]
 func (h *handler) IssueAPISecret(c *gin.Context) {
 	id, err := parseAPIAppID(c)
 	if err != nil {
@@ -262,6 +387,18 @@ func (h *handler) IssueAPISecret(c *gin.Context) {
 	response.Created(c, secret)
 }
 
+// ListAPISecrets lists API secret records without plaintext secret values.
+// @Summary List API application secrets
+// @Tags API Applications
+// @Produce json
+// @Param id path int true "API application ID"
+// @Success 200 {object} response.Body{data=APISecretListResponse}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 403 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/apps/{id}/secrets [get]
 func (h *handler) ListAPISecrets(c *gin.Context) {
 	id, err := parseAPIAppID(c)
 	if err != nil {
@@ -273,9 +410,22 @@ func (h *handler) ListAPISecrets(c *gin.Context) {
 		writeAuthError(c, err)
 		return
 	}
-	response.Success(c, gin.H{"items": secrets})
+	response.Success(c, APISecretListResponse{Items: secrets})
 }
 
+// BlockAPISecret blocks an API secret from authenticating future requests.
+// @Summary Block an API application secret
+// @Tags API Applications
+// @Produce json
+// @Param id path int true "API application ID"
+// @Param secret_id path string true "API secret identifier"
+// @Success 200 {object} response.Body{data=APISecret}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 403 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/apps/{id}/secrets/{secret_id}/block [post]
 func (h *handler) BlockAPISecret(c *gin.Context) {
 	id, err := parseAPIAppID(c)
 	if err != nil {

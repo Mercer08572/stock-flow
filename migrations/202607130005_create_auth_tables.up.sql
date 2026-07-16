@@ -90,13 +90,6 @@ CREATE INDEX idx_api_secrets_status
     ON api_secrets (status)
     WHERE deleted_at IS NULL;
 
-INSERT INTO admin_users (username, password_hash, status)
-VALUES (
-    'admin',
-    '$argon2id$v=19$m=65536,t=3,p=2$vVNIg7OsW4WbP+jlzYvNPg$7dJKjOrws7Hs2/9FFHOJeeuf/jHoqjQSFwcn0bdfD64',
-    'active'
-);
-
 COMMENT ON TABLE admin_users IS 'Stock-Flow administrator accounts';
 COMMENT ON COLUMN admin_users.password_hash IS 'Encoded Argon2id password hash';
 COMMENT ON TABLE api_apps IS 'Registered external systems allowed to call Stock-Flow APIs';

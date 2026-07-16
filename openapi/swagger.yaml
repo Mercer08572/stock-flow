@@ -1,5 +1,170 @@
 basePath: /api/v1
 definitions:
+  auth.APIApp:
+    properties:
+      app_id:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      metadata:
+        $ref: '#/definitions/auth.Metadata'
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/auth.Status'
+      updated_at:
+        type: string
+    type: object
+  auth.APIAppListResult:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/auth.APIApp'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  auth.APISecret:
+    properties:
+      api_app_id:
+        type: integer
+      bound_metadata:
+        $ref: '#/definitions/auth.Metadata'
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: integer
+      last_used_at:
+        type: string
+      name:
+        type: string
+      secret_id:
+        type: string
+      status:
+        $ref: '#/definitions/auth.SecretStatus'
+      updated_at:
+        type: string
+    type: object
+  auth.APISecretListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/auth.APISecret'
+        type: array
+    type: object
+  auth.AdminIdentity:
+    properties:
+      id:
+        type: integer
+      must_change_password:
+        type: boolean
+      username:
+        type: string
+    type: object
+  auth.ChangePasswordRequest:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        type: string
+    type: object
+  auth.CreateAPIAppRequest:
+    properties:
+      description:
+        type: string
+      metadata:
+        $ref: '#/definitions/auth.Metadata'
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/auth.Status'
+    type: object
+  auth.IssueAPISecretRequest:
+    properties:
+      bound_metadata:
+        $ref: '#/definitions/auth.Metadata'
+      expires_at:
+        type: string
+      name:
+        type: string
+    type: object
+  auth.IssuedSecret:
+    properties:
+      api_app_id:
+        type: integer
+      bound_metadata:
+        $ref: '#/definitions/auth.Metadata'
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: integer
+      last_used_at:
+        type: string
+      name:
+        type: string
+      secret:
+        type: string
+      secret_id:
+        type: string
+      status:
+        $ref: '#/definitions/auth.SecretStatus'
+      updated_at:
+        type: string
+    type: object
+  auth.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  auth.LoginResponse:
+    properties:
+      admin:
+        $ref: '#/definitions/auth.AdminIdentity'
+      expires_at:
+        type: string
+    type: object
+  auth.Metadata:
+    additionalProperties: {}
+    type: object
+  auth.SecretStatus:
+    enum:
+    - active
+    - blocked
+    type: string
+    x-enum-varnames:
+    - SecretStatusActive
+    - SecretStatusBlocked
+  auth.Status:
+    enum:
+    - active
+    - inactive
+    type: string
+    x-enum-varnames:
+    - StatusActive
+    - StatusInactive
+  auth.UpdateAPIAppRequest:
+    properties:
+      description:
+        type: string
+      metadata:
+        $ref: '#/definitions/auth.Metadata'
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/auth.Status'
+    type: object
   category.Category:
     properties:
       code:
@@ -142,10 +307,14 @@ definitions:
         type: string
       reserved_qty:
         type: string
+      sku:
+        $ref: '#/definitions/sku.Reference'
       sku_id:
         type: integer
       updated_at:
         type: string
+      warehouse:
+        $ref: '#/definitions/warehouse.Reference'
       warehouse_id:
         type: integer
     type: object
@@ -165,10 +334,14 @@ definitions:
         type: string
       reserved_qty:
         type: string
+      sku:
+        $ref: '#/definitions/sku.Reference'
       sku_id:
         type: integer
       updated_at:
         type: string
+      warehouse:
+        $ref: '#/definitions/warehouse.Reference'
       warehouse_id:
         type: integer
     type: object
@@ -290,6 +463,17 @@ definitions:
         type: integer
       offset:
         type: integer
+    type: object
+  sku.Reference:
+    properties:
+      code:
+        type: string
+      deleted:
+        type: boolean
+      id:
+        type: integer
+      name:
+        type: string
     type: object
   sku.SKU:
     properties:
@@ -455,6 +639,17 @@ definitions:
       offset:
         type: integer
     type: object
+  warehouse.Reference:
+    properties:
+      code:
+        type: string
+      deleted:
+        type: boolean
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
   warehouse.Status:
     enum:
     - active
@@ -521,6 +716,510 @@ info:
   title: Stock-Flow API
   version: "1.0"
 paths:
+  /auth/admin/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Administrator login payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.LoginResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Log in as an administrator
+      tags:
+      - Authentication
+  /auth/admin/logout:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Log out the current administrator
+      tags:
+      - Authentication
+  /auth/admin/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.AdminIdentity'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Get the current administrator
+      tags:
+      - Authentication
+  /auth/admin/password:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Password change payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.LoginResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Change the administrator password
+      tags:
+      - Authentication
+  /auth/apps:
+    get:
+      parameters:
+      - description: API application status
+        enum:
+        - active
+        - inactive
+        in: query
+        name: status
+        type: string
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Page offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.APIAppListResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: List API applications
+      tags:
+      - API Applications
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: API application payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.CreateAPIAppRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.APIApp'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Create an API application
+      tags:
+      - API Applications
+  /auth/apps/{id}:
+    delete:
+      parameters:
+      - description: API application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Delete an API application
+      tags:
+      - API Applications
+    get:
+      parameters:
+      - description: API application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.APIApp'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Get an API application
+      tags:
+      - API Applications
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: API application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: API application payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.UpdateAPIAppRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.APIApp'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Update an API application
+      tags:
+      - API Applications
+  /auth/apps/{id}/secrets:
+    get:
+      parameters:
+      - description: API application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.APISecretListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: List API application secrets
+      tags:
+      - API Applications
+    post:
+      consumes:
+      - application/json
+      description: The plaintext secret is returned only in this response and is not
+        stored by Stock-Flow.
+      parameters:
+      - description: API application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: API secret payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.IssueAPISecretRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.IssuedSecret'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Issue an API application secret
+      tags:
+      - API Applications
+  /auth/apps/{id}/secrets/{secret_id}/block:
+    post:
+      parameters:
+      - description: API application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: API secret identifier
+        in: path
+        name: secret_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.APISecret'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Block an API application secret
+      tags:
+      - API Applications
   /health:
     get:
       produces:
@@ -1379,6 +2078,10 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
         "500":
           description: Internal Server Error
           schema:
@@ -1773,6 +2476,10 @@ paths:
             $ref: '#/definitions/response.Body'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
           schema:
             $ref: '#/definitions/response.Body'
         "500":
