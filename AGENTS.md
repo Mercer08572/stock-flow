@@ -1,5 +1,9 @@
 # Stock-Flow — AGENTS.md
 
+## Project Scope
+
+This file applies only to the `stock-flow/` backend project. Frontend-specific instructions belong in `../stock-flow-admin/AGENTS.md` and do not apply here.
+
 ## Project Overview
 
 Stock—Flow is a back-end API service for an inventory management system.
@@ -26,25 +30,12 @@ Future modules may include:
 - Reporting
 
 
-## Tech Stack
-
-Backend
+## Backend Tech Stack
 
 - **Language**：Go 1.25+
 - **Web framework**：Gin
 - **Database**：PostgreSQL（use `pgx` driver + `sqlc`）
 - **Migration tool**：golang-migrate
-
-Frontend
-
-- Vue3
-- TypeScript
-- Naive UI
-- AG Grid
-- Pinia
-- Vue Router
-
-This Frontend is not in this project.
 
 ## Architecture 
 
@@ -65,10 +56,6 @@ Examples:
 Modules communicate through application services.
 Cross-module repository access by anti-corruption layer, avoid direct access.
 This service does not own inbound or outbound order modules. External business systems should call inventory operation APIs for stock changes.
-
-## Development Principles
-
-- 
 
 ## Repository Structure
 
