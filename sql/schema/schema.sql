@@ -390,6 +390,7 @@ CREATE TABLE inventory_reservations (
     released_qty    NUMERIC(20,6) NOT NULL DEFAULT 0,
     consumed_qty    NUMERIC(20,6) NOT NULL DEFAULT 0,
     status          TEXT          NOT NULL DEFAULT 'active',
+    close_reason    TEXT          NULL,
     idempotency_key TEXT          NOT NULL,
     source_type     TEXT          NULL,
     source_id       TEXT          NULL,
@@ -407,7 +408,21 @@ CREATE TABLE inventory_reservations (
     CONSTRAINT chk_inventory_reservations_qty_not_exceed_total
         CHECK (released_qty + consumed_qty <= total_qty),
     CONSTRAINT chk_inventory_reservations_status
-        CHECK (status IN ('active', 'released', 'consumed', 'cancelled')),
+        CHECK (status IN ('active', 'closed')),
+    CONSTRAINT chk_inventory_reservations_close_reason
+        CHECK (close_reason IS NULL OR close_reason IN ('consumed', 'released', 'mixed', 'cancelled', 'expired')),
+    CONSTRAINT chk_inventory_reservations_status_matches_close_reason
+        CHECK (
+            (status = 'active' AND close_reason IS NULL)
+            OR
+            (status = 'closed' AND close_reason IS NOT NULL)
+        ),
+    CONSTRAINT chk_inventory_reservations_status_matches_quantities
+        CHECK (
+            (status = 'active' AND released_qty + consumed_qty < total_qty)
+            OR
+            (status = 'closed' AND released_qty + consumed_qty = total_qty)
+        ),
     CONSTRAINT chk_inventory_reservations_idempotency_key_not_blank
         CHECK (btrim(idempotency_key) <> '')
 );
@@ -431,6 +446,11 @@ CREATE INDEX idx_inventory_reservations_source
 CREATE INDEX idx_inventory_reservations_idempotency_key
     ON inventory_reservations (idempotency_key)
     WHERE deleted_at IS NULL;
+
+COMMENT ON COLUMN inventory_reservations.status IS
+    'Reservation lifecycle status: active while quantity remains, closed when fully consumed or released';
+COMMENT ON COLUMN inventory_reservations.close_reason IS
+    'Closure reason: consumed, released, mixed, cancelled, or expired';
 
 CREATE TABLE inventory_reservation_items (
     id             BIGSERIAL     PRIMARY KEY,

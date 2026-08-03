@@ -14,6 +14,19 @@
 - Description: snake_case.
 - Next serial number = current max serial number + 1.
 
+## Migration Metadata
+
+Every `*.up.sql` file must begin with a metadata comment block:
+
+```sql
+-- Migration metadata
+-- status: pending
+-- description: short migration description
+```
+
+`status` is manually maintained and must be either `pending` or `applied`.
+Use `pending` until the migration has been executed in the target database. After execution, update the file to `applied` before making the next schema change. A pending migration may be amended instead of creating another migration file; an applied migration must not be rewritten.
+
 
 ## Must include basic fields when creating a new table.
 

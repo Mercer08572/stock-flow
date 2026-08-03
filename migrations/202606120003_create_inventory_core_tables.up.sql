@@ -1,3 +1,7 @@
+-- Migration metadata
+-- status: applied
+-- description: create inventory batches and stock tables
+
 CREATE TABLE inventory_batches (
     id                BIGSERIAL   PRIMARY KEY,
     sku_id            BIGINT      NOT NULL REFERENCES skus(id),

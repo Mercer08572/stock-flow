@@ -1,3 +1,7 @@
+-- Migration metadata
+-- status: applied
+-- description: create admin and API app authentication tables
+
 CREATE TABLE admin_users (
     id            BIGSERIAL   PRIMARY KEY,
     username      TEXT        NOT NULL,

@@ -1,3 +1,7 @@
+-- Migration metadata
+-- status: applied
+-- description: create basic master data tables
+
 CREATE TABLE units (
     id         BIGSERIAL   PRIMARY KEY,
     code       TEXT        NOT NULL,

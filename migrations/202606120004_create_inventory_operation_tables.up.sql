@@ -1,3 +1,7 @@
+-- Migration metadata
+-- status: applied
+-- description: create reservations, movements, and idempotency tables
+
 CREATE TABLE inventory_reservations (
     id              BIGSERIAL     PRIMARY KEY,
     warehouse_id    BIGINT        NOT NULL REFERENCES warehouses(id),

@@ -1,3 +1,7 @@
+-- Migration metadata
+-- status: applied
+-- description: create SKU and warehouse tables
+
 CREATE TABLE skus (
     id          BIGSERIAL   PRIMARY KEY,
     material_id BIGINT      NOT NULL REFERENCES materials(id),

@@ -429,6 +429,7 @@ total_qty           NUMERIC(20,6) NOT NULL
 released_qty        NUMERIC(20,6) NOT NULL DEFAULT 0
 consumed_qty        NUMERIC(20,6) NOT NULL DEFAULT 0
 status              TEXT NOT NULL DEFAULT 'active'
+close_reason        TEXT NULL
 idempotency_key     TEXT NOT NULL
 source_type         TEXT NULL
 source_id           TEXT NULL
@@ -443,7 +444,13 @@ Rules:
 - `total_qty` must be greater than zero.
 - `released_qty` and `consumed_qty` must be greater than or equal to zero.
 - `released_qty + consumed_qty` must be less than or equal to `total_qty`.
-- `status` should be `active`, `released`, `consumed`, or `cancelled`.
+- `status` is a lifecycle state: `active` while reserved quantity remains and `closed` when the reservation is fully processed.
+- `active` requires `released_qty + consumed_qty < total_qty`.
+- `closed` requires `released_qty + consumed_qty = total_qty`.
+- Whether a closed reservation was fully consumed, fully released, or mixed is derived from `consumed_qty` and `released_qty` instead of encoded in `status`.
+- External workflow cancellation is represented by releasing the remaining reserved quantity; it is not an inventory reservation state.
+- `close_reason` is NULL while the reservation is `active` and required when it is `closed`.
+- `close_reason` should be `consumed`, `released`, `mixed`, `cancelled`, or `expired`; the quantity fields remain the authoritative record of what happened.
 - Reservation must be allocated to stock layers by FIFO at reservation time.
 - Release and reserved decrease operations must use reservation allocation items instead of recalculating FIFO.
 

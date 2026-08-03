@@ -1,3 +1,7 @@
+-- Migration metadata
+-- status: applied
+-- description: add admin login safety fields
+
 ALTER TABLE admin_users
     ADD COLUMN password_initialized BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
