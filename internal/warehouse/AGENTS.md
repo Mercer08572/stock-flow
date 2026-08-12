@@ -1,37 +1,37 @@
-# Warehouse
+# 仓库
 
-The warehouse module owns warehouse master data.
+仓库模块负责仓库主数据。
 
-Warehouse is a required logical dimension for inventory. It describes where stock can be stored, but it does not own stock quantity, batch quantity, reservations, FIFO allocation, or movement records.
+仓库是库存必需的逻辑维度。它描述库存可以存放在哪里，但不负责库存数量、批次数量、预留、FIFO 分配或变动记录。
 
-## Scope
+## 范围
 
-The warehouse module is responsible for:
+仓库模块负责：
 
-- Warehouse basic information.
-- Warehouse code and name rules.
-- Warehouse type.
-- Warehouse status.
-- Warehouse location and contact information.
-- Warehouse soft delete or disable rules.
+- 仓库基本信息。
+- 仓库编码和名称规则。
+- 仓库类型。
+- 仓库状态。
+- 仓库位置和联系信息。
+- 仓库软删除或停用规则。
 
-The warehouse module is not responsible for:
+仓库模块不负责：
 
-- SKU definitions.
-- Material master data.
-- Stock quantities.
-- Batch stock records.
-- Reserved stock.
-- Available stock calculation.
-- Inventory movement records.
-- FIFO allocation.
-- Inventory increase, reserve, release, or decrease operations.
+- SKU 定义。
+- 物料主数据。
+- 库存数量。
+- 批次库存记录。
+- 预留库存。
+- 可用库存计算。
+- 库存变动记录。
+- FIFO 分配。
+- 增加、预留、释放或扣减库存的操作。
 
-## Common Fields
+## 通用字段
 
-Warehouse contains only warehouse master data fields.
+仓库仅包含仓库主数据字段。
 
-Examples:
+示例：
 
 - `id`
 - `code`
@@ -46,9 +46,9 @@ Examples:
 - `updated_at`
 - `deleted_at`
 
-Warehouse must not contain inventory quantity fields.
+仓库不得包含库存数量字段。
 
-Prohibited fields on warehouse records:
+仓库记录中禁止包含的字段：
 
 - `sku_id`
 - `batch_id`
@@ -56,152 +56,152 @@ Prohibited fields on warehouse records:
 - `reserved_qty`
 - `available_qty`
 
-## Relationship With Inventory
+## 与库存的关系
 
-Inventory uses warehouse as a required stock dimension.
+库存将仓库作为必需的库存维度。
 
-Inventory records are tracked by:
+库存记录按以下维度跟踪：
 
 ```text
 warehouse + SKU
 warehouse + SKU + batch
 ```
 
-Rules:
+规则：
 
-- Inventory mutation operations must include `warehouse_id`.
-- Inventory is responsible for stock state and stock operation rules.
-- Warehouse is responsible only for validating whether a warehouse exists and whether it can participate in stock mutation operations.
-- Inventory may depend on warehouse application services or stable warehouse application contracts.
-- Warehouse must not update inventory tables directly.
-- Warehouse must not calculate inventory quantities.
+- 库存变更操作必须包含 `warehouse_id`。
+- 库存模块负责库存状态和库存操作规则。
+- 仓库模块仅负责校验仓库是否存在，以及能否参与库存变更操作。
+- 库存可以依赖仓库应用服务或稳定的仓库应用契约。
+- 仓库不得直接更新库存表。
+- 仓库不得计算库存数量。
 
-## Status Rules
+## 状态规则
 
-Recommended warehouse statuses:
+建议的仓库状态：
 
 - `active`
 - `inactive`
 
-Rules:
+规则：
 
-- `active` warehouses can participate in inventory query and mutation operations.
-- `inactive` warehouses can still be used for inventory queries.
-- `inactive` warehouses must not be used for inventory mutation operations.
-- Inventory mutation operations include increase, reserve, release, decrease available stock, and decrease reserved stock.
-- Disabling a warehouse should not change existing inventory quantities or movement records.
+- `active` 仓库可以参与库存查询和变更操作。
+- `inactive` 仓库仍可用于库存查询。
+- `inactive` 仓库不得用于库存变更操作。
+- 库存变更操作包括增加、预留、释放、扣减可用库存和扣减预留库存。
+- 停用仓库不应改变现有库存数量或变动记录。
 
-## Delete And Disable Rules
+## 删除与停用规则
 
-Warehouses should be soft deleted or disabled, not hard deleted.
+仓库应采用软删除或停用，不应硬删除。
 
-Rules:
+规则：
 
-- If a warehouse has any stock records, the warehouse must not be deleted.
-- If a warehouse has any stock records, it can only be disabled.
-- Stock records include warehouse + SKU stock, warehouse + SKU + batch stock, reservations, or movement records.
-- A disabled warehouse may still be queried for historical inventory data.
-- A warehouse without stock records may be soft deleted when business rules allow it.
-- Hard delete is prohibited for warehouses referenced by inventory or movement records.
+- 如果仓库存在任何库存记录，则不得删除该仓库。
+- 如果仓库存在任何库存记录，则只能停用该仓库。
+- 库存记录包括仓库 + SKU 库存、仓库 + SKU + 批次库存、预留或变动记录。
+- 已停用的仓库仍可用于查询历史库存数据。
+- 没有库存记录的仓库，可以在业务规则允许时软删除。
+- 禁止硬删除被库存或变动记录引用的仓库。
 
-Checking whether a warehouse has stock must not be done through direct inventory repository access.
+检查仓库是否有库存时，不得直接访问库存仓储。
 
-Allowed approaches:
+允许的方式：
 
-- Use an inventory application service or stable inventory application contract.
-- Use a higher-level application service to coordinate warehouse and inventory checks.
-- Use database constraints to prevent deleting referenced warehouses.
+- 使用库存应用服务或稳定的库存应用契约。
+- 使用更高层级的应用服务协调仓库和库存检查。
+- 使用数据库约束防止删除被引用的仓库。
 
-Prohibited approaches:
+禁止的方式：
 
-- Warehouse repository directly querying inventory tables.
-- Warehouse service directly using inventory repositories.
-- Deleting a warehouse and leaving inventory records with a dangling `warehouse_id`.
+- 仓库仓储直接查询库存表。
+- 仓库服务直接使用库存仓储。
+- 删除仓库后留下 `warehouse_id` 悬空的库存记录。
 
-## Boundary Rules
+## 边界规则
 
-- Warehouse may be used by inventory as a validation dependency.
-- Warehouse must not depend on material or SKU modules.
-- Warehouse must not own inventory stock operation logic.
-- Other modules must not access the warehouse repository directly.
-- Cross-module validation, such as checking whether a warehouse exists or is active, must go through the warehouse service layer.
+- 库存可以将仓库作为校验依赖。
+- 仓库不得依赖物料或 SKU 模块。
+- 仓库不得负责库存操作逻辑。
+- 其他模块不得直接访问仓库仓储。
+- 跨模块校验（例如检查仓库是否存在或是否启用）必须通过仓库服务层完成。
 
-## Layer Rules
+## 分层规则
 
-Warehouse must follow the project dependency direction:
+仓库模块必须遵循项目的依赖方向：
 
 ```text
-Handler -> Service -> Repository
+处理器 -> 服务 -> 仓储
 ```
 
-- Handler parses HTTP input and returns unified responses.
-- Service owns warehouse business rules and use cases.
-- Repository owns persistence logic only.
+- 处理器解析 HTTP 输入并返回统一响应。
+- 服务负责仓库业务规则和用例。
+- 仓储仅负责持久化逻辑。
 
-Transactions, when needed, must be started and completed in the service layer.
+需要事务时，必须在服务层启动并完成事务。
 
-## Business Rules
+## 业务规则
 
-- `code` must uniquely identify a warehouse.
-- `name` should be human-readable and should not be used as a unique business identifier.
-- `type` should be kept simple unless warehouse operations require more detail.
-- `status` controls whether the warehouse can be used for inventory mutation operations.
-- Soft-deleted warehouses must not be returned by default list or detail queries.
-- Warehouses referenced by inventory records, reservations, or movement records must not be hard deleted.
+- `code` 必须唯一标识一个仓库。
+- `name` 应便于人类阅读，不应作为唯一业务标识。
+- 除非仓库操作需要更多细节，否则 `type` 应保持简单。
+- `status` 控制仓库能否用于库存变更操作。
+- 默认的列表或详情查询不得返回已软删除的仓库。
+- 被库存记录、预留或变动记录引用的仓库不得硬删除。
 
-## Warehouse Type Rules
+## 仓库类型规则
 
-Warehouse type can start simple.
+仓库类型一开始可以保持简单。
 
-Recommended initial types:
+建议的初始类型：
 
 - `normal`
 - `virtual`
 
-Future types may include:
+未来可能包含的类型：
 
-- quality inspection warehouse
-- defective goods warehouse
-- return warehouse
-- frozen warehouse
+- 质检仓
+- 次品仓
+- 退货仓
+- 冻结仓
 
-Do not introduce warehouse location or bin-level complexity until the business needs it.
+在业务需要之前，不要引入仓库库位或货位层级的复杂性。
 
-If location/bin tracking is needed later, model it as a separate concept such as:
+如果以后需要跟踪库位/货位，应将其建模为独立概念，例如：
 
 ```text
 warehouse -> location/bin
 ```
 
-## API Rules
+## API 规则
 
-Warehouse APIs must use plural resource names under `/api/v1`.
+仓库 API 必须在 `/api/v1` 下使用复数资源名称。
 
-Expected resource path:
+预期资源路径：
 
 ```text
 /api/v1/warehouses
 ```
 
-Standard operations:
+标准操作：
 
-- `GET /api/v1/warehouses`: list warehouses.
-- `GET /api/v1/warehouses/:id`: get warehouse detail.
-- `POST /api/v1/warehouses`: create warehouse.
-- `PUT /api/v1/warehouses/:id`: update warehouse.
-- `DELETE /api/v1/warehouses/:id`: soft delete warehouse when allowed.
-- `PUT /api/v1/warehouses/:id/disable`: disable warehouse.
+- `GET /api/v1/warehouses`：列出仓库。
+- `GET /api/v1/warehouses/:id`：获取仓库详情。
+- `POST /api/v1/warehouses`：创建仓库。
+- `PUT /api/v1/warehouses/:id`：更新仓库。
+- `DELETE /api/v1/warehouses/:id`：允许时软删除仓库。
+- `PUT /api/v1/warehouses/:id/disable`：停用仓库。
 
-Inventory mutation APIs must not be placed under warehouse resources. They belong to the inventory module.
+库存变更 API 不得放在仓库资源下。它们属于库存模块。
 
-All responses must use the `pkg/response` package.
+所有响应必须使用 `pkg/response` 包。
 
-## Prohibited Patterns
+## 禁止模式
 
-- Storing inventory quantity fields on warehouse records.
-- Updating stock inside warehouse services.
-- Reserving or releasing stock inside warehouse services.
-- Running FIFO allocation inside warehouse services.
-- Hard deleting a warehouse that has stock, reservations, or movement records.
-- Blocking inventory queries only because a warehouse is inactive.
-- Allowing inventory mutation operations against an inactive warehouse.
+- 在仓库记录中存储库存数量字段。
+- 在仓库服务中更新库存。
+- 在仓库服务中预留或释放库存。
+- 在仓库服务中执行 FIFO 分配。
+- 硬删除存在库存、预留或变动记录的仓库。
+- 仅因为仓库处于停用状态就阻止库存查询。
+- 允许对停用仓库执行库存变更操作。

@@ -1,66 +1,66 @@
 # SKU
 
-The SKU module owns stock keeping unit definitions.
+SKU 模块负责库存保有单位的定义。
 
-In Stock-Flow, SKU is the smallest unit that can be stored and managed in warehouse inventory. SKU is derived from material, but it is not the same concept as material.
+在 Stock-Flow 中，SKU 是可以在仓库库存中存储和管理的最小单位。SKU 派生自物料，但它与物料不是同一个概念。
 
-Material describes what an item is. SKU describes the specific stockable form used by inventory operations.
+物料描述一个物品是什么。SKU 描述库存操作所使用的具体可库存形态。
 
-## Scope
+## 范围
 
-The SKU module is responsible for:
+SKU 模块负责：
 
-- SKU basic information.
-- The relationship between SKU and material.
-- SKU code and name rules.
-- SKU status.
-- SKU storage unit rules.
-- Preparing the model for future one-material-to-many-SKUs support.
-- SKU soft delete rules.
+- SKU 基本信息。
+- SKU 与物料之间的关系。
+- SKU 编码和名称规则。
+- SKU 状态。
+- SKU 存储单位规则。
+- 为将来支持一种物料对应多个 SKU 预先设计模型。
+- SKU 软删除规则。
 
-The SKU module is not responsible for:
+SKU 模块不负责：
 
-- Material master data.
-- Material category attributes.
-- Material-level unit conversion definitions.
-- Warehouse inventory quantities.
-- Batch stock records.
-- External business workflows.
-- Inventory movement records.
+- 物料主数据。
+- 物料分类属性。
+- 物料级单位换算定义。
+- 仓库库存数量。
+- 批次库存记录。
+- 外部业务工作流。
+- 库存变动记录。
 
-## Relationship With Material
+## 与物料的关系
 
-SKU depends on material.
+SKU 依赖物料。
 
-The dependency direction is:
+依赖方向为：
 
 ```text
 material -> sku -> inventory
 ```
 
-Current business rule:
+当前业务规则：
 
-- One material maps to one SKU.
+- 一种物料映射一个 SKU。
 
-Future extension rule:
+未来扩展规则：
 
-- One material may map to multiple SKUs.
+- 一种物料可以映射多个 SKU。
 
-The data model and service API should not make one-material-to-one-SKU impossible to evolve later.
+数据模型和服务 API 不应妨碍未来从一种物料对应一个 SKU 演进为一种物料对应多个 SKU。
 
-For example, prefer a SKU table with `material_id` on each SKU record:
+例如，应优先采用每条 SKU 记录都包含 `material_id` 的 SKU 表：
 
 ```text
 skus.material_id -> materials.id
 ```
 
-Do not design the material table as if it owns a single fixed `sku_id`.
+不得将物料表设计成由其持有一个固定的 `sku_id`。
 
-## Common Fields
+## 通用字段
 
-SKU contains only fields that describe the stockable unit.
+SKU 仅包含描述可库存单位的字段。
 
-Examples:
+示例：
 
 - `id`
 - `material_id`
@@ -73,91 +73,91 @@ Examples:
 - `updated_at`
 - `deleted_at`
 
-`unit_id` represents the unit used by this SKU for stock operations. It must reference a valid unit record.
+`unit_id` 表示该 SKU 在库存操作中使用的单位。它必须引用有效的单位记录。
 
-## Unit Rules
+## 单位规则
 
-SKU unit rules must respect material unit rules.
+SKU 单位规则必须遵循物料单位规则。
 
-- A SKU must be linked to one material.
-- A SKU `unit_id` must be either the material's `base_unit_id` or a unit that can be converted through material-level unit conversion.
-- Inventory quantity calculations must use SKU unit rules consistently.
-- Unit conversion validation must go through material application services or stable material application contracts.
-- SKU must not duplicate material-level unit conversion definitions.
+- 一个 SKU 必须关联一种物料。
+- SKU 的 `unit_id` 必须是物料的 `base_unit_id`，或是可通过物料级单位换算进行转换的单位。
+- 库存数量计算必须始终遵循 SKU 单位规则。
+- 单位换算校验必须通过物料应用服务或稳定的物料应用契约完成。
+- SKU 不得重复定义物料级单位换算。
 
-Examples:
+示例：
 
-- Material A base unit is `pcs`; SKU A can also use `box` only if material A has a conversion such as `1 box = 12 pcs`.
-- Material B base unit is `pcs`; SKU B can use `box` with a different conversion such as `1 box = 24 pcs`.
+- 物料 A 的基本单位是 `pcs`；仅当物料 A 存在类似 `1 box = 12 pcs` 的换算关系时，SKU A 才能使用 `box`。
+- 物料 B 的基本单位是 `pcs`；SKU B 可以使用 `box`，且具有不同的换算关系，例如 `1 box = 24 pcs`。
 
-## Boundary Rules
+## 边界规则
 
-- SKU may depend on material through material application services or stable application contracts.
-- SKU must not access the material repository directly.
-- SKU must not depend on inventory or warehouse modules.
-- Inventory may depend on SKU through SKU application services or stable application contracts.
-- Other modules must not access the SKU repository directly.
-- Cross-module validation, such as checking whether a SKU exists or is active, must go through the SKU service layer.
+- SKU 可以通过物料应用服务或稳定的应用契约依赖物料。
+- SKU 不得直接访问物料仓储。
+- SKU 不得依赖库存或仓库模块。
+- 库存可以通过 SKU 应用服务或稳定的应用契约依赖 SKU。
+- 其他模块不得直接访问 SKU 仓储。
+- 跨模块校验（例如检查 SKU 是否存在或是否启用）必须通过 SKU 服务层完成。
 
-## Layer Rules
+## 分层规则
 
-SKU must follow the project dependency direction:
+SKU 模块必须遵循项目的依赖方向：
 
 ```text
-Handler -> Service -> Repository
+处理器 -> 服务 -> 仓储
 ```
 
-- Handler parses HTTP input and returns unified responses.
-- Service owns SKU business rules and use cases.
-- Repository owns persistence logic only.
+- 处理器解析 HTTP 输入并返回统一响应。
+- 服务负责 SKU 业务规则和用例。
+- 仓储仅负责持久化逻辑。
 
-Transactions, when needed, must be started and completed in the service layer.
+需要事务时，必须在服务层启动并完成事务。
 
-## Business Rules
+## 业务规则
 
-- `code` must uniquely identify a SKU.
-- `material_id` is required.
-- `unit_id` is required.
-- Current implementation should enforce at most one active SKU per material.
-- Future implementation may allow multiple active SKUs per material.
-- `name` should be human-readable and should not be used as a unique business identifier.
-- `status` controls whether a SKU can be used by downstream inventory operations.
-- Soft-deleted SKUs must not be returned by default list or detail queries.
-- A SKU that is already used by inventory or movement records should not be hard deleted.
+- `code` 必须唯一标识一个 SKU。
+- `material_id` 为必填项。
+- `unit_id` 为必填项。
+- 当前实现应强制每种物料最多只有一个启用的 SKU。
+- 未来实现可以允许每种物料有多个启用的 SKU。
+- `name` 应便于人类阅读，不应作为唯一业务标识。
+- `status` 控制下游库存操作能否使用该 SKU。
+- 默认的列表或详情查询不得返回已软删除的 SKU。
+- 已被库存或变动记录使用的 SKU 不应被硬删除。
 
-## Extension Rules
+## 扩展规则
 
-Because one material may support multiple SKUs in the future:
+由于未来一种物料可能支持多个 SKU：
 
-- Do not assume `material_id` is globally unique forever unless the constraint is clearly marked as a current-stage business rule.
-- Keep service methods named around SKU behavior, not only material behavior.
-- Avoid APIs that imply a material can never have more than one SKU.
-- If a current API creates a default SKU for a material, name and document it as a current shortcut.
+- 除非明确将约束标记为当前阶段的业务规则，否则不要假定 `material_id` 永远全局唯一。
+- 服务方法应围绕 SKU 行为命名，而不能只围绕物料行为命名。
+- 避免设计暗示一种物料永远只能有一个 SKU 的 API。
+- 如果当前 API 会为物料创建默认 SKU，应将其命名并记录为当前阶段的简化方案。
 
-## API Rules
+## API 规则
 
-SKU APIs must use plural resource names under `/api/v1`.
+SKU API 必须在 `/api/v1` 下使用复数资源名称。
 
-Expected resource path:
+预期资源路径：
 
 ```text
 /api/v1/skus
 ```
 
-Standard operations:
+标准操作：
 
-- `GET /api/v1/skus`: list SKUs.
-- `GET /api/v1/skus/:id`: get SKU detail.
-- `POST /api/v1/skus`: create SKU.
-- `PUT /api/v1/skus/:id`: update SKU.
-- `DELETE /api/v1/skus/:id`: soft delete SKU.
+- `GET /api/v1/skus`：列出 SKU。
+- `GET /api/v1/skus/:id`：获取 SKU 详情。
+- `POST /api/v1/skus`：创建 SKU。
+- `PUT /api/v1/skus/:id`：更新 SKU。
+- `DELETE /api/v1/skus/:id`：软删除 SKU。
 
-All responses must use the `pkg/response` package.
+所有响应必须使用 `pkg/response` 包。
 
-## Prohibited Patterns
+## 禁止模式
 
-- Storing SKU fields directly on the `materials` table.
-- Accessing the material repository from the SKU module.
-- Accessing inventory repositories from the SKU module.
-- Creating inventory quantity records inside SKU services.
-- Designing APIs or database ownership around permanent one-material-to-one-SKU assumptions.
+- 将 SKU 字段直接存储在 `materials` 表中。
+- 从 SKU 模块访问物料仓储。
+- 从 SKU 模块访问库存仓储。
+- 在 SKU 服务中创建库存数量记录。
+- 围绕永久的一种物料对应一个 SKU 的假设设计 API 或数据库归属关系。

@@ -1,51 +1,51 @@
-# Database Schema Design
+# 数据库模式设计
 
-This document describes the logical database schema for Stock-Flow.
+本文档描述 Stock-Flow 的逻辑数据库模式。
 
-The schema follows the current module boundaries:
+该模式遵循当前模块边界：
 
 ```text
 material -> sku -> inventory(warehouse, batch)
 ```
 
-This service does not own inbound or outbound order modules. External business systems call inventory operation APIs to increase, reserve, release, or decrease stock.
+本服务不负责入库单或出库单模块。外部业务系统调用库存操作 API 来增加、预留、释放或扣减库存。
 
-## Design Decisions
+## 设计决策
 
-- `available_qty` is not stored as a normal column. It is calculated as `on_hand_qty - reserved_qty`.
-- Batch is modeled as an independent table.
-- Reservation uses a header table and allocation item table.
-- FIFO allocation is recorded during reservation or stock decrease.
-- Idempotency uses `operation_type + idempotency_key + request_hash`.
-- Stock quantities use `NUMERIC(20,6)`.
-- Unit conversion factors use `NUMERIC(24,10)`.
-- Primary keys use `BIGSERIAL`.
-- Foreign keys use `BIGINT`.
-- Enum-like values use `TEXT` with `CHECK` constraints.
-- Soft delete uses `deleted_at TIMESTAMPTZ NULL`.
+- `available_qty` 不作为普通列存储，而是按 `on_hand_qty - reserved_qty` 计算。
+- 批次建模为独立表。
+- 预留使用主表和分配明细表。
+- 在预留或扣减库存时记录 FIFO 分配。
+- 幂等性使用 `operation_type + idempotency_key + request_hash`。
+- 库存数量使用 `NUMERIC(20,6)`。
+- 单位换算系数使用 `NUMERIC(24,10)`。
+- 主键使用 `BIGSERIAL`。
+- 外键使用 `BIGINT`。
+- 类枚举值使用带 `CHECK` 约束的 `TEXT`。
+- 软删除使用 `deleted_at TIMESTAMPTZ NULL`。
 
-## Numeric Rules
+## 数值规则
 
-Use exact decimal types for inventory and unit conversion data.
+库存和单位换算数据使用精确小数类型。
 
-Recommended types:
+建议的类型：
 
-- Stock quantity: `NUMERIC(20,6)`
-- Unit conversion factor: `NUMERIC(24,10)`
+- 库存数量：`NUMERIC(20,6)`
+- 单位换算系数：`NUMERIC(24,10)`
 
-Do not use `FLOAT`, `REAL`, or `DOUBLE PRECISION` for stock quantities or conversion factors.
+库存数量或换算系数不得使用 `FLOAT`、`REAL` 或 `DOUBLE PRECISION`。
 
-`available_qty` should be calculated in SQL or application code:
+`available_qty` 应在 SQL 或应用代码中计算：
 
 ```sql
 on_hand_qty - reserved_qty AS available_qty
 ```
 
-If `available_qty` is ever stored later for performance, it must be treated as a derived value and updated in the same transaction as `on_hand_qty` and `reserved_qty`.
+如果以后出于性能考虑存储 `available_qty`，必须将其视为派生值，并在更新 `on_hand_qty` 和 `reserved_qty` 的同一事务中更新它。
 
-## Table Overview
+## 表概览
 
-Recommended tables:
+建议的表：
 
 - `units`
 - `material_categories`
@@ -63,11 +63,11 @@ Recommended tables:
 - `inventory_movements`
 - `inventory_idempotency_keys`
 
-## Units
+## 单位
 
-`units` stores reusable measurement units.
+`units` 存储可复用的计量单位。
 
-Recommended columns:
+建议的列：
 
 ```text
 id            BIGSERIAL PRIMARY KEY
@@ -82,23 +82,23 @@ updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at    TIMESTAMPTZ NULL
 ```
 
-Rules:
+规则：
 
-- `code` must be unique among non-deleted units.
-- `status` should be `active` or `inactive`.
-- `precision` controls allowed quantity decimal places.
-- Unit records must not store material-specific conversion rules.
+- `code` 在未删除的单位中必须唯一。
+- `status` 应为 `active` 或 `inactive`。
+- `precision` 控制允许的数量小数位数。
+- 单位记录不得存储特定物料的换算规则。
 
-Recommended indexes:
+建议的索引：
 
-- Unique partial index on `code` where `deleted_at IS NULL`.
-- Index on `status` where `deleted_at IS NULL`.
+- 在 `deleted_at IS NULL` 条件下为 `code` 创建唯一部分索引。
+- 在 `deleted_at IS NULL` 条件下为 `status` 创建索引。
 
-## Material Categories
+## 物料分类
 
-`material_categories` stores material category master data.
+`material_categories` 存储物料分类主数据。
 
-Recommended columns:
+建议的列：
 
 ```text
 id            BIGSERIAL PRIMARY KEY
@@ -112,16 +112,16 @@ updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at    TIMESTAMPTZ NULL
 ```
 
-Rules:
+规则：
 
-- `code` must be unique among non-deleted categories.
-- Category-specific material attributes must be modeled through attribute definition tables, not by adding columns to `materials`.
+- `code` 在未删除的分类中必须唯一。
+- 分类特有的物料属性必须通过属性定义表建模，不得向 `materials` 添加列。
 
-## Materials
+## 物料
 
-`materials` stores material master data.
+`materials` 存储物料主数据。
 
-Recommended columns:
+建议的列：
 
 ```text
 id              BIGSERIAL PRIMARY KEY
@@ -136,25 +136,25 @@ updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at      TIMESTAMPTZ NULL
 ```
 
-Rules:
+规则：
 
-- `code` must be unique among non-deleted materials.
-- `base_unit_id` must reference `units`.
-- Material does not own SKU fields, stock fields, warehouse fields, or movement fields.
-- Category-specific fields must not be added directly to this table.
+- `code` 在未删除的物料中必须唯一。
+- `base_unit_id` 必须引用 `units`。
+- 物料不负责 SKU 字段、库存字段、仓库字段或变动字段。
+- 不得将分类特有字段直接添加到此表。
 
-Recommended indexes:
+建议的索引：
 
-- Unique partial index on `code` where `deleted_at IS NULL`.
-- Index on `category_id` where `deleted_at IS NULL`.
-- Index on `base_unit_id` where `deleted_at IS NULL`.
-- Index on `status` where `deleted_at IS NULL`.
+- 在 `deleted_at IS NULL` 条件下为 `code` 创建唯一部分索引。
+- 在 `deleted_at IS NULL` 条件下为 `category_id` 创建索引。
+- 在 `deleted_at IS NULL` 条件下为 `base_unit_id` 创建索引。
+- 在 `deleted_at IS NULL` 条件下为 `status` 创建索引。
 
-## Material Attribute Definitions
+## 物料属性定义
 
-`material_attribute_definitions` defines category-specific material attributes.
+`material_attribute_definitions` 定义分类特有的物料属性。
 
-Recommended columns:
+建议的列：
 
 ```text
 id              BIGSERIAL PRIMARY KEY
@@ -169,16 +169,16 @@ updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at      TIMESTAMPTZ NULL
 ```
 
-Rules:
+规则：
 
-- `data_type` should be constrained to values such as `text`, `number`, `boolean`, `date`, or `option`.
-- `(category_id, code)` must be unique among non-deleted definitions.
+- `data_type` 应限制为 `text`、`number`、`boolean`、`date` 或 `option` 等值。
+- `(category_id, code)` 在未删除的定义中必须唯一。
 
-## Material Attribute Values
+## 物料属性值
 
-`material_attribute_values` stores material-specific values for attribute definitions.
+`material_attribute_values` 存储物料在各属性定义下的具体值。
 
-Recommended columns:
+建议的列：
 
 ```text
 id              BIGSERIAL PRIMARY KEY
@@ -193,16 +193,16 @@ updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at      TIMESTAMPTZ NULL
 ```
 
-Rules:
+规则：
 
-- `(material_id, definition_id)` must be unique among non-deleted values.
-- The service layer must validate that the value column matches the definition `data_type`.
+- `(material_id, definition_id)` 在未删除的属性值中必须唯一。
+- 服务层必须校验值所在的列与定义的 `data_type` 匹配。
 
-## Material Unit Conversions
+## 物料单位换算
 
-`material_unit_conversions` stores material-specific unit conversion rules.
+`material_unit_conversions` 存储特定物料的单位换算规则。
 
-Recommended columns:
+建议的列：
 
 ```text
 id              BIGSERIAL PRIMARY KEY
@@ -215,25 +215,25 @@ updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at      TIMESTAMPTZ NULL
 ```
 
-Rules:
+规则：
 
-- `factor` must be greater than zero.
-- `(material_id, from_unit_id, to_unit_id)` must be unique among non-deleted conversions.
-- `from_unit_id` and `to_unit_id` must be different.
-- Conversion logic belongs in the material service layer or material domain helper.
+- `factor` 必须大于零。
+- `(material_id, from_unit_id, to_unit_id)` 在未删除的换算关系中必须唯一。
+- `from_unit_id` 和 `to_unit_id` 必须不同。
+- 换算逻辑属于物料服务层或物料领域辅助组件。
 
-Example:
+示例：
 
 ```text
-Material A: 1 box = 12 pcs
-Material B: 1 box = 24 pcs
+物料 A：1 box = 12 pcs
+物料 B：1 box = 24 pcs
 ```
 
 ## SKUs
 
-`skus` stores stock keeping unit definitions.
+`skus` 存储库存保有单位定义。
 
-Recommended columns:
+建议的列：
 
 ```text
 id              BIGSERIAL PRIMARY KEY
@@ -248,26 +248,26 @@ updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at      TIMESTAMPTZ NULL
 ```
 
-Rules:
+规则：
 
-- `code` must be unique among non-deleted SKUs.
-- Current business stage should enforce at most one active SKU per material.
-- The schema must still allow future one-material-to-many-SKUs expansion.
-- `unit_id` must be the material base unit or a unit convertible through material unit conversions.
-- SKU must not store inventory quantity fields.
+- `code` 在未删除的 SKU 中必须唯一。
+- 当前业务阶段应强制每种物料最多只有一个启用的 SKU。
+- 该模式仍必须允许未来扩展为一种物料对应多个 SKU。
+- `unit_id` 必须是物料基本单位，或可通过物料单位换算进行转换的单位。
+- SKU 不得存储库存数量字段。
 
-Recommended indexes:
+建议的索引：
 
-- Unique partial index on `code` where `deleted_at IS NULL`.
-- Index on `material_id` where `deleted_at IS NULL`.
-- Index on `unit_id` where `deleted_at IS NULL`.
-- Partial unique index for current stage: one active non-deleted SKU per material.
+- 在 `deleted_at IS NULL` 条件下为 `code` 创建唯一部分索引。
+- 在 `deleted_at IS NULL` 条件下为 `material_id` 创建索引。
+- 在 `deleted_at IS NULL` 条件下为 `unit_id` 创建索引。
+- 当前阶段使用部分唯一索引：每种物料只能有一个启用且未删除的 SKU。
 
-## Warehouses
+## 仓库
 
-`warehouses` stores warehouse master data.
+`warehouses` 存储仓库主数据。
 
-Recommended columns:
+建议的列：
 
 ```text
 id              BIGSERIAL PRIMARY KEY
@@ -284,26 +284,26 @@ updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at      TIMESTAMPTZ NULL
 ```
 
-Rules:
+规则：
 
-- `code` must be unique among non-deleted warehouses.
-- `status` should be `active` or `inactive`.
-- `inactive` warehouses can be queried for inventory.
-- `inactive` warehouses must not be used for inventory mutations.
-- Warehouses with stock, reservations, or movement records must not be hard deleted.
-- If a warehouse has any stock records, it must be disabled instead of deleted.
-- Warehouse must not store stock quantity fields.
+- `code` 在未删除的仓库中必须唯一。
+- `status` 应为 `active` 或 `inactive`。
+- 可以查询 `inactive` 仓库的库存。
+- `inactive` 仓库不得用于库存变更。
+- 存在库存、预留或变动记录的仓库不得硬删除。
+- 仓库存在任何库存记录时，必须将其停用而不是删除。
+- 仓库不得存储库存数量字段。
 
-Recommended indexes:
+建议的索引：
 
-- Unique partial index on `code` where `deleted_at IS NULL`.
-- Index on `status` where `deleted_at IS NULL`.
+- 在 `deleted_at IS NULL` 条件下为 `code` 创建唯一部分索引。
+- 在 `deleted_at IS NULL` 条件下为 `status` 创建索引。
 
-## Inventory Batches
+## 库存批次
 
-`inventory_batches` stores batch master data.
+`inventory_batches` 存储批次主数据。
 
-Recommended columns:
+建议的列：
 
 ```text
 id                BIGSERIAL PRIMARY KEY
@@ -319,26 +319,26 @@ updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at        TIMESTAMPTZ NULL
 ```
 
-Rules:
+规则：
 
-- `(sku_id, batch_no)` must be unique among non-deleted batches.
-- Batch metadata belongs here, not in stock balance tables.
-- `status` should be `active` or `inactive`.
+- `(sku_id, batch_no)` 在未删除的批次中必须唯一。
+- 批次元数据属于此表，而不属于库存余额表。
+- `status` 应为 `active` 或 `inactive`。
 
-Recommended indexes:
+建议的索引：
 
-- Unique partial index on `(sku_id, batch_no)` where `deleted_at IS NULL`.
-- Index on `sku_id` where `deleted_at IS NULL`.
-- Index on `first_received_at` where `deleted_at IS NULL`.
-- Index on `expiration_date` where `deleted_at IS NULL`.
+- 在 `deleted_at IS NULL` 条件下为 `(sku_id, batch_no)` 创建唯一部分索引。
+- 在 `deleted_at IS NULL` 条件下为 `sku_id` 创建索引。
+- 在 `deleted_at IS NULL` 条件下为 `first_received_at` 创建索引。
+- 在 `deleted_at IS NULL` 条件下为 `expiration_date` 创建索引。
 
-## Inventory Stocks
+## 库存汇总
 
-`inventory_stocks` stores summary stock by warehouse and SKU.
+`inventory_stocks` 按仓库和 SKU 存储汇总库存。
 
-This table supports fast current stock queries.
+此表支持快速查询当前库存。
 
-Recommended columns:
+建议的列：
 
 ```text
 id                BIGSERIAL PRIMARY KEY
@@ -351,33 +351,33 @@ updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at        TIMESTAMPTZ NULL
 ```
 
-Calculated value:
+计算值：
 
 ```text
 available_qty = on_hand_qty - reserved_qty
 ```
 
-Rules:
+规则：
 
-- `(warehouse_id, sku_id)` must be unique among non-deleted stock rows.
-- `on_hand_qty` must be greater than or equal to zero.
-- `reserved_qty` must be greater than or equal to zero.
-- `reserved_qty` must be less than or equal to `on_hand_qty`.
-- All stock mutations must update this summary table and stock layers in the same transaction.
+- `(warehouse_id, sku_id)` 在未删除的库存行中必须唯一。
+- `on_hand_qty` 必须大于或等于零。
+- `reserved_qty` 必须大于或等于零。
+- `reserved_qty` 必须小于或等于 `on_hand_qty`。
+- 所有库存变更都必须在同一事务中更新此汇总表和库存层。
 
-Recommended indexes:
+建议的索引：
 
-- Unique partial index on `(warehouse_id, sku_id)` where `deleted_at IS NULL`.
-- Index on `sku_id` where `deleted_at IS NULL`.
-- Index on `warehouse_id` where `deleted_at IS NULL`.
+- 在 `deleted_at IS NULL` 条件下为 `(warehouse_id, sku_id)` 创建唯一部分索引。
+- 在 `deleted_at IS NULL` 条件下为 `sku_id` 创建索引。
+- 在 `deleted_at IS NULL` 条件下为 `warehouse_id` 创建索引。
 
-## Inventory Stock Layers
+## 库存层
 
-`inventory_stock_layers` stores FIFO allocation units.
+`inventory_stock_layers` 存储 FIFO 分配单元。
 
-A stock layer represents a quantity received into a warehouse for a SKU. `batch_id` is optional.
+一个库存层表示某个 SKU 收入仓库的一批数量。`batch_id` 可选。
 
-Recommended columns:
+建议的列：
 
 ```text
 id                BIGSERIAL PRIMARY KEY
@@ -392,34 +392,34 @@ updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at        TIMESTAMPTZ NULL
 ```
 
-Calculated value:
+计算值：
 
 ```text
 available_qty = on_hand_qty - reserved_qty
 ```
 
-Rules:
+规则：
 
-- `batch_id` may be null for non-batch stock.
-- FIFO allocation uses `received_at`, then `id` as a deterministic tiebreaker.
-- `on_hand_qty` must be greater than or equal to zero.
-- `reserved_qty` must be greater than or equal to zero.
-- `reserved_qty` must be less than or equal to `on_hand_qty`.
-- The service layer must ensure `batch_id`, when present, belongs to the same `sku_id`.
-- Warehouse + SKU + batch stock is queried by grouping layers.
-- Warehouse + SKU summary stock must remain consistent with layer totals.
+- 对于非批次库存，`batch_id` 可以为 null。
+- FIFO 分配先使用 `received_at` 排序，再以 `id` 作为确定性的顺序判定条件。
+- `on_hand_qty` 必须大于或等于零。
+- `reserved_qty` 必须大于或等于零。
+- `reserved_qty` 必须小于或等于 `on_hand_qty`。
+- 存在 `batch_id` 时，服务层必须确保它属于同一个 `sku_id`。
+- 通过对库存层分组来查询仓库 + SKU + 批次库存。
+- 仓库 + SKU 汇总库存必须与库存层合计保持一致。
 
-Recommended indexes:
+建议的索引：
 
-- Index on `(warehouse_id, sku_id, received_at, id)` where `deleted_at IS NULL`.
-- Index on `(warehouse_id, sku_id, batch_id)` where `deleted_at IS NULL`.
-- Index on `batch_id` where `deleted_at IS NULL`.
+- 在 `deleted_at IS NULL` 条件下为 `(warehouse_id, sku_id, received_at, id)` 创建索引。
+- 在 `deleted_at IS NULL` 条件下为 `(warehouse_id, sku_id, batch_id)` 创建索引。
+- 在 `deleted_at IS NULL` 条件下为 `batch_id` 创建索引。
 
-## Inventory Reservations
+## 库存预留
 
-`inventory_reservations` stores reservation headers.
+`inventory_reservations` 存储预留主记录。
 
-Recommended columns:
+建议的列：
 
 ```text
 id                  BIGSERIAL PRIMARY KEY
@@ -439,32 +439,32 @@ updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at          TIMESTAMPTZ NULL
 ```
 
-Rules:
+规则：
 
-- `total_qty` must be greater than zero.
-- `released_qty` and `consumed_qty` must be greater than or equal to zero.
-- `released_qty + consumed_qty` must be less than or equal to `total_qty`.
-- `status` is a lifecycle state: `active` while reserved quantity remains and `closed` when the reservation is fully processed.
-- `active` requires `released_qty + consumed_qty < total_qty`.
-- `closed` requires `released_qty + consumed_qty = total_qty`.
-- Whether a closed reservation was fully consumed, fully released, or mixed is derived from `consumed_qty` and `released_qty` instead of encoded in `status`.
-- External workflow cancellation is represented by releasing the remaining reserved quantity; it is not an inventory reservation state.
-- `close_reason` is NULL while the reservation is `active` and required when it is `closed`.
-- `close_reason` should be `consumed`, `released`, `mixed`, `cancelled`, or `expired`; the quantity fields remain the authoritative record of what happened.
-- Reservation must be allocated to stock layers by FIFO at reservation time.
-- Release and reserved decrease operations must use reservation allocation items instead of recalculating FIFO.
+- `total_qty` 必须大于零。
+- `released_qty` 和 `consumed_qty` 必须大于或等于零。
+- `released_qty + consumed_qty` 必须小于或等于 `total_qty`。
+- `status` 是生命周期状态：仍有预留数量时为 `active`，预留处理完毕时为 `closed`。
+- `active` 要求 `released_qty + consumed_qty < total_qty`。
+- `closed` 要求 `released_qty + consumed_qty = total_qty`。
+- 已关闭的预留是全部消耗、全部释放还是混合处理，应从 `consumed_qty` 和 `released_qty` 推导，而不是编码在 `status` 中。
+- 外部工作流取消通过释放剩余预留数量表示；它不是库存预留状态。
+- 预留为 `active` 时 `close_reason` 为 NULL；预留为 `closed` 时该字段必填。
+- `close_reason` 应为 `consumed`、`released`、`mixed`、`cancelled` 或 `expired`；数量字段仍是所发生情况的权威记录。
+- 预留时必须按 FIFO 将数量分配到库存层。
+- 释放和扣减预留库存操作必须使用预留分配明细，而不是重新计算 FIFO。
 
-Recommended indexes:
+建议的索引：
 
-- Index on `(warehouse_id, sku_id, status)` where `deleted_at IS NULL`.
-- Index on `(source_type, source_id, source_line_id)` where `deleted_at IS NULL`.
-- Index on `idempotency_key` where `deleted_at IS NULL`.
+- 在 `deleted_at IS NULL` 条件下为 `(warehouse_id, sku_id, status)` 创建索引。
+- 在 `deleted_at IS NULL` 条件下为 `(source_type, source_id, source_line_id)` 创建索引。
+- 在 `deleted_at IS NULL` 条件下为 `idempotency_key` 创建索引。
 
-## Inventory Reservation Items
+## 库存预留明细
 
-`inventory_reservation_items` stores FIFO allocation details for a reservation.
+`inventory_reservation_items` 存储预留的 FIFO 分配明细。
 
-Recommended columns:
+建议的列：
 
 ```text
 id                  BIGSERIAL PRIMARY KEY
@@ -478,25 +478,25 @@ updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at          TIMESTAMPTZ NULL
 ```
 
-Rules:
+规则：
 
-- `reserved_qty` must be greater than zero.
-- `released_qty` and `consumed_qty` must be greater than or equal to zero.
-- `released_qty + consumed_qty` must be less than or equal to `reserved_qty`.
-- Each item points to the exact stock layer selected during FIFO allocation.
-- Release reserved stock reduces `reserved_qty` on these stock layers.
-- Decrease reserved stock reduces both `reserved_qty` and `on_hand_qty` on these stock layers.
+- `reserved_qty` 必须大于零。
+- `released_qty` 和 `consumed_qty` 必须大于或等于零。
+- `released_qty + consumed_qty` 必须小于或等于 `reserved_qty`。
+- 每条明细指向 FIFO 分配期间选中的具体库存层。
+- 释放预留库存会减少这些库存层上的 `reserved_qty`。
+- 扣减预留库存会同时减少这些库存层上的 `reserved_qty` 和 `on_hand_qty`。
 
-Recommended indexes:
+建议的索引：
 
-- Index on `reservation_id` where `deleted_at IS NULL`.
-- Index on `stock_layer_id` where `deleted_at IS NULL`.
+- 在 `deleted_at IS NULL` 条件下为 `reservation_id` 创建索引。
+- 在 `deleted_at IS NULL` 条件下为 `stock_layer_id` 创建索引。
 
-## Inventory Movements
+## 库存变动
 
-`inventory_movements` stores immutable inventory audit records.
+`inventory_movements` 存储不可变的库存审计记录。
 
-Recommended columns:
+建议的列：
 
 ```text
 id                    BIGSERIAL PRIMARY KEY
@@ -517,7 +517,7 @@ updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at            TIMESTAMPTZ NULL
 ```
 
-Recommended `operation_type` values:
+建议的 `operation_type` 值：
 
 - `increase`
 - `reserve`
@@ -525,28 +525,28 @@ Recommended `operation_type` values:
 - `decrease_available`
 - `decrease_reserved`
 
-Rules:
+规则：
 
-- Movement records are immutable audit records.
-- Corrections must be new movement records.
-- `qty` must be greater than zero.
-- For FIFO operations that touch multiple stock layers, create one movement record per touched stock layer.
-- Movement direction is determined by `operation_type`, not by negative quantities.
+- 变动记录是不可变的审计记录。
+- 修正必须使用新的变动记录。
+- `qty` 必须大于零。
+- 对于涉及多个库存层的 FIFO 操作，每个涉及的库存层都要创建一条变动记录。
+- 变动方向由 `operation_type` 决定，而不是由负数数量决定。
 
-Recommended indexes:
+建议的索引：
 
-- Index on `(warehouse_id, sku_id, created_at)`.
-- Index on `batch_id`.
-- Index on `stock_layer_id`.
-- Index on `reservation_id`.
-- Index on `(source_type, source_id, source_line_id)`.
-- Index on `(operation_type, idempotency_key)`.
+- 为 `(warehouse_id, sku_id, created_at)` 创建索引。
+- 为 `batch_id` 创建索引。
+- 为 `stock_layer_id` 创建索引。
+- 为 `reservation_id` 创建索引。
+- 为 `(source_type, source_id, source_line_id)` 创建索引。
+- 为 `(operation_type, idempotency_key)` 创建索引。
 
-## Inventory Idempotency Keys
+## 库存幂等键
 
-`inventory_idempotency_keys` stores mutation request idempotency records.
+`inventory_idempotency_keys` 存储变更请求的幂等记录。
 
-Recommended columns:
+建议的列：
 
 ```text
 id                    BIGSERIAL PRIMARY KEY
@@ -564,41 +564,41 @@ updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at            TIMESTAMPTZ NULL
 ```
 
-Recommended `status` values:
+建议的 `status` 值：
 
 - `processing`
 - `succeeded`
 - `failed`
 
-Rules:
+规则：
 
-- `(operation_type, idempotency_key)` must be unique among non-deleted rows.
-- `request_hash` is a SHA-256 hash of the canonical mutation request payload.
-- Retrying the same operation with the same key and same hash must not apply stock changes again.
-- Retrying the same operation with the same key but a different hash must return an idempotency conflict error.
-- The idempotency record, stock updates, reservation updates, and movement records must be committed in the same transaction.
+- `(operation_type, idempotency_key)` 在未删除的行中必须唯一。
+- `request_hash` 是规范化变更请求载荷的 SHA-256 哈希值。
+- 使用相同键和相同哈希值重试同一操作时，不得再次应用库存变更。
+- 使用相同键但不同哈希值重试同一操作时，必须返回幂等冲突错误。
+- 幂等记录、库存更新、预留更新和变动记录必须在同一事务中提交。
 
-Recommended indexes:
+建议的索引：
 
-- Unique partial index on `(operation_type, idempotency_key)` where `deleted_at IS NULL`.
-- Index on `status` where `deleted_at IS NULL`.
+- 在 `deleted_at IS NULL` 条件下为 `(operation_type, idempotency_key)` 创建唯一部分索引。
+- 在 `deleted_at IS NULL` 条件下为 `status` 创建索引。
 
-## Idempotency Payload Hash
+## 幂等载荷哈希
 
-The service should build a canonical payload before hashing.
+服务应在计算哈希前构建规范化载荷。
 
-Canonical payload rules:
+规范化载荷规则：
 
-- Include only business-significant request fields.
-- Include `operation_type`.
-- Include `warehouse_id`, `sku_id`, optional `batch_id`, and quantity.
-- Include `source_type`, `source_id`, and `source_line_id` when provided.
-- Include reservation references when the operation releases or consumes reserved stock.
-- Normalize quantity to the service scale, such as `10.000000`.
-- Use `null` for absent optional values instead of omitting fields.
-- Use stable field names and stable ordering.
+- 仅包含具有业务意义的请求字段。
+- 包含 `operation_type`。
+- 包含 `warehouse_id`、`sku_id`、可选的 `batch_id` 和数量。
+- 提供时包含 `source_type`、`source_id` 和 `source_line_id`。
+- 操作释放或消耗预留库存时，包含预留引用。
+- 将数量规范化为服务使用的精度，例如 `10.000000`。
+- 对缺失的可选值使用 `null`，而不是省略字段。
+- 使用稳定的字段名和稳定的字段顺序。
 
-Example canonical payload:
+规范化载荷示例：
 
 ```json
 {
@@ -613,52 +613,52 @@ Example canonical payload:
 }
 ```
 
-Hash rule:
+哈希规则：
 
 ```text
 request_hash = hex(sha256(canonical_payload_bytes))
 ```
 
-The service should use a typed request struct and a dedicated canonicalization helper. Do not hash raw HTTP request bytes, because field ordering, whitespace, and omitted nulls can change between retries.
+服务应使用有类型的请求结构体和专用的规范化辅助组件。不得对原始 HTTP 请求字节计算哈希，因为重试之间的字段顺序、空白和省略的 null 可能发生变化。
 
-## Stock Operation Rules
+## 库存操作规则
 
-### Increase Stock
+### 增加库存
 
-Effects:
+影响：
 
 ```text
 summary.on_hand_qty += qty
 layer.on_hand_qty += qty
 ```
 
-Rules:
+规则：
 
-- Creates a new stock layer or updates a service-defined layer.
-- Creates movement records.
-- Requires idempotency.
+- 创建新的库存层，或更新由服务定义的库存层。
+- 创建变动记录。
+- 必须具备幂等性。
 
-### Reserve Stock
+### 预留库存
 
-Effects:
+影响：
 
 ```text
 summary.reserved_qty += qty
 layer.reserved_qty += allocated_qty
 ```
 
-Rules:
+规则：
 
-- Checks available quantity.
-- Allocates stock layers by FIFO when `batch_id` is not provided.
-- Creates `inventory_reservations`.
-- Creates `inventory_reservation_items`.
-- Creates movement records.
-- Requires idempotency.
+- 检查可用数量。
+- 未提供 `batch_id` 时，按 FIFO 分配库存层。
+- 创建 `inventory_reservations`。
+- 创建 `inventory_reservation_items`。
+- 创建变动记录。
+- 必须具备幂等性。
 
-### Release Reserved Stock
+### 释放预留库存
 
-Effects:
+影响：
 
 ```text
 summary.reserved_qty -= qty
@@ -666,33 +666,33 @@ layer.reserved_qty -= released_qty
 reservation_item.released_qty += released_qty
 ```
 
-Rules:
+规则：
 
-- Uses existing reservation items.
-- Does not recalculate FIFO.
-- Creates movement records.
-- Requires idempotency.
+- 使用现有预留明细。
+- 不重新计算 FIFO。
+- 创建变动记录。
+- 必须具备幂等性。
 
-### Decrease Available Stock
+### 扣减可用库存
 
-Effects:
+影响：
 
 ```text
 summary.on_hand_qty -= qty
 layer.on_hand_qty -= allocated_qty
 ```
 
-Rules:
+规则：
 
-- Checks available quantity.
-- Allocates stock layers by FIFO when `batch_id` is not provided.
-- Does not change `reserved_qty`.
-- Creates movement records.
-- Requires idempotency.
+- 检查可用数量。
+- 未提供 `batch_id` 时，按 FIFO 分配库存层。
+- 不更改 `reserved_qty`。
+- 创建变动记录。
+- 必须具备幂等性。
 
-### Decrease Reserved Stock
+### 扣减预留库存
 
-Effects:
+影响：
 
 ```text
 summary.on_hand_qty -= qty
@@ -702,42 +702,42 @@ layer.reserved_qty -= consumed_qty
 reservation_item.consumed_qty += consumed_qty
 ```
 
-Rules:
+规则：
 
-- Uses existing reservation items.
-- Does not recalculate FIFO.
-- Creates movement records.
-- Requires idempotency.
+- 使用现有预留明细。
+- 不重新计算 FIFO。
+- 创建变动记录。
+- 必须具备幂等性。
 
-## Transaction Rules
+## 事务规则
 
-Inventory mutation operations must run in the application service layer transaction.
+库存变更操作必须在应用服务层事务中运行。
 
-The transaction must include:
+事务必须包含：
 
-- Idempotency check or insert.
-- Stock summary row lock or atomic update.
-- Stock layer selection and lock.
-- Stock summary updates.
-- Stock layer updates.
-- Reservation header and item updates when applicable.
-- Movement record creation.
-- Idempotency success update.
+- 幂等性检查或插入。
+- 锁定库存汇总行或执行原子更新。
+- 选择并锁定库存层。
+- 更新库存汇总。
+- 更新库存层。
+- 适用时更新预留主记录和明细。
+- 创建变动记录。
+- 将幂等记录更新为成功。
 
-Repositories must not start, commit, or roll back transactions.
+仓储不得启动、提交或回滚事务。
 
-## Concurrency Rules
+## 并发规则
 
-The service must prevent negative stock under concurrent requests.
+服务必须防止并发请求导致负库存。
 
-Recommended database approach:
+建议的数据库处理方式：
 
-- Lock stock summary rows before mutation.
-- Lock selected stock layers before mutation.
-- Use SQL conditions that prevent invalid quantities.
-- Apply FIFO allocation inside the same transaction.
+- 变更前锁定库存汇总行。
+- 变更前锁定选中的库存层。
+- 使用能够防止无效数量的 SQL 条件。
+- 在同一事务中执行 FIFO 分配。
 
-Important invariants:
+重要不变量：
 
 ```text
 on_hand_qty >= 0
@@ -745,9 +745,9 @@ reserved_qty >= 0
 reserved_qty <= on_hand_qty
 ```
 
-## Creation Order
+## 创建顺序
 
-Recommended migration creation order:
+建议的迁移创建顺序：
 
 1. `units`
 2. `material_categories`
@@ -765,10 +765,10 @@ Recommended migration creation order:
 14. `inventory_movements`
 15. `inventory_idempotency_keys`
 
-## Open Implementation Notes
+## 待实现事项
 
-- Use `CHECK` constraints for status and operation type values.
-- Add indexes for every foreign key column.
-- Use partial unique indexes with `deleted_at IS NULL` for soft-delete-aware uniqueness.
-- Keep business validation in the service layer even when database constraints exist.
-- Database constraints protect data integrity; they do not replace domain rules.
+- 对状态和操作类型值使用 `CHECK` 约束。
+- 为每个外键列添加索引。
+- 使用带 `deleted_at IS NULL` 条件的部分唯一索引，实现考虑软删除的唯一性。
+- 即使存在数据库约束，业务校验仍应保留在服务层。
+- 数据库约束用于保护数据完整性，不能替代领域规则。

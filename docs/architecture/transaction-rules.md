@@ -1,54 +1,54 @@
-# Transaction Rules
+# 事务规则
 
-Transactions are managed only in the application service layer.
+事务仅在应用服务层管理。
 
-## Core Rule
+## 核心规则
 
-Only services may start, commit, or roll back database transactions.
+只有服务可以启动、提交或回滚数据库事务。
 
 ```text
-Handler -> Service transaction boundary -> Repository
+处理器 -> 服务事务边界 -> 仓储
 ```
 
-## Service Layer Responsibilities
+## 服务层职责
 
-- Start a transaction when one use case changes multiple records that must succeed or fail together.
-- Pass the transaction context or transaction-bound query object to repositories.
-- Commit the transaction only after the full use case succeeds.
-- Roll back the transaction when any step in the use case fails.
-- Keep transaction scope as small as possible.
-- Keep inventory changes by warehouse atomic with their related movement or order records.
+- 当一个用例变更多条必须同时成功或失败的记录时，启动事务。
+- 将事务上下文或与事务绑定的查询对象传递给仓储。
+- 仅在整个用例成功后提交事务。
+- 用例中的任何步骤失败时回滚事务。
+- 事务范围应尽可能小。
+- 按仓库进行的库存变更必须与相关变动记录或订单记录保持原子性。
 
-## Handler Layer Rules
+## 处理器层规则
 
-- Handlers must not start transactions.
-- Handlers must not commit or roll back transactions.
-- Handlers should only call service methods and return unified responses.
+- 处理器不得启动事务。
+- 处理器不得提交或回滚事务。
+- 处理器应仅调用服务方法并返回统一响应。
 
-## Repository Layer Rules
+## 仓储层规则
 
-- Repositories must not start transactions.
-- Repositories must not commit or roll back transactions.
-- Repositories should execute persistence operations using the database executor provided by the service layer.
-- Repository methods should remain focused on a single persistence operation.
+- 仓储不得启动事务。
+- 仓储不得提交或回滚事务。
+- 仓储应使用服务层提供的数据库执行器执行持久化操作。
+- 仓储方法应专注于单个持久化操作。
 
-## Cross-Module Transaction Rule
+## 跨模块事务规则
 
-When one use case coordinates multiple modules, the owning application service is responsible for the transaction boundary.
+当一个用例协调多个模块时，负责该用例的应用服务负责事务边界。
 
-For inventory operations, the inventory service owns the transaction boundary.
+对于库存操作，库存服务负责事务边界。
 
-The transaction boundary still belongs to the application service layer.
+事务边界仍然属于应用服务层。
 
-## Warehouse Inventory Transaction Rule
+## 仓库库存事务规则
 
-Inventory changes involving warehouses, SKUs, batches, reservations, idempotency keys, and movement records must be committed atomically.
+涉及仓库、SKU、批次、预留、幂等键和变动记录的库存变更必须以原子方式提交。
 
-Examples:
+示例：
 
-- Increasing stock must update stock balance and create a movement record in one transaction.
-- Reserving stock must check available quantity, update reserved quantity, store the idempotency key, and create a movement record in one transaction.
-- Releasing reserved stock must reduce reserved quantity and create a movement record in one transaction.
-- Decreasing stock from available stock must check available quantity, reduce on-hand quantity, and create a movement record in one transaction.
-- Decreasing stock from reserved stock must reduce both on-hand quantity and reserved quantity, and create a movement record in one transaction.
-- FIFO batch allocation must lock and update all selected batch stock rows in one transaction.
+- 增加库存必须在一个事务中更新库存余额并创建变动记录。
+- 预留库存必须在一个事务中检查可用数量、更新预留数量、存储幂等键并创建变动记录。
+- 释放预留库存必须在一个事务中减少预留数量并创建变动记录。
+- 从可用库存中扣减库存必须在一个事务中检查可用数量、减少现有数量并创建变动记录。
+- 从预留库存中扣减库存必须在一个事务中同时减少现有数量和预留数量，并创建变动记录。
+- FIFO 批次分配必须在一个事务中锁定并更新所有选中的批次库存行。

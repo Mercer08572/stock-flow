@@ -1,17 +1,17 @@
-# Development Guide
+# 开发指南
 
-This document records the local development workflow for Stock-Flow.
+本文档记录 Stock-Flow 的本地开发工作流。
 
-## Requirements
+## 环境要求
 
-- Go 1.25 or later
+- Go 1.25 或更高版本
 - PostgreSQL
 - golang-migrate
-- PostgreSQL client tools, only when running `make schema-dump`
+- PostgreSQL 客户端工具，仅在运行 `make schema-dump` 时需要
 
-## Commands
+## 命令
 
-Use the project Makefile as the main command entrypoint.
+使用项目 Makefile 作为主要命令入口。
 
 ```bash
 make help
@@ -21,39 +21,39 @@ make run
 make sqlc
 ```
 
-## Runtime Configuration
+## 运行时配置
 
-The API loads configuration with this priority:
+API 按以下优先级加载配置：
 
 ```text
-default values < config file < environment variables
+默认值 < 配置文件 < 环境变量
 ```
 
-`APP_ENV` selects an implicit config file:
+`APP_ENV` 用于选择隐式配置文件：
 
 ```bash
 APP_ENV=development go run ./cmd/api
 ```
 
-This looks for:
+这会查找：
 
 ```text
 configs/development.yaml
 ```
 
-`CONFIG_FILE` can be used to explicitly choose a config file:
+可以使用 `CONFIG_FILE` 明确选择配置文件：
 
 ```bash
 CONFIG_FILE=configs/development.yaml go run ./cmd/api
 ```
 
-Environment variables override config file values:
+环境变量会覆盖配置文件中的值：
 
 ```bash
 APP_ENV=production DATABASE_URL=postgres://... ./stock-flow
 ```
 
-Supported config keys:
+支持的配置键：
 
 ```yaml
 app_env: development
@@ -63,7 +63,7 @@ database_url: "postgres://postgres:postgres@localhost:5432/stock_flow_dev?sslmod
 shutdown_timeout: "10s"
 ```
 
-The equivalent environment variables are:
+对应的环境变量为：
 
 ```text
 APP_ENV
@@ -75,9 +75,9 @@ DATABASE_URL
 SHUTDOWN_TIMEOUT
 ```
 
-Real `configs/*.yaml` files are ignored by git. Commit only `*.example.yaml` templates.
+真实的 `configs/*.yaml` 文件会被 git 忽略。只提交 `*.example.yaml` 模板。
 
-Database migration commands resolve `database_url` through the same Go config loader used by the API, so `APP_ENV`, `CONFIG_FILE`, and `DATABASE_URL` work consistently for Makefile migration commands too.
+数据库迁移命令使用与 API 相同的 Go 配置加载器解析 `database_url`，因此 `APP_ENV`、`CONFIG_FILE` 和 `DATABASE_URL` 也能一致地用于 Makefile 迁移命令。
 
 ```bash
 make migrate-up
@@ -85,39 +85,39 @@ make migrate-down
 make migrate-version
 ```
 
-You can inspect the resolved migration database URL with:
+可以使用以下命令检查解析后的迁移数据库 URL：
 
 ```bash
 make config-database-url
 ```
 
-## Database Schema Sources
+## 数据库模式来源
 
-The project keeps two database schema artifacts with different purposes.
+项目保留两种用途不同的数据库模式产物。
 
-`migrations/` is the historical database change log. It is used to upgrade or roll back real databases.
+`migrations/` 是数据库变更的历史日志，用于升级或回滚实际数据库。
 
-`sql/schema/schema.sql` is the current schema snapshot for sqlc code generation. It should describe the database after all intended migrations have been applied.
+`sql/schema/schema.sql` 是供 sqlc 生成代码使用的当前模式快照。它应描述应用所有预期迁移后的数据库。
 
-In short:
+简而言之：
 
 ```text
-migrations = history
-sql/schema/schema.sql = current shape for code generation
+migrations = 历史记录
+sql/schema/schema.sql = 用于生成代码的当前结构
 ```
 
-## Updating Schema And sqlc Code
+## 更新模式和 sqlc 代码
 
-When a database table changes:
+数据库表发生变更时：
 
-1. Add a new migration under `migrations/`.
-2. Apply migrations to the development database.
-3. Refresh `sql/schema/schema.sql`.
-4. Update query files under `sql/queries/`.
-5. Regenerate sqlc code.
-6. Run tests.
+1. 在 `migrations/` 下添加新迁移。
+2. 将迁移应用到开发数据库。
+3. 刷新 `sql/schema/schema.sql`。
+4. 更新 `sql/queries/` 下的查询文件。
+5. 重新生成 sqlc 代码。
+6. 运行测试。
 
-The usual flow is:
+通常的流程为：
 
 ```bash
 make migrate-up
@@ -126,41 +126,41 @@ make sqlc
 make test
 ```
 
-## Dumping The Current PostgreSQL Schema
+## 导出当前 PostgreSQL 模式
 
-PostgreSQL provides `pg_dump --schema-only` for exporting database structure without table data.
+PostgreSQL 提供 `pg_dump --schema-only`，用于导出不含表数据的数据库结构。
 
-The optional Makefile target is:
+可选的 Makefile 目标为：
 
 ```bash
 make schema-dump
 ```
 
-This target requires PostgreSQL client tools because it calls `pg_dump`.
+该目标会调用 `pg_dump`，因此需要 PostgreSQL 客户端工具。
 
-It writes the current database schema to:
+它将当前数据库模式写入：
 
 ```text
 sql/schema/schema.sql
 ```
 
-The command uses these options:
+该命令使用以下选项：
 
 ```bash
 pg_dump --schema-only --no-owner --no-privileges --no-comments --schema=public
 ```
 
-Notes:
+注意事项：
 
-- `pg_dump` must be installed locally through PostgreSQL client tools.
-- Override the binary path with `PG_DUMP=/path/to/pg_dump make schema-dump` when needed.
-- Make sure the target database has already been migrated to the intended version before dumping.
-- The Makefile filters psql meta-command lines such as `\restrict` because sqlc expects regular SQL input.
-- Always review the `sql/schema/schema.sql` diff after dumping.
+- 必须通过 PostgreSQL 客户端工具在本地安装 `pg_dump`。
+- 需要时，使用 `PG_DUMP=/path/to/pg_dump make schema-dump` 覆盖二进制文件路径。
+- 导出前，确保目标数据库已经迁移到预期版本。
+- Makefile 会过滤 `\restrict` 等 psql 元命令行，因为 sqlc 需要常规 SQL 输入。
+- 导出后始终检查 `sql/schema/schema.sql` 的差异。
 
-## sqlc Layout
+## sqlc 布局
 
-sqlc reads:
+sqlc 读取：
 
 ```text
 sqlc.yaml
@@ -168,46 +168,46 @@ sql/schema/schema.sql
 sql/queries/*.sql
 ```
 
-Generated code is placed inside each module's `db` subpackage.
+生成的代码放在各模块的 `db` 子包中。
 
-Example:
+示例：
 
 ```text
 sql/queries/materials.sql -> internal/material/db
 ```
 
-Generated `db` packages are persistence adapters. Do not edit generated files manually.
+生成的 `db` 包是持久化适配器。不得手动编辑生成的文件。
 
-The normal dependency flow remains:
+正常的依赖流仍为：
 
 ```text
-Handler -> Service -> Repository -> sqlc db package -> PostgreSQL
+处理器 -> 服务 -> 仓储 -> sqlc db 包 -> PostgreSQL
 ```
 
-The service layer should use module-owned business types, not sqlc row types directly.
+服务层应使用模块自有的业务类型，而不是直接使用 sqlc 行类型。
 
-## Adding A New sqlc Module
+## 添加新的 sqlc 模块
 
-For a new module such as `warehouse`:
+对于 `warehouse` 等新模块：
 
-1. Add query SQL under `sql/queries/warehouses.sql`.
-2. Add a new `sql:` block in `sqlc.yaml`.
-3. Set `out` to `internal/warehouse/db`.
-4. Set `package` to a module-specific package name such as `warehousedb`.
-5. Run `make sqlc`.
-6. Keep repository code responsible for mapping sqlc rows to module business types.
+1. 在 `sql/queries/warehouses.sql` 中添加查询 SQL。
+2. 在 `sqlc.yaml` 中添加新的 `sql:` 配置块。
+3. 将 `out` 设置为 `internal/warehouse/db`。
+4. 将 `package` 设置为模块专用的包名，例如 `warehousedb`。
+5. 运行 `make sqlc`。
+6. 仓储代码继续负责将 sqlc 行映射为模块业务类型。
 
-Each module should have its own generated db package. Avoid sharing one generated db package across business modules unless there is a deliberate shared persistence boundary.
+每个模块都应有自己的生成 db 包。除非明确存在共享的持久化边界，否则应避免多个业务模块共用一个生成的 db 包。
 
-## Tests
+## 测试
 
-Run all tests with:
+使用以下命令运行所有测试：
 
 ```bash
 make test
 ```
 
-For sandboxed environments where Go cannot write to the default build cache, use a local cache path:
+在 Go 无法写入默认构建缓存的沙盒环境中，使用本地缓存路径：
 
 ```bash
 GOCACHE=/private/tmp/stock-flow-go-build-cache make test

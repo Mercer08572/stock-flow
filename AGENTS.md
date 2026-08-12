@@ -1,79 +1,76 @@
 # Stock-Flow — AGENTS.md
 
-## Project Scope
+## 项目范围
 
-This file applies only to the `stock-flow/` backend project. Frontend-specific instructions belong in `../stock-flow-admin/AGENTS.md` and do not apply here.
+本文件仅适用于 `stock-flow/` 后端项目。前端相关说明位于 `../stock-flow-admin/AGENTS.md`，不适用于本项目。
 
-## Project Overview
+## 项目概述
 
-Stock—Flow is a back-end API service for an inventory management system.
+Stock-Flow 是库存管理系统的后端 API 服务。
 
+这是一个模块化单体库存系统，用于管理：
 
-
-A modular monolith inventory system for managing:
-
-- Materials
-- Products
+- 物料
+- 产品
 - SKU
-- Inventory
-- Warehouses
-- Batches
-- Inventory Reservations
-- Inventory Movements
+- 库存
+- 仓库
+- 批次
+- 库存预留
+- 库存变动
 
-Future modules may include:
+未来可能包含以下模块：
 
-- Purchase Management
-- Sales Management
-- Approval Workflow
-- Inventory Valuation
-- Reporting
+- 采购管理
+- 销售管理
+- 审批工作流
+- 库存估值
+- 报表
 
+## 后端技术栈
 
-## Backend Tech Stack
+- **语言**：Go 1.25+
+- **Web 框架**：Gin
+- **数据库**：PostgreSQL（使用 `pgx` 驱动 + `sqlc`）
+- **迁移工具**：golang-migrate
 
-- **Language**：Go 1.25+
-- **Web framework**：Gin
-- **Database**：PostgreSQL（use `pgx` driver + `sqlc`）
-- **Migration tool**：golang-migrate
+## 架构
 
-## Architecture 
+- 模块化单体
+- 轻量 DDD
+- 整洁架构
 
-- Modular Monolith
-- DDD Lite
-- Clean Architecture
+### 模块边界
 
-### Modular Boundaries
+每个业务领域均作为独立模块实现。
 
-Each business domain is implemented as an independent module.
-
-Examples:
+示例：
 - material
 - sku
 - inventory
 - warehouse
 
-Modules communicate through application services.
-Cross-module repository access by anti-corruption layer, avoid direct access.
-This service does not own inbound or outbound order modules. External business systems should call inventory operation APIs for stock changes.
+模块之间通过应用服务通信。
+跨模块访问仓储时使用防腐层，避免直接访问。
+本服务不负责入库单或出库单模块。外部业务系统应调用库存操作 API 来变更库存。
 
-## Repository Structure
+## 仓库结构
 
 ```
 stock-flow/
 ├── cmd/
-│   
+│
 ├── internal/
 │   ├── material/
-│   │   
+│   │
 │   ├── sku/
-│   │   
+│   │
 │   ├── inventory/
-│   │   
+│   │
 │   ├── warehouse/
-│   │   
+│   │
 │   └── shared/
-│       
+│
 ├── pkg/
 │
 ├── migrations/
@@ -86,57 +83,56 @@ stock-flow/
 └── AGENTS.md                        # 本文件
 ```
 
-## Development Principles
+## 开发原则
 
-- Business logic belongs in domain layer.
-- Repository layer contains persistence logic only.
-- Transactions are managed at application service level.
-- No ORM.
-- Prefer explicit code over framework magic.
+- 业务逻辑属于领域层。
+- 仓储层仅包含持久化逻辑。
+- 事务在应用服务层管理。
+- 不使用 ORM。
+- 优先使用显式代码，而非框架魔法。
 
-### Three layer architecture (Must be strictly adhered to)
+### 三层架构（必须严格遵守）
 
 ```
-HTTP Request → Handler → Service → Repository → PostgreSQL
+HTTP 请求 → 处理器 → 服务 → 仓储 → PostgreSQL
 ```
 
+### 接口优先原则
 
-### Interface-first principle
-
-For each layer, define the interface first, then write the implementation. This allows it to be replaced with a mock in tests.
+每一层都应先定义接口，再编写实现。这样便可在测试中将其替换为 mock。
 
 ```go
-// Define the interface first
+// 先定义接口
 type MaterialService interface {
     List(ctx context.Context) ([]Material, error)
     Create(ctx context.Context, req CreateMaterialRequest) (*Material, error)
 }
 
-// implementation
+// 实现
 type materialService struct {
     repo MaterialRepository
 }
 
-// Constructor injection
+// 构造函数注入
 func NewMaterialService(repo MaterialRepository) MaterialService {
     return &materialService{repo: repo}
 }
 ```
 
-All dependencies should be injected via the constructor NewXxx(dep). Global variables are prohibited for passing dependencies.
+所有依赖都应通过构造函数 `NewXxx(dep)` 注入。禁止使用全局变量传递依赖。
 
-## API Rules
+## API 规则
 
-- Base path：`/api/v1`
-- Resource names should be plural nouns `/api/v1/materials`
-- Standard HTTP function：GET（list/detail）、POST（create）、PUT（update）、DELETE（soft delete）
+- 基础路径：`/api/v1`
+- 资源名称应使用复数名词，例如 `/api/v1/materials`
+- 标准 HTTP 操作：GET（列表/详情）、POST（创建）、PUT（更新）、DELETE（软删除）
 
-### Unified response format
+### 统一响应格式
 
-All responses must be returned through the `pkg/response` package, with a fixed format:
+所有响应必须通过 `pkg/response` 包返回，格式固定如下：
 
 ```json
-// success
+// 成功
 {
     "code": 200,
     "message": "success",
@@ -144,7 +140,7 @@ All responses must be returned through the `pkg/response` package, with a fixed 
     "trace_id": "req_abc123xyz",
     "timestamp": 1672531200000
 }
-// failure
+// 失败
 {
     "code": 1001,
     "message": "error msg",
@@ -154,19 +150,20 @@ All responses must be returned through the `pkg/response` package, with a fixed 
 }
 ```
 
-## Before Implementing Any Feature
-1. Read AGENTS.md
-2. Read related docs/domain documents.
-3. Read related tasks documents.
-4. Follow module boundaries.
-5. Add tests when business logic changes.
+## 实现任何功能之前
 
+1. 阅读 `AGENTS.md`。
+2. 阅读相关文档/领域文档。
+3. 阅读相关任务文档。
+4. 遵守模块边界。
+5. 业务逻辑发生变更时添加测试。
 
-## Documentation Priority order:
-0. The user explicitly requested this time.
-1. AGENTS.md
-2. Sub AGENTS.md in package
-3. tasks
-5. Source Code
+## 文档优先级顺序
 
-If conflicts exist, higher priority documents win.
+0. 用户本次明确提出的要求。
+1. `AGENTS.md`
+2. 包内的子级 `AGENTS.md`
+3. `tasks`
+5. 源代码
+
+若存在冲突，以优先级更高的文档为准。

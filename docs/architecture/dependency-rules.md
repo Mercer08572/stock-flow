@@ -1,53 +1,53 @@
-# Dependency Rules
+# 依赖规则
 
-Stock-Flow follows a strict three-layer request flow:
-
-```text
-HTTP Request -> Handler -> Service -> Repository -> PostgreSQL
-```
-
-Dependencies must point in one direction only:
+Stock-Flow 遵循严格的三层请求流：
 
 ```text
-handler -> service -> repository
+HTTP 请求 -> 处理器 -> 服务 -> 仓储 -> PostgreSQL
 ```
 
-## Handler Layer
+依赖必须仅指向一个方向：
 
-- Handles HTTP requests and responses.
-- Parses path, query, and request body data.
-- Performs request-level validation only.
-- Calls service interfaces.
-- Returns responses through `pkg/response`.
-- Must not contain business logic.
-- Must not call repositories directly.
+```text
+处理器 -> 服务 -> 仓储
+```
 
-## Service Layer
+## 处理器层
 
-- Owns application use cases and business orchestration.
-- Calls repository interfaces for persistence.
-- Coordinates cross-module application service calls.
-- Enforces inventory dimensions such as warehouse when changing stock.
-- Enforces idempotency for inventory mutation operations.
-- Manages transactions when a use case requires atomic changes.
-- Must not depend on Gin or HTTP-specific types.
+- 处理 HTTP 请求和响应。
+- 解析路径、查询参数和请求体数据。
+- 仅执行请求级校验。
+- 调用服务接口。
+- 通过 `pkg/response` 返回响应。
+- 不得包含业务逻辑。
+- 不得直接调用仓储。
 
-## Repository Layer
+## 服务层
 
-- Owns persistence logic only.
-- Uses `pgx` and `sqlc` generated queries.
-- Maps database records to domain or application data structures.
-- Persists warehouse identifiers as part of inventory records and movement records when required by the service layer.
-- Persists idempotency keys and movement records when required by the service layer.
-- Must not contain business rules.
-- Must not call handlers or services.
-- Must not manage application workflows.
+- 负责应用用例和业务编排。
+- 调用仓储接口进行持久化。
+- 协调跨模块的应用服务调用。
+- 变更库存时强制校验仓库等库存维度。
+- 强制库存变更操作具备幂等性。
+- 在用例需要原子变更时管理事务。
+- 不得依赖 Gin 或 HTTP 特有类型。
 
-## Interface-First Rule
+## 仓储层
 
-Each layer must expose an interface before its implementation.
+- 仅负责持久化逻辑。
+- 使用 `pgx` 和 `sqlc` 生成的查询。
+- 将数据库记录映射为领域或应用数据结构。
+- 服务层要求时，将仓库标识符作为库存记录和变动记录的一部分持久化。
+- 服务层要求时，持久化幂等键和变动记录。
+- 不得包含业务规则。
+- 不得调用处理器或服务。
+- 不得管理应用工作流。
 
-Dependencies must be injected through constructors:
+## 接口优先规则
+
+每一层都必须先公开接口，再提供实现。
+
+依赖必须通过构造函数注入：
 
 ```go
 func NewMaterialService(repo MaterialRepository) MaterialService {
@@ -55,4 +55,4 @@ func NewMaterialService(repo MaterialRepository) MaterialService {
 }
 ```
 
-Global variables must not be used to pass dependencies between layers.
+不得使用全局变量在各层之间传递依赖。

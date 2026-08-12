@@ -1,54 +1,53 @@
-# Database Migration Convention
+# 数据库迁移规范
 
-> This file applies to the `migrations/` directory.
-> When working in this directory, should read both the root `AGENTS.md` and this file.
+> 本文件适用于 `migrations/` 目录。
+> 在此目录中工作时，应同时阅读根目录的 `AGENTS.md` 和本文件。
 
-## File Naming
+## 文件命名
 
 ```
-<number>_<description>.up.sql # Forward migration (apply changes)
-<number>_<description>.down.sql # Backward migration (revert changes)
+<number>_<description>.up.sql # 正向迁移（应用变更）
+<number>_<description>.down.sql # 反向迁移（还原变更）
 ```
 
-- Number: 12 digits, the first eight digits represent year, month and day. The last 4 digits are the serial number. (`202601010001`)
-- Description: snake_case.
-- Next serial number = current max serial number + 1.
+- 编号：共 12 位，前八位表示年月日，后四位为序号（`202601010001`）。
+- 描述：使用 snake_case。
+- 下一个序号 = 当前最大序号 + 1。
 
-## Migration Metadata
+## 迁移元数据
 
-Every `*.up.sql` file must begin with a metadata comment block:
+每个 `*.up.sql` 文件都必须以元数据注释块开头：
 
 ```sql
--- Migration metadata
+-- 迁移元数据
 -- status: pending
--- description: short migration description
+-- description: 简短的迁移描述
 ```
 
-`status` is manually maintained and must be either `pending` or `applied`.
-Use `pending` until the migration has been executed in the target database. After execution, update the file to `applied` before making the next schema change. A pending migration may be amended instead of creating another migration file; an applied migration must not be rewritten.
+`status` 由人工维护，且只能是 `pending` 或 `applied`。
+迁移在目标数据库中执行前使用 `pending`。执行后，在进行下一次模式变更之前，将文件更新为 `applied`。尚处于 pending 状态的迁移可以直接修改，无需创建另一个迁移文件；已经 applied 的迁移不得重写。
 
-
-## Must include basic fields when creating a new table.
+## 创建新表时必须包含基础字段
 
 ```sql
 id         BIGSERIAL    PRIMARY KEY,
 created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
 updated_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-deleted_at TIMESTAMPTZ  NULL      -- soft delete，NULL means not deleted
+deleted_at TIMESTAMPTZ  NULL      -- 软删除，NULL 表示未删除
 ```
 
 ## PostgreSQL 类型规范
 
-| Purpose | Use | Forbidden |
+| 用途 | 使用 | 禁止使用 |
 |---|---|---|
-| Primary / Foreign Key | `BIGSERIAL` / `BIGINT` | `INT` / `SERIAL` |
-| Text（name、code） | `TEXT` | `VARCHAR(n)` |
-| Decimal / Amount | `NUMERIC(p, s)` | `FLOAT` / `REAL` |
-| Timestamp | `TIMESTAMPTZ` | `TIMESTAMP`（without timezone）|
-| Enum values | `TEXT` + `CHECK` constraint | PostgreSQL `ENUM` type |
-| Boolean | `BOOLEAN` | |
+| 主键/外键 | `BIGSERIAL` / `BIGINT` | `INT` / `SERIAL` |
+| 文本（名称、编码） | `TEXT` | `VARCHAR(n)` |
+| 小数/金额 | `NUMERIC(p, s)` | `FLOAT` / `REAL` |
+| 时间戳 | `TIMESTAMPTZ` | `TIMESTAMP`（不含时区）|
+| 枚举值 | `TEXT` + `CHECK` 约束 | PostgreSQL `ENUM` 类型 |
+| 布尔值 | `BOOLEAN` | |
 
-## Example：20260101001_create_materials_table
+## 示例：20260101001_create_materials_table
 
 **up.sql**
 
@@ -71,10 +70,10 @@ CREATE INDEX idx_materials_code     ON materials (code)     WHERE deleted_at IS 
 CREATE INDEX idx_materials_status   ON materials (status)   WHERE deleted_at IS NULL;
 CREATE INDEX idx_materials_category ON materials (category) WHERE deleted_at IS NULL;
 
-COMMENT ON TABLE  materials           IS '物料主表';
-COMMENT ON COLUMN materials.code      IS '物料编码，全局唯一';
-COMMENT ON COLUMN materials.unit      IS '计量单位（pcs/kg/m 等）';
-COMMENT ON COLUMN materials.status    IS '状态：active=启用, inactive=停用';
+COMMENT ON TABLE  materials            IS '物料主表';
+COMMENT ON COLUMN materials.code       IS '物料编码，全局唯一';
+COMMENT ON COLUMN materials.unit       IS '计量单位（pcs/kg/m 等）';
+COMMENT ON COLUMN materials.status     IS '状态：active=启用, inactive=停用';
 COMMENT ON COLUMN materials.deleted_at IS '软删除标记，NULL 表示未删除';
 ```
 
@@ -84,5 +83,6 @@ COMMENT ON COLUMN materials.deleted_at IS '软删除标记，NULL 表示未删�
 DROP TABLE IF EXISTS materials;
 ```
 
-## Rules
-- When adding a foreign key constraint, you should to also add an index to the column of the foreign key constraint.
+## 规则
+
+- 添加外键约束时，还应为该外键约束对应的列添加索引。

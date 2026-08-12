@@ -1,34 +1,34 @@
-# Material
+# 物料
 
-The material module owns material master data.
+物料模块负责物料主数据。
 
-Material is the upstream source for SKU and inventory. It describes what an item is, but it must not describe how a specific SKU is packaged, stocked, reserved, or consumed.
+物料是 SKU 和库存的上游来源。它描述一个物品是什么，但不得描述特定 SKU 如何包装、存储、预留或消耗。
 
-## Scope
+## 范围
 
-The material module is responsible for:
+物料模块负责：
 
-- Material basic information.
-- Material category relationship.
-- Material base unit.
-- Material-level unit conversions.
-- Material status.
-- Material extensible attributes.
-- Material soft delete rules.
+- 物料基本信息。
+- 物料与分类的关系。
+- 物料基本单位。
+- 物料级单位换算。
+- 物料状态。
+- 物料扩展属性。
+- 物料软删除规则。
 
-The material module is not responsible for:
+物料模块不负责：
 
-- SKU definitions.
-- Warehouse inventory quantities.
-- Batch stock records.
-- External business workflows.
-- Inventory movement records.
+- SKU 定义。
+- 仓库库存数量。
+- 批次库存记录。
+- 外部业务工作流。
+- 库存变动记录。
 
-## Common Fields
+## 通用字段
 
-Material contains only common inventory fields.
+物料仅包含通用库存字段。
 
-Examples:
+示例：
 
 - `id`
 - `code`
@@ -41,23 +41,23 @@ Examples:
 - `updated_at`
 - `deleted_at`
 
-## Extensible Attributes
+## 扩展属性
 
-Category-specific attributes must not be added directly to the `materials` table.
+不得将分类特有的属性直接添加到 `materials` 表中。
 
-Use material attribute definitions and values for extensibility.
+应使用物料属性定义和属性值实现扩展。
 
-Examples:
+示例：
 
-- A steel material may need `thickness`, `grade`, or `surface_treatment`.
-- A chemical material may need `concentration`, `hazard_level`, or `storage_condition`.
-- These fields belong in material attribute definitions and material attribute values, not in the base material table.
+- 钢材物料可能需要 `thickness`、`grade` 或 `surface_treatment`。
+- 化学品物料可能需要 `concentration`、`hazard_level` 或 `storage_condition`。
+- 这些字段属于物料属性定义和物料属性值，而不属于物料基础表。
 
-## Units and Conversions
+## 单位与换算
 
-`base_unit_id` must reference a unit record. Do not store material units as free text on the `materials` table.
+`base_unit_id` 必须引用一条单位记录。不得在 `materials` 表中以自由文本形式存储物料单位。
 
-Recommended unit fields:
+建议的单位字段：
 
 - `id`
 - `code`
@@ -70,11 +70,11 @@ Recommended unit fields:
 - `updated_at`
 - `deleted_at`
 
-`base_unit_id` represents the material's base measurement unit. Inventory quantities should be normalized to this unit when the business operation requires quantity calculation or comparison.
+`base_unit_id` 表示物料的基本计量单位。当业务操作需要进行数量计算或比较时，应将库存数量归一化为该单位。
 
-Material-level unit conversion is required because package units are often material-specific.
+由于包装单位往往因物料而异，因此必须支持物料级单位换算。
 
-Recommended material unit conversion fields:
+建议的物料单位换算字段：
 
 - `id`
 - `material_id`
@@ -85,69 +85,69 @@ Recommended material unit conversion fields:
 - `updated_at`
 - `deleted_at`
 
-Examples:
+示例：
 
-- For material A, `1 box = 12 pcs`.
-- For material B, `1 box = 24 pcs`.
-- Global conversions such as `1 kg = 1000 g` may be shared, but material-specific conversions must be stored at material level.
+- 对物料 A，`1 box = 12 pcs`。
+- 对物料 B，`1 box = 24 pcs`。
+- `1 kg = 1000 g` 等全局换算可以共享，但特定物料的换算必须存储在物料层级。
 
-Conversion rules:
+换算规则：
 
-- `from_unit_id` and `to_unit_id` must reference valid unit records.
-- `factor` must be greater than zero.
-- A conversion pair must be unique per material.
-- Conversions must not be duplicated in opposite directions unless the reverse conversion is explicitly needed by the service layer.
-- Unit conversion calculation belongs in the material service layer or a domain helper owned by the material module.
-- Repositories must only persist and query unit conversion records.
+- `from_unit_id` 和 `to_unit_id` 必须引用有效的单位记录。
+- `factor` 必须大于零。
+- 每个物料内的换算单位对必须唯一。
+- 除非服务层明确需要反向换算，否则不得重复存储方向相反的换算关系。
+- 单位换算计算属于物料服务层，或属于由物料模块负责的领域辅助组件。
+- 仓储只能持久化和查询单位换算记录。
 
-## Boundary Rules
+## 边界规则
 
-- Material must not depend on SKU, inventory, or warehouse modules.
-- SKU may depend on material through material application services or stable application contracts.
-- Other modules must not access the material repository directly.
-- Cross-module validation, such as checking whether a material exists, must go through the material service layer.
+- 物料不得依赖 SKU、库存或仓库模块。
+- SKU 可以通过物料应用服务或稳定的应用契约依赖物料。
+- 其他模块不得直接访问物料仓储。
+- 跨模块校验（例如检查物料是否存在）必须通过物料服务层完成。
 
-## Layer Rules
+## 分层规则
 
-Material must follow the project dependency direction:
+物料模块必须遵循项目的依赖方向：
 
 ```text
-Handler -> Service -> Repository
+处理器 -> 服务 -> 仓储
 ```
 
-- Handler parses HTTP input and returns unified responses.
-- Service owns material business rules and use cases.
-- Repository owns persistence logic only.
+- 处理器解析 HTTP 输入并返回统一响应。
+- 服务负责物料业务规则和用例。
+- 仓储仅负责持久化逻辑。
 
-Transactions, when needed, must be started and completed in the service layer.
+需要事务时，必须在服务层启动并完成事务。
 
-## Business Rules
+## 业务规则
 
-- `code` must uniquely identify a material.
-- `name` should be human-readable and should not be used as a unique business identifier.
-- `category_id` is required when category-based attribute definitions are used.
-- `base_unit_id` represents the default unit for material-level measurement and must reference the unit table.
-- Material-level unit conversions must be maintained when a material can be operated in units other than its base unit.
-- `status` controls whether a material can be used by downstream modules.
-- Soft-deleted materials must not be returned by default list or detail queries.
-- A material that is already used by downstream SKU or inventory data should not be hard deleted.
+- `code` 必须唯一标识一个物料。
+- `name` 应便于人类阅读，不应作为唯一业务标识。
+- 使用基于分类的属性定义时，`category_id` 为必填项。
+- `base_unit_id` 表示物料级计量的默认单位，且必须引用单位表。
+- 当物料可以使用基本单位之外的单位操作时，必须维护物料级单位换算。
+- `status` 控制下游模块能否使用该物料。
+- 默认的列表或详情查询不得返回已软删除的物料。
+- 已被下游 SKU 或库存数据使用的物料不应被硬删除。
 
-## API Rules
+## API 规则
 
-Material APIs must use plural resource names under `/api/v1`.
+物料 API 必须在 `/api/v1` 下使用复数资源名称。
 
-Expected resource path:
+预期资源路径：
 
 ```text
 /api/v1/materials
 ```
 
-Standard operations:
+标准操作：
 
-- `GET /api/v1/materials`: list materials.
-- `GET /api/v1/materials/:id`: get material detail.
-- `POST /api/v1/materials`: create material.
-- `PUT /api/v1/materials/:id`: update material.
-- `DELETE /api/v1/materials/:id`: soft delete material.
+- `GET /api/v1/materials`：列出物料。
+- `GET /api/v1/materials/:id`：获取物料详情。
+- `POST /api/v1/materials`：创建物料。
+- `PUT /api/v1/materials/:id`：更新物料。
+- `DELETE /api/v1/materials/:id`：软删除物料。
 
-All responses must use the `pkg/response` package.
+所有响应必须使用 `pkg/response` 包。

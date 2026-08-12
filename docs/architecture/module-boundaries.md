@@ -1,54 +1,54 @@
-# Module Boundaries
+# 模块边界
 
-Stock-Flow is a modular monolith. Each business domain must be implemented as an independent module with clear ownership of its domain model, service logic, and persistence access.
+Stock-Flow 是模块化单体。每个业务领域都必须实现为独立模块，并明确归属其领域模型、服务逻辑和持久化访问。
 
-## Main Modules
+## 主要模块
 
-- `material`: owns material master data and material lifecycle rules.
-- `sku`: owns SKU definitions derived from material information.
-- `inventory`: owns stock state, quantities, batches, and inventory movements.
-- `warehouse`: a logical inventory dimension. It identifies where stock is stored and must be included in inventory balance and movement operations.
+- `material`：负责物料主数据和物料生命周期规则。
+- `sku`：负责从物料信息派生的 SKU 定义。
+- `inventory`：负责库存状态、数量、批次和库存变动。
+- `warehouse`：库存的逻辑维度。它标识库存存放的位置，必须包含在库存余额和变动操作中。
 
-## Business Relationship
+## 业务关系
 
-The core dependency direction is:
+核心依赖方向为：
 
 ```text
 material -> sku -> inventory(warehouse, batch)
 ```
 
-- `material` is the upstream source for material information.
-- `sku` depends on material concepts to define sellable or stockable units.
-- `inventory` depends on SKU concepts to track stock state.
-- `warehouse` is a logical dimension inside inventory, not an independent upstream business module.
-- Inventory quantity must be tracked by warehouse and SKU at minimum.
-- Batch-level inventory is optional for a stock operation, but when batch information exists inventory must also support warehouse + SKU + batch tracking.
-- External business systems call inventory application services to increase, reserve, release, or decrease stock.
+- `material` 是物料信息的上游来源。
+- `sku` 依赖物料概念来定义可销售或可库存单位。
+- `inventory` 依赖 SKU 概念来跟踪库存状态。
+- `warehouse` 是库存内部的逻辑维度，而不是独立的上游业务模块。
+- 库存数量至少必须按仓库和 SKU 跟踪。
+- 对一次库存操作而言，批次级库存是可选的；但存在批次信息时，库存还必须支持按仓库 + SKU + 批次跟踪。
+- 外部业务系统调用库存应用服务来增加、预留、释放或扣减库存。
 
-## Boundary Rules
+## 边界规则
 
-- A module must not access another module's repository directly.
-- A module must not skip layers or bypass the dependency direction.
-- Cross-module communication must happen through application services or an anti-corruption layer.
-- Downstream modules may depend on upstream application contracts when needed.
-- Upstream modules must not depend on downstream modules.
-- Warehouse and batch stock rules must be accessed through inventory application services, not through direct repository access by external business code.
-- This service does not own inbound or outbound order modules.
-- Shared code belongs in `internal/shared` or `pkg` only when it is truly generic and has no business ownership.
+- 模块不得直接访问其他模块的仓储。
+- 模块不得跨层或绕过依赖方向。
+- 跨模块通信必须通过应用服务或防腐层进行。
+- 下游模块可以在需要时依赖上游应用契约。
+- 上游模块不得依赖下游模块。
+- 必须通过库存应用服务访问仓库和批次库存规则，外部业务代码不得直接访问仓储。
+- 本服务不负责入库单或出库单模块。
+- 只有真正通用且不归属任何业务的共享代码，才能放在 `internal/shared` 或 `pkg` 中。
 
-## Prohibited Examples
+## 禁止示例
 
-- `inventory` directly updating `material` tables.
-- External business code directly updating inventory, warehouse stock, or batch stock tables.
-- Updating inventory quantity without a warehouse identifier.
-- Duplicating stock increase, reserve, release, or decrease logic outside the inventory service.
-- `handler` in one module calling a repository in another module.
-- `repository` in any module calling another module's service.
+- `inventory` 直接更新 `material` 表。
+- 外部业务代码直接更新库存、仓库库存或批次库存表。
+- 在没有仓库标识符的情况下更新库存数量。
+- 在库存服务之外重复实现增加、预留、释放或扣减库存的逻辑。
+- 一个模块的 `handler` 调用另一个模块的仓储。
+- 任一模块的 `repository` 调用另一个模块的服务。
 
-## Allowed Examples
+## 允许示例
 
-- External business services call inventory application services to increase stock.
-- External business services call inventory application services to reserve, release, or decrease stock.
-- External business services pass a warehouse identifier and SKU identifier to inventory application services.
-- `inventory` service validates that a warehouse exists before changing stock.
-- `inventory` service uses a `sku` application contract to validate SKU existence.
+- 外部业务服务调用库存应用服务增加库存。
+- 外部业务服务调用库存应用服务预留、释放或扣减库存。
+- 外部业务服务将仓库标识符和 SKU 标识符传递给库存应用服务。
+- `inventory` 服务在变更库存前校验仓库是否存在。
+- `inventory` 服务使用 `sku` 应用契约校验 SKU 是否存在。
