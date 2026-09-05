@@ -150,6 +150,48 @@ func NewMaterialService(repo MaterialRepository) MaterialService {
 }
 ```
 
+## 沙箱环境构建缓存约定 
+
+Agent 运行在沙箱中，通常只允许写入项目工作区与系统临时目录（/tmp）。因此**所有缓存、
+临时文件与临时下载的工具都必须放在系统临时目录下**，禁止在项目仓库内创建任何缓存目录
+（如 `.pnpm-store`、`.tools`、`.goroot_tmp`、`.gocache` 等），确保缓存不跟随项目。
+
+### 通用约定
+
+- 统一缓存根目录：`/tmp/agent-cache`（macOS 上 `/tmp` 即 `/private/tmp`）。
+  该目录可跨项目共享：pnpm store 与 Go 模块缓存都是内容寻址的，跨项目共享安全且能提高缓存命中率。
+- 禁止在项目内创建缓存/依赖目录；需要临时文件时使用 `mktemp -d`（默认位于系统临时目录）。
+- 若项目内发现历史遗留的缓存目录（如 `.pnpm-store`、`.tools`），直接删除即可：
+  它们是可再生内容，不得提交、不得保留。
+
+### 各工具约定
+
+- Go：执行任何 `go` 命令前，先导出（或写入 Makefile 默认值，可用环境变量覆盖）：
+  - `GOCACHE=/tmp/agent-cache/go-build`
+  - `GOMODCACHE=/tmp/agent-cache/go-mod`
+  - `GOTMPDIR=/tmp/agent-cache/go-tmp`（使用前确保目录存在：`mkdir -p`）
+  - `GOPATH=/tmp/agent-cache/go-path`（仅需要时）
+  - `GOBIN=/tmp/agent-cache/bin`（仅 `go install` 工具时）
+- pnpm / npm：
+  - 统一使用 store：`pnpm --store-dir /tmp/agent-cache/pnpm-store <命令>`。
+  - 注意：pnpm 10 及以上**忽略项目 `.npmrc` 中的 `store-dir`**（该配置仅在 pnpm ≤9 有效），
+    必须使用 `--store-dir` 命令行标志，或设置 `XDG_DATA_HOME=/tmp/agent-cache/data`
+    （store 会落到 `$XDG_DATA_HOME/pnpm/store`）。
+  - npm 对应 `cache=/tmp/agent-cache/npm-cache`（npm 仍可从 `.npmrc` 读取）。
+  - 不得让 store 落到项目内路径（如项目根的 `.pnpm-store`）。
+- 需要固定版本的独立工具（如 sqlc）：
+  - 优先用 `go run <module>@<version>`（编译产物进 GOCACHE），
+    或 `GOBIN=/tmp/agent-cache/bin go install <module>@<version>`。
+  - 禁止把工具二进制下载到项目内（如项目内 `.tools/bin`）。
+
+### 例外与权衡
+
+- `node_modules/`、`dist/`、编译产物等属于**构建产物**而非缓存，仍按项目约定放在项目内
+  并由 `.gitignore` 排除，不受本约束限制。
+- `/tmp` 会被系统清理（重启必清空；macOS 约 3 天未访问即清理）。缓存被清理后重新下载即可，
+  属正常现象；不得因此把缓存改回项目内。
+- 本条款的意图是约束"缓存与临时文件"的位置，不限制业务数据、源码或文档在项目内的正常存放。
+
 ## 实现任何功能之前
 
 1. 阅读 `AGENTS.md`。
