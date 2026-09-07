@@ -11,6 +11,7 @@ configs/*.yml
 # IDE
 .idea
 .vscode
+.zed
 *.swp
 *.swo
 *~
