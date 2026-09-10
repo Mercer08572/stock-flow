@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v3"
+	"github.com/joho/godotenv"
 )
 
 const (
@@ -19,8 +18,11 @@ const (
 	defaultHTTPAddr        = ":8080"
 	defaultShutdownTimeout = 10 * time.Second
 
-	configFileEnv = "CONFIG_FILE"
-	configDir     = "configs"
+	// defaultEnvFile is read from the process working directory.
+	defaultEnvFile = ".env"
+	// envFileEnv optionally points at a different dotenv file, for example when
+	// the process does not start from the project root.
+	envFileEnv = "ENV_FILE"
 )
 
 // Config contains process-level settings loaded at application startup.
@@ -37,37 +39,26 @@ type Config struct {
 	AuthLoginFailureWindow      time.Duration
 	AuthLoginLockout            time.Duration
 	AuthLoginIPMaxAttempts      int
-	ConfigFile                  string
+	// EnvFile is the dotenv file that was loaded, or empty when none was found.
+	EnvFile string
 }
 
-type fileConfig struct {
-	Environment                 string `yaml:"app_env"`
-	GinMode                     string `yaml:"gin_mode"`
-	HTTPAddr                    string `yaml:"http_addr"`
-	DatabaseURL                 string `yaml:"database_url"`
-	ShutdownTimeout             string `yaml:"shutdown_timeout"`
-	AuthAdminSessionTTL         string `yaml:"auth_admin_session_ttl"`
-	AuthAdminCookieSameSite     string `yaml:"auth_admin_cookie_same_site"`
-	AuthAdminCookieSecure       *bool  `yaml:"auth_admin_cookie_secure"`
-	AuthLoginFailureMaxAttempts int    `yaml:"auth_login_failure_max_attempts"`
-	AuthLoginFailureWindow      string `yaml:"auth_login_failure_window"`
-	AuthLoginLockout            string `yaml:"auth_login_lockout"`
-	AuthLoginIPMaxAttempts      int    `yaml:"auth_login_ip_max_attempts"`
-}
-
+// Load resolves configuration using the precedence:
+//
+//	exported environment variables > .env file > built-in defaults
+//
+// A blank exported value counts as unset, so the .env file can fill it in. The
+// .env file itself is optional because deployments are expected to inject real
+// environment variables; a missing file is an error only when ENV_FILE asked
+// for it explicitly.
 func Load() (Config, error) {
+	envFile, err := loadEnvFile()
+	if err != nil {
+		return Config{}, err
+	}
+
 	cfg := defaultConfig()
-
-	if value := env("APP_ENV"); value != "" {
-		cfg.Environment = value
-	}
-
-	configFile, explicitConfigFile := resolveConfigFile(cfg.Environment)
-	if configFile != "" {
-		if err := applyConfigFile(&cfg, configFile, explicitConfigFile); err != nil {
-			return Config{}, err
-		}
-	}
+	cfg.EnvFile = envFile
 
 	if err := applyEnv(&cfg); err != nil {
 		return Config{}, err
@@ -95,87 +86,35 @@ func defaultConfig() Config {
 	}
 }
 
-func resolveConfigFile(environment string) (string, bool) {
-	if configFile := env(configFileEnv); configFile != "" {
-		return configFile, true
+// loadEnvFile copies the dotenv file into the process environment and returns
+// the path it read. Values already exported with a non-blank value are left
+// untouched so the environment keeps the highest precedence.
+func loadEnvFile() (string, error) {
+	path := env(envFileEnv)
+	explicit := path != ""
+	if !explicit {
+		path = defaultEnvFile
 	}
 
-	if environment == "" {
-		environment = defaultEnvironment
-	}
-
-	return filepath.Join(configDir, environment+".yaml"), false
-}
-
-func applyConfigFile(cfg *Config, path string, required bool) error {
-	data, err := os.ReadFile(path)
+	values, err := godotenv.Read(path)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) && !required {
-			return nil
+		if errors.Is(err, os.ErrNotExist) && !explicit {
+			// No dotenv file is the normal case in production and CI.
+			return "", nil
 		}
-		return fmt.Errorf("read config file %q: %w", path, err)
+		return "", fmt.Errorf("read env file %q: %w", path, err)
 	}
 
-	var fileCfg fileConfig
-	if err := yaml.Unmarshal(data, &fileCfg); err != nil {
-		return fmt.Errorf("parse config file %q: %w", path, err)
+	for key, value := range values {
+		if env(key) != "" {
+			continue
+		}
+		if err := os.Setenv(key, value); err != nil {
+			return "", fmt.Errorf("apply %s from %q: %w", key, path, err)
+		}
 	}
 
-	if value := strings.TrimSpace(fileCfg.Environment); value != "" {
-		cfg.Environment = value
-	}
-	if value := strings.TrimSpace(fileCfg.GinMode); value != "" {
-		cfg.GinMode = value
-	}
-	if value := strings.TrimSpace(fileCfg.HTTPAddr); value != "" {
-		cfg.HTTPAddr = value
-	}
-	if value := strings.TrimSpace(fileCfg.DatabaseURL); value != "" {
-		cfg.DatabaseURL = value
-	}
-	if value := strings.TrimSpace(fileCfg.ShutdownTimeout); value != "" {
-		timeout, err := time.ParseDuration(value)
-		if err != nil {
-			return fmt.Errorf("parse shutdown_timeout in %q: %w", path, err)
-		}
-		cfg.ShutdownTimeout = timeout
-	}
-	if value := strings.TrimSpace(fileCfg.AuthAdminSessionTTL); value != "" {
-		duration, err := time.ParseDuration(value)
-		if err != nil {
-			return fmt.Errorf("parse auth_admin_session_ttl in %q: %w", path, err)
-		}
-		cfg.AuthAdminSessionTTL = duration
-	}
-	if value := strings.ToLower(strings.TrimSpace(fileCfg.AuthAdminCookieSameSite)); value != "" {
-		cfg.AuthAdminCookieSameSite = value
-	}
-	if fileCfg.AuthAdminCookieSecure != nil {
-		cfg.AuthAdminCookieSecure = *fileCfg.AuthAdminCookieSecure
-	}
-	if fileCfg.AuthLoginFailureMaxAttempts != 0 {
-		cfg.AuthLoginFailureMaxAttempts = fileCfg.AuthLoginFailureMaxAttempts
-	}
-	if value := strings.TrimSpace(fileCfg.AuthLoginFailureWindow); value != "" {
-		duration, err := time.ParseDuration(value)
-		if err != nil {
-			return fmt.Errorf("parse auth_login_failure_window in %q: %w", path, err)
-		}
-		cfg.AuthLoginFailureWindow = duration
-	}
-	if value := strings.TrimSpace(fileCfg.AuthLoginLockout); value != "" {
-		duration, err := time.ParseDuration(value)
-		if err != nil {
-			return fmt.Errorf("parse auth_login_lockout in %q: %w", path, err)
-		}
-		cfg.AuthLoginLockout = duration
-	}
-	if fileCfg.AuthLoginIPMaxAttempts != 0 {
-		cfg.AuthLoginIPMaxAttempts = fileCfg.AuthLoginIPMaxAttempts
-	}
-
-	cfg.ConfigFile = path
-	return nil
+	return path, nil
 }
 
 func applyEnv(cfg *Config) error {
@@ -202,9 +141,6 @@ func applyEnv(cfg *Config) error {
 	}
 	if err := applyAuthEnv(cfg); err != nil {
 		return err
-	}
-	if value := env(configFileEnv); value != "" {
-		cfg.ConfigFile = value
 	}
 
 	return nil

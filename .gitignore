@@ -1,12 +1,8 @@
 .DS_Store
-# Environment variables
+# Environment variables: only the template is committed.
 .env
-
-# Local config files
-configs/*.yaml
-configs/*.yml
-!configs/*.example.yaml
-!configs/*.example.yml
+.env.*
+!.env.example
 
 # IDE
 .idea

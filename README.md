@@ -49,47 +49,45 @@ Stock-Flow 是一个面向库存管理场景的后端 API 服务。项目采用 
 
 ### 2. 准备配置
 
-复制一份开发环境配置：
+复制一份配置模板：
 
 ```bash
-cp configs/development.example.yaml configs/development.yaml
+cp .env.example .env
 ```
 
-配置加载优先级：
+然后按本机 PostgreSQL 修改 `.env` 中的 `DATABASE_URL`。`.env` 已被 `.gitignore`
+忽略，不会入库；只有 `.env.example` 会随仓库分发。
+
+配置加载优先级（高 → 低）：
 
 ```text
-默认值 < 配置文件 < 环境变量
+export 导出的环境变量  >  .env 文件  >  内置默认值
 ```
 
-**数据库凭据只通过环境变量提供，不写入配置文件。** 配置文件会被复制、备份、
-截图，也容易被误提交，因此 `configs/development.yaml` 中**不要**填写
-`database_url`：
+导出的变量只要非空就一定生效；`.env` 只填补未导出的项。若某个变量被导出为**空串**
+（例如 `export DATABASE_URL=`），它视为未设置，`.env` 仍然生效。
+
+`.env` 是**可选**的：生产与 CI 直接注入真实环境变量即可，没有 `.env` 也能启动。
+但用 `ENV_FILE` 显式指定的文件必须存在，否则启动会失败（显式意图不会被静默忽略）。
+`.env` 按**进程工作目录**查找，默认读取 `./.env`；若进程不从项目根目录启动，
+请用 `ENV_FILE` 指定绝对路径。
+
+**凭据只通过环境变量提供。** 不要再把口令写进任何入库文件：
 
 ```bash
 export DATABASE_URL='postgres://<user>:<password>@localhost:5432/stock_flow_dev?sslmode=disable'
 ```
 
-连接**远端**数据库时必须启用 TLS（`sslmode=require` 或 `verify-full`），
-不要把口令写在配置文件里。
+连接**远端**数据库时必须启用 TLS（`sslmode=require` 或 `verify-full`）。
 
-示例配置文件中的 `database_url` 仅是本地开发占位值
-（`configs/development.example.yaml`），真实口令一律走环境变量。
-
-完整的变量清单见 [`.env.example`](./.env.example)。注意本项目**不自动加载**
-`.env`，它只用于集中记录变量名；需要时可这样导入：
-
-```bash
-set -a && . ./.env && set +a
-```
-
-常用环境变量：
+完整的变量清单与说明见 [`.env.example`](./.env.example)。常用变量：
 
 ```text
-APP_ENV
-CONFIG_FILE
-GIN_MODE
-HTTP_ADDR
-PORT
+APP_ENV               # 默认 development；production 时强制要求 cookie secure
+ENV_FILE              # 可选，dotenv 文件路径，默认 ./.env
+GIN_MODE              # debug | release | test
+HTTP_ADDR             # 默认 :8080
+PORT                  # HTTP_ADDR 的别名，仅当 HTTP_ADDR 未设置时生效
 DATABASE_URL          # 数据库连接串，必需
 SHUTDOWN_TIMEOUT
 AUTH_ADMIN_SESSION_TTL
@@ -100,6 +98,10 @@ AUTH_LOGIN_FAILURE_WINDOW
 AUTH_LOGIN_LOCKOUT
 AUTH_LOGIN_IP_MAX_ATTEMPTS
 ```
+
+> `HTTP_ADDR` 优先于 `PORT`：只要 `HTTP_ADDR` 有值（无论来自 `.env` 还是导出），
+> `PORT` 就会被忽略。
+
 
 若未提供 `DATABASE_URL` 且配置文件中也没有 `database_url`，启动会明确失败并提示
 `DATABASE_URL is required`——这是预期行为，避免静默连到错误的库。
@@ -293,7 +295,7 @@ stock-flow/
 ├── cmd/
 │   ├── api/                 # API 服务入口
 │   └── config/              # 配置辅助命令
-├── configs/                 # 配置模板
+├── .env.example             # 配置模板（.env 由使用者自行创建）
 ├── docs/                    # 架构、开发和数据库文档
 ├── internal/
 │   ├── material/            # 物料、分类、单位模块

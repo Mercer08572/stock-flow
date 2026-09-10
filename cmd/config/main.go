@@ -26,8 +26,8 @@ func main() {
 		fmt.Print(cfg.GinMode)
 	case "http_addr":
 		fmt.Print(cfg.HTTPAddr)
-	case "config_file":
-		fmt.Print(cfg.ConfigFile)
+	case "env_file":
+		fmt.Print(cfg.EnvFile)
 	default:
 		log.Fatalf("unsupported config key %q", *key)
 	}

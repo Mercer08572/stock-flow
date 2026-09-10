@@ -1,6 +1,13 @@
 # DEV-001 凭据治理：明文数据库口令下线
 
-Status: Ready
+Status: Done（文件层部分已被 [DEV-003](./DEV-003-dotenv-configuration.md) 取代）
+
+> **后续变更**：DEV-003 已把配置来源统一为 `.env`，并删除整个 `configs/` 目录。
+> 因此本任务中「修改 `configs/development.example.yaml`」「保留 `configs/*.yaml`
+> 的 gitignore 规则」等描述已不再反映当前实现——相关目标由 DEV-003 以更彻底的方式
+> 达成（配置文件机制整体移除，凭据只能来自环境变量）。
+> 本任务中**仍未关闭**的一项：远端数据库口令的轮换（见 Open Questions）。
+
 Owner: coding-agent
 Module: devops
 Related:

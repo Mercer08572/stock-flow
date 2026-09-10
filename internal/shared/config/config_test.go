@@ -3,22 +3,83 @@ package config_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Mercer08572/stock-flow/internal/shared/config"
 )
 
-func TestLoadUsesConfigFile(t *testing.T) {
+const testDatabaseURL = "postgres://user:pass@localhost:5432/app?sslmode=disable"
+
+func TestLoadAppliesDefaults(t *testing.T) {
 	clearConfigEnv(t)
 
-	configFile := writeConfigFile(t, `
-app_env: development
-gin_mode: debug
-http_addr: "127.0.0.1:18080"
-database_url: "postgres://user:pass@localhost:5432/app?sslmode=disable"
-shutdown_timeout: "15s"
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if cfg.Environment != "development" {
+		t.Fatalf("expected default environment development, got %q", cfg.Environment)
+	}
+	if cfg.GinMode != "debug" {
+		t.Fatalf("expected default gin mode debug, got %q", cfg.GinMode)
+	}
+	if cfg.HTTPAddr != ":8080" {
+		t.Fatalf("expected default http addr :8080, got %q", cfg.HTTPAddr)
+	}
+	if cfg.ShutdownTimeout.String() != "10s" {
+		t.Fatalf("expected default shutdown timeout 10s, got %s", cfg.ShutdownTimeout)
+	}
+	if cfg.EnvFile != "" {
+		t.Fatalf("expected no env file to be loaded, got %q", cfg.EnvFile)
+	}
+}
+
+func TestLoadDiscoversDefaultEnvFile(t *testing.T) {
+	clearConfigEnv(t)
+
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".env"), `
+APP_ENV=development
+HTTP_ADDR=127.0.0.1:18080
+DATABASE_URL=postgres://user:pass@localhost:5432/app?sslmode=disable
+SHUTDOWN_TIMEOUT=15s
 `)
-	t.Setenv("CONFIG_FILE", configFile)
+	t.Chdir(dir)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if cfg.HTTPAddr != "127.0.0.1:18080" {
+		t.Fatalf("expected http addr from .env, got %q", cfg.HTTPAddr)
+	}
+	if cfg.DatabaseURL != "postgres://user:pass@localhost:5432/app?sslmode=disable" {
+		t.Fatalf("expected database url from .env, got %q", cfg.DatabaseURL)
+	}
+	if cfg.ShutdownTimeout.String() != "15s" {
+		t.Fatalf("expected 15s shutdown timeout, got %s", cfg.ShutdownTimeout)
+	}
+	if cfg.EnvFile != ".env" {
+		t.Fatalf("expected default env file to be recorded, got %q", cfg.EnvFile)
+	}
+}
+
+func TestLoadReadsExplicitEnvFile(t *testing.T) {
+	clearConfigEnv(t)
+
+	envFile := writeEnvFile(t, `
+APP_ENV=development
+GIN_MODE=debug
+HTTP_ADDR="127.0.0.1:18080"
+DATABASE_URL="postgres://user:pass@localhost:5432/app?sslmode=disable"
+SHUTDOWN_TIMEOUT="15s"
+`)
+	t.Setenv("ENV_FILE", envFile)
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -29,34 +90,33 @@ shutdown_timeout: "15s"
 		t.Fatalf("expected development env, got %q", cfg.Environment)
 	}
 	if cfg.HTTPAddr != "127.0.0.1:18080" {
-		t.Fatalf("expected config http addr, got %q", cfg.HTTPAddr)
+		t.Fatalf("expected http addr from env file, got %q", cfg.HTTPAddr)
 	}
 	if cfg.DatabaseURL != "postgres://user:pass@localhost:5432/app?sslmode=disable" {
-		t.Fatalf("expected database url from config file, got %q", cfg.DatabaseURL)
+		t.Fatalf("expected quoted database url to be unquoted, got %q", cfg.DatabaseURL)
 	}
 	if cfg.ShutdownTimeout.String() != "15s" {
 		t.Fatalf("expected 15s shutdown timeout, got %s", cfg.ShutdownTimeout)
 	}
-	if cfg.ConfigFile != configFile {
-		t.Fatalf("expected config file path to be recorded")
+	if cfg.EnvFile != envFile {
+		t.Fatalf("expected env file %q to be recorded, got %q", envFile, cfg.EnvFile)
 	}
 }
 
-func TestLoadEnvOverridesConfigFile(t *testing.T) {
+func TestExportedEnvOverridesEnvFile(t *testing.T) {
 	clearConfigEnv(t)
 
-	configFile := writeConfigFile(t, `
-app_env: development
-gin_mode: debug
-http_addr: ":8080"
-database_url: "postgres://user:pass@localhost:5432/app?sslmode=disable"
-shutdown_timeout: "15s"
+	envFile := writeEnvFile(t, `
+APP_ENV=development
+GIN_MODE=debug
+HTTP_ADDR=:18080
+DATABASE_URL=postgres://file:pass@localhost:5432/app?sslmode=disable
+SHUTDOWN_TIMEOUT=15s
 `)
-	t.Setenv("CONFIG_FILE", configFile)
+	t.Setenv("ENV_FILE", envFile)
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("GIN_MODE", "release")
-	t.Setenv("DATABASE_URL", "postgres://prod:pass@localhost:5432/app?sslmode=disable")
-	t.Setenv("PORT", ":9090")
+	t.Setenv("DATABASE_URL", "postgres://exported:pass@localhost:5432/app?sslmode=disable")
 	t.Setenv("SHUTDOWN_TIMEOUT", "30s")
 	t.Setenv("AUTH_ADMIN_COOKIE_SECURE", "true")
 
@@ -66,70 +126,134 @@ shutdown_timeout: "15s"
 	}
 
 	if cfg.Environment != "production" {
-		t.Fatalf("expected env override production, got %q", cfg.Environment)
+		t.Fatalf("expected exported APP_ENV to win, got %q", cfg.Environment)
 	}
 	if cfg.GinMode != "release" {
-		t.Fatalf("expected env override release, got %q", cfg.GinMode)
+		t.Fatalf("expected exported GIN_MODE to win, got %q", cfg.GinMode)
 	}
-	if cfg.HTTPAddr != ":9090" {
-		t.Fatalf("expected normalized port override :9090, got %q", cfg.HTTPAddr)
-	}
-	if cfg.DatabaseURL != "postgres://prod:pass@localhost:5432/app?sslmode=disable" {
-		t.Fatalf("expected env database url override, got %q", cfg.DatabaseURL)
+	if cfg.DatabaseURL != "postgres://exported:pass@localhost:5432/app?sslmode=disable" {
+		t.Fatalf("expected exported DATABASE_URL to win, got %q", cfg.DatabaseURL)
 	}
 	if cfg.ShutdownTimeout.String() != "30s" {
-		t.Fatalf("expected env timeout override 30s, got %s", cfg.ShutdownTimeout)
+		t.Fatalf("expected exported SHUTDOWN_TIMEOUT 30s to win, got %s", cfg.ShutdownTimeout)
+	}
+	// Not exported, so the value still comes from the env file.
+	if cfg.HTTPAddr != ":18080" {
+		t.Fatalf("expected http addr from env file, got %q", cfg.HTTPAddr)
 	}
 }
 
-func TestLoadRequiresExplicitConfigFile(t *testing.T) {
+// A variable exported with a blank value counts as unset, matching env()'s
+// definition, so the env file is still able to fill it in.
+func TestBlankExportedEnvFallsBackToEnvFile(t *testing.T) {
 	clearConfigEnv(t)
 
-	t.Setenv("CONFIG_FILE", filepath.Join(t.TempDir(), "missing.yaml"))
-
-	_, err := config.Load()
-	if err == nil {
-		t.Fatal("expected missing explicit config file error")
-	}
-}
-
-func TestLoadIgnoresMissingImplicitConfigFile(t *testing.T) {
-	clearConfigEnv(t)
-
-	t.Setenv("APP_ENV", "local-test-without-file")
-	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/app?sslmode=disable")
+	envFile := writeEnvFile(t, `
+HTTP_ADDR=:18080
+DATABASE_URL=postgres://file:pass@localhost:5432/app?sslmode=disable
+`)
+	t.Setenv("ENV_FILE", envFile)
+	t.Setenv("HTTP_ADDR", "   ")
 
 	cfg, err := config.Load()
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
 
-	if cfg.Environment != "local-test-without-file" {
-		t.Fatalf("expected APP_ENV value, got %q", cfg.Environment)
+	if cfg.HTTPAddr != ":18080" {
+		t.Fatalf("expected blank export to defer to env file, got %q", cfg.HTTPAddr)
 	}
-	if cfg.ConfigFile != "" {
-		t.Fatalf("expected no config file to be recorded, got %q", cfg.ConfigFile)
+}
+
+func TestLoadWithoutEnvFileSucceeds(t *testing.T) {
+	clearConfigEnv(t)
+
+	// ENV_FILE is unset, so the optional .env lookup happens in the package
+	// directory, where no .env file exists.
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("expected a missing .env to be tolerated, got %v", err)
+	}
+	if cfg.EnvFile != "" {
+		t.Fatalf("expected no env file to be recorded, got %q", cfg.EnvFile)
+	}
+}
+
+func TestLoadRequiresExplicitEnvFile(t *testing.T) {
+	clearConfigEnv(t)
+
+	t.Setenv("ENV_FILE", filepath.Join(t.TempDir(), "missing.env"))
+
+	if _, err := config.Load(); err == nil {
+		t.Fatal("expected missing explicit env file error")
+	}
+}
+
+func TestLoadRejectsMalformedEnvFile(t *testing.T) {
+	clearConfigEnv(t)
+
+	envFile := writeEnvFile(t, "BAD@KEY=value\n")
+	t.Setenv("ENV_FILE", envFile)
+
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("expected malformed env file error")
+	}
+	if !strings.Contains(err.Error(), "read env file") {
+		t.Fatalf("expected env file context in error, got %v", err)
+	}
+}
+
+func TestLoadRequiresDatabaseURL(t *testing.T) {
+	clearConfigEnv(t)
+
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("expected missing DATABASE_URL error")
+	}
+	if !strings.Contains(err.Error(), "DATABASE_URL is required") {
+		t.Fatalf("expected DATABASE_URL hint, got %v", err)
+	}
+}
+
+func TestLoadNormalizesPortAlias(t *testing.T) {
+	clearConfigEnv(t)
+
+	envFile := writeEnvFile(t, "DATABASE_URL=postgres://user:pass@localhost:5432/app?sslmode=disable\n")
+	t.Setenv("ENV_FILE", envFile)
+	t.Setenv("PORT", "9090")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if cfg.HTTPAddr != ":9090" {
+		t.Fatalf("expected PORT to normalize to :9090, got %q", cfg.HTTPAddr)
 	}
 }
 
 func TestLoadRejectsHTTPAddrWithoutPort(t *testing.T) {
 	clearConfigEnv(t)
 
-	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/app?sslmode=disable")
+	t.Setenv("DATABASE_URL", testDatabaseURL)
 	t.Setenv("HTTP_ADDR", "127.0.0.1")
 
-	_, err := config.Load()
-	if err == nil {
+	if _, err := config.Load(); err == nil {
 		t.Fatal("expected invalid http addr error")
 	}
 }
 
+// clearConfigEnv blanks every supported key. A blank value is treated as unset
+// by the loader, so this is equivalent to removing the variables.
 func clearConfigEnv(t *testing.T) {
 	t.Helper()
 
 	keys := []string{
 		"APP_ENV",
-		"CONFIG_FILE",
+		"ENV_FILE",
 		"GIN_MODE",
 		"HTTP_ADDR",
 		"PORT",
@@ -149,13 +273,19 @@ func clearConfigEnv(t *testing.T) {
 	}
 }
 
-func writeConfigFile(t *testing.T, content string) string {
+func writeEnvFile(t *testing.T, content string) string {
 	t.Helper()
 
-	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		t.Fatalf("write config file: %v", err)
-	}
+	path := filepath.Join(t.TempDir(), ".env")
+	writeFile(t, path, content)
 
 	return path
+}
+
+func writeFile(t *testing.T, path string, content string) {
+	t.Helper()
+
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
 }

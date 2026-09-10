@@ -23,61 +23,72 @@ make sqlc
 
 ## 运行时配置
 
-API 按以下优先级加载配置：
+配置只有一个来源：环境变量。API 按以下优先级加载：
 
 ```text
-默认值 < 配置文件 < 环境变量
+export 导出的环境变量  >  .env 文件  >  内置默认值
 ```
 
-`APP_ENV` 用于选择隐式配置文件：
+`.env` 位于进程工作目录，使用 `godotenv` 读取：
 
 ```bash
-APP_ENV=development go run ./cmd/api
+cp .env.example .env
+go run ./cmd/api
 ```
 
-这会查找：
+优先级规则：
 
-```text
-configs/development.yaml
-```
-
-可以使用 `CONFIG_FILE` 明确选择配置文件：
+- 导出的变量只要**非空**就一定生效，`.env` 只填补未导出的项。
+- 导出为空串（例如 `export DATABASE_URL=`）视为未设置，`.env` 仍会生效。
+- `.env` 缺失**不是错误**：生产与 CI 直接注入环境变量即可。
+- `ENV_FILE` 显式指定的文件缺失**是错误**，不会被静默忽略。
+- `.env` 存在但内容非法**是错误**，不会退回默认值继续启动。
+- `.env` 按**进程工作目录**查找；不从项目根目录启动时用 `ENV_FILE` 指定路径：
 
 ```bash
-CONFIG_FILE=configs/development.yaml go run ./cmd/api
+ENV_FILE=/etc/stock-flow/.env go run ./cmd/api
 ```
 
-环境变量会覆盖配置文件中的值：
+导出环境变量的示例：
 
 ```bash
 APP_ENV=production DATABASE_URL=postgres://... ./stock-flow
 ```
 
-支持的配置键：
-
-```yaml
-app_env: development
-gin_mode: debug
-http_addr: ":8080"
-database_url: "postgres://postgres:postgres@localhost:5432/stock_flow_dev?sslmode=disable"
-shutdown_timeout: "10s"
-```
-
-对应的环境变量为：
+支持的配置项及其环境变量：
 
 ```text
-APP_ENV
-CONFIG_FILE
-GIN_MODE
-HTTP_ADDR
-PORT
-DATABASE_URL
-SHUTDOWN_TIMEOUT
+APP_ENV               # 默认 development；production 时强制要求 cookie secure
+ENV_FILE              # 可选，dotenv 文件路径，默认 ./.env
+GIN_MODE              # debug | release | test，默认 debug
+HTTP_ADDR             # 默认 :8080
+PORT                  # HTTP_ADDR 的别名，仅当 HTTP_ADDR 未设置时生效
+DATABASE_URL          # 数据库连接串，必需
+SHUTDOWN_TIMEOUT      # 默认 10s
+AUTH_ADMIN_SESSION_TTL
+AUTH_ADMIN_COOKIE_SAME_SITE
+AUTH_ADMIN_COOKIE_SECURE
+AUTH_LOGIN_FAILURE_MAX_ATTEMPTS
+AUTH_LOGIN_FAILURE_WINDOW
+AUTH_LOGIN_LOCKOUT
+AUTH_LOGIN_IP_MAX_ATTEMPTS
 ```
 
-真实的 `configs/*.yaml` 文件会被 git 忽略。只提交 `*.example.yaml` 模板。
+> `HTTP_ADDR` 优先于 `PORT`：只要 `HTTP_ADDR` 有值（无论来自 `.env` 还是导出），
+> `PORT` 就会被忽略。
 
-数据库迁移命令使用与 API 相同的 Go 配置加载器解析 `database_url`，因此 `APP_ENV`、`CONFIG_FILE` 和 `DATABASE_URL` 也能一致地用于 Makefile 迁移命令。
+`.env` 与 `.env.local` 这类文件都被 git 忽略，只有 `.env.example` 会入库。
+
+可以查看当前生效值的来源：
+
+```bash
+go run ./cmd/config -key env_file       # 实际加载的 dotenv 文件，未加载则为空
+go run ./cmd/config -key database_url
+go run ./cmd/config -key http_addr
+```
+
+数据库迁移命令使用与 API 相同的 Go 配置加载器解析 `database_url`，因此
+`.env` 与 `DATABASE_URL` 也能一致地用于 Makefile 迁移命令。
 
 ```bash
 make migrate-up
