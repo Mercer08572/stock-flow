@@ -1,6 +1,9 @@
 app_env: development
 gin_mode: debug
 http_addr: ":8080"
+# 仅用于本地开发。远端或共享数据库的连接串请通过 DATABASE_URL 环境变量提供，
+# 不要写入配置文件（配置文件会进入备份、截图与误提交路径）。
+# 远端连接必须启用 TLS：sslmode=require 或 verify-full。
 database_url: "postgres://postgres:postgres@localhost:5432/stock_flow_dev?sslmode=disable"
 shutdown_timeout: "10s"
 auth_admin_session_ttl: "8h"

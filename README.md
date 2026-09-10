@@ -55,20 +55,31 @@ Stock-Flow 是一个面向库存管理场景的后端 API 服务。项目采用 
 cp configs/development.example.yaml configs/development.yaml
 ```
 
-按本机 PostgreSQL 修改 `database_url`：
-
-```yaml
-app_env: development
-gin_mode: debug
-http_addr: ":8080"
-database_url: "postgres://postgres:postgres@localhost:5432/stock_flow_dev?sslmode=disable"
-shutdown_timeout: "10s"
-```
-
 配置加载优先级：
 
 ```text
 默认值 < 配置文件 < 环境变量
+```
+
+**数据库凭据只通过环境变量提供，不写入配置文件。** 配置文件会被复制、备份、
+截图，也容易被误提交，因此 `configs/development.yaml` 中**不要**填写
+`database_url`：
+
+```bash
+export DATABASE_URL='postgres://<user>:<password>@localhost:5432/stock_flow_dev?sslmode=disable'
+```
+
+连接**远端**数据库时必须启用 TLS（`sslmode=require` 或 `verify-full`），
+不要把口令写在配置文件里。
+
+示例配置文件中的 `database_url` 仅是本地开发占位值
+（`configs/development.example.yaml`），真实口令一律走环境变量。
+
+完整的变量清单见 [`.env.example`](./.env.example)。注意本项目**不自动加载**
+`.env`，它只用于集中记录变量名；需要时可这样导入：
+
+```bash
+set -a && . ./.env && set +a
 ```
 
 常用环境变量：
@@ -79,9 +90,19 @@ CONFIG_FILE
 GIN_MODE
 HTTP_ADDR
 PORT
-DATABASE_URL
+DATABASE_URL          # 数据库连接串，必需
 SHUTDOWN_TIMEOUT
+AUTH_ADMIN_SESSION_TTL
+AUTH_ADMIN_COOKIE_SAME_SITE
+AUTH_ADMIN_COOKIE_SECURE
+AUTH_LOGIN_FAILURE_MAX_ATTEMPTS
+AUTH_LOGIN_FAILURE_WINDOW
+AUTH_LOGIN_LOCKOUT
+AUTH_LOGIN_IP_MAX_ATTEMPTS
 ```
+
+若未提供 `DATABASE_URL` 且配置文件中也没有 `database_url`，启动会明确失败并提示
+`DATABASE_URL is required`——这是预期行为，避免静默连到错误的库。
 
 ### 3. 创建数据库并执行迁移
 
