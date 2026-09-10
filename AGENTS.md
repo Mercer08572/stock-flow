@@ -150,6 +150,21 @@ func NewMaterialService(repo MaterialRepository) MaterialService {
 }
 ```
 
+## Git 提交与推送规范
+
+### Commit message 格式（必须严格遵守）
+
+- 始终使用**中文**编写 commit message。
+- 严格遵循 Conventional Commits 规范，格式为：`<type>(<scope>): <subject>`。
+- `type` 必须是以下之一：`feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`build`、`ci`、`chore`、`revert`。
+- `subject` 需用祈使句简要概括核心改动，不超过 72 字符，确保能清晰体现修改内容和意图。
+
+### Push 授权（硬性约束）
+
+- **绝对不可擅自执行 `git push`**。
+- 只有当用户在**当次对话中明确要求**推送时，才可以执行推送。
+- 在本机执行 `git commit` 属于正常操作；推送是唯一必须获得显式授权的远程操作。
+
 ## 沙箱环境构建缓存约定
 
 Agent 运行在沙箱中，通常只允许写入项目工作区与系统临时目录（/tmp）。因此**所有缓存、
