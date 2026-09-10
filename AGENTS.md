@@ -150,7 +150,7 @@ func NewMaterialService(repo MaterialRepository) MaterialService {
 }
 ```
 
-## 沙箱环境构建缓存约定 
+## 沙箱环境构建缓存约定
 
 Agent 运行在沙箱中，通常只允许写入项目工作区与系统临时目录（/tmp）。因此**所有缓存、
 临时文件与临时下载的工具都必须放在系统临时目录下**，禁止在项目仓库内创建任何缓存目录
