@@ -103,7 +103,7 @@ AUTH_LOGIN_IP_MAX_ATTEMPTS
 > `PORT` 就会被忽略。
 
 
-若未提供 `DATABASE_URL` 且配置文件中也没有 `database_url`，启动会明确失败并提示
+若未提供 `DATABASE_URL`（导出的环境变量与 `.env` 均未设置），启动会明确失败并提示
 `DATABASE_URL is required`——这是预期行为，避免静默连到错误的库。
 
 ### 3. 创建数据库并执行迁移

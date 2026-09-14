@@ -1,6 +1,7 @@
 # DEV-001 凭据治理：明文数据库口令下线
 
-Status: Done（文件层部分已被 [DEV-003](./DEV-003-dotenv-configuration.md) 取代）
+Status: Done（文件层部分已被 [DEV-003](./DEV-003-dotenv-configuration.md) 取代；`DEV-003` 亦已完成。
+唯一未闭环项为**远端数据库口令轮换**，需用户在数据库侧执行，见 Open Questions）
 
 > **后续变更**：DEV-003 已把配置来源统一为 `.env`，并删除整个 `configs/` 目录。
 > 因此本任务中「修改 `configs/development.example.yaml`」「保留 `configs/*.yaml`
@@ -95,14 +96,15 @@ DATABASE_URL='postgres://user:pass@localhost:5432/db?sslmode=disable' go run ./c
 
 ## Acceptance Criteria
 
-- [ ] `configs/development.yaml` 不含任何明文口令（`grep -i password` 无命中）。
-- [ ] 不设置 `DATABASE_URL` 时，`go run ./cmd/config -key database_url` 明确失败并提示
-      `DATABASE_URL is required`。
-- [ ] 设置 `DATABASE_URL` 后，`go run ./cmd/config -key database_url` 输出该值，
-      且 `make migrate-version` 能通过环境变量正常工作。
-- [ ] `.env.example` 列出所有受支持的环境变量，值全部为占位假值。
-- [ ] `go build ./... && go vet ./... && go test ./...` 通过。
-- [ ] `README.md` 说明「配置文件不含凭据，口令走环境变量」。
+- [x] `configs/development.yaml` 不含任何明文口令（`grep -i password` 无命中）。
+      **已由 DEV-003 以更强的方式满足**：整个 `configs/` 目录已删除，该文件不复存在。
+- [x] 不设置 `DATABASE_URL` 时，`go run ./cmd/config -key database_url` 明确失败并提示
+      `DATABASE_URL is required`。（2026-09-14 实测：退出码 1，输出 `load config: DATABASE_URL is required`）
+- [ ] 设置 `DATABASE_URL` 后，`go run ./cmd/config -key database_url` 输出该值（**已实测通过**），
+      且 `make migrate-version` 能通过环境变量正常工作（**未验证**：本机 5432 端口无 PostgreSQL 实例）。
+- [x] `.env.example` 列出所有受支持的环境变量，值全部为占位假值。（`DATABASE_URL=postgres://postgres:postgres@localhost:5432/stock_flow_dev` 等）
+- [x] `go build ./... && go vet ./... && go test ./...` 通过。（2026-09-14 实测全绿）
+- [x] `README.md` 说明「配置文件不含凭据，口令走环境变量」。（README「凭据只通过环境变量提供」一节；本次修正了同文件中遗留的配置文件表述）
 
 ## Open Questions
 

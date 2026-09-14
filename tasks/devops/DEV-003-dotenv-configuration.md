@@ -1,6 +1,6 @@
 # DEV-003 配置来源统一为 .env（移除 configs/ 多环境模板）
 
-Status: Ready
+Status: Done
 Owner: coding-agent
 Module: devops
 Related:
@@ -126,19 +126,25 @@ os.Getenv(...)（applyEnv）         <- 导出环境变量，最高优先级
 
 ## Acceptance Criteria
 
-- [ ] `configs/` 目录已删除，仓库内无任何 YAML 配置文件。
-- [ ] `.env` 存在时其值生效；对应变量被导出时以导出值为准（含导出为空串时 `.env` 生效）。
-- [ ] `.env` 不存在时不报错，使用默认值；`DATABASE_URL` 缺失仍然启动失败。
-- [ ] `ENV_FILE` 指向不存在的文件时报错。
-- [ ] `.env` 内容非法时报错。
-- [ ] `go build ./... && go vet ./... && go test ./...` 全部通过。
-- [ ] `gofmt -l .` 无输出。
-- [ ] `go run ./cmd/config -key database_url` 能读取 `.env` 中的值。
-- [ ] `README.md` 与 `docs/development.md` 不再出现 `configs/` 与 `CONFIG_FILE`。
-- [ ] 未在浏览器/仓库中提交任何真实凭据。
+- [x] `configs/` 目录已删除，仓库内无任何 YAML 配置文件。（跟踪的 YAML 仅剩 `openapi/swagger.yaml`、`sqlc.yaml`、`.github/workflows/ci.yml`，均非配置来源文件）
+- [x] `.env` 存在时其值生效；对应变量被导出时以导出值为准（含导出为空串时 `.env` 生效）。（`TestLoadDiscoversDefaultEnvFile` / `TestExportedEnvOverridesEnvFile` / `TestBlankExportedEnvFallsBackToEnvFile`）
+- [x] `.env` 不存在时不报错，使用默认值；`DATABASE_URL` 缺失仍然启动失败。（`TestLoadWithoutEnvFileSucceeds` / `TestLoadRequiresDatabaseURL`；2026-09-14 实测退出码 1 并提示 `DATABASE_URL is required`）
+- [x] `ENV_FILE` 指向不存在的文件时报错。（`TestLoadRequiresExplicitEnvFile`；实测提示 `read env file "...": no such file or directory`）
+- [x] `.env` 内容非法时报错。（`TestLoadRejectsMalformedEnvFile`）
+- [x] `go build ./... && go vet ./... && go test ./...` 全部通过。（2026-09-14 实测全绿）
+- [x] `gofmt -l .` 无输出。（2026-09-14 实测）
+- [x] `go run ./cmd/config -key database_url` 能读取 `.env` 中的值。（2026-09-14 实测）
+- [x] `README.md` 与 `docs/development.md` 不再出现 `configs/` 与 `CONFIG_FILE`。（实测 grep 无命中；本次已修正 `README.md` 第 106 行遗留的「配置文件中也没有 `database_url`」表述）
+- [x] 未在浏览器/仓库中提交任何真实凭据。（`.env` 被 `.gitignore` 排除且未跟踪；跟踪文件中仅有占位假值）
+
+## 完成记录（2026-09-14）
+
+- 实现提交：`081f082`（`refactor(config): 将配置系统从 YAML 文件迁移至 .env`）。
+- 依赖变更已核实：`github.com/joho/godotenv v1.5.1` 为直接依赖，`gopkg.in/yaml.v2/v3` 均降为 `// indirect`。
+- 唯一未闭环项：`make migrate-version` 走环境变量的验证需要可达的 PostgreSQL；本机 5432 端口无实例，未能实测。
 
 ## Open Questions
 
-- `docs/development-plan.md` 中 P0-4 与 M0 里程碑仍引用 `configs/development.yaml`
-  （例如「`configs/development.yaml` 无明文口令」）。该文件现已整体删除，条件自动满足，
-  但计划正文的表述已过时。是否回填该计划文档由用户决定，本任务不修改工作区级计划文档。
+- ~~`docs/development-plan.md` 中 P0-4 与 M0 里程碑仍引用 `configs/development.yaml`~~
+  **已解决**：工作区级计划文档已于 2026-09-14 更新——P0-4 增加「现状更新」说明（`configs/` 已整体删除），
+  M0 清单该项标记为已完成并注明「文件已不存在」。

@@ -1,6 +1,6 @@
 # DEV-002 后端接入 GitHub Actions CI
 
-Status: Ready
+Status: Done（本地验证通过；「推送后首次运行全绿」待推送后确认，见完成记录）
 Owner: coding-agent
 Module: devops
 Related:
@@ -80,13 +80,22 @@ Related:
 
 ## Acceptance Criteria
 
-- [ ] `.github/workflows/ci.yml` 存在，且 YAML 合法。
-- [ ] 触发条件覆盖 `pull_request` 与 `push` 到 `main`。
-- [ ] 包含 `gofmt` / `go vet` / `go build` / `go test` 四项检查。
-- [ ] 使用 `actions/setup-go` 且启用内置缓存。
-- [ ] 本地预演等价命令全部通过：`gofmt -l .` 无输出、`go vet ./...`、
-      `go build ./...`、`go test ./...` 均成功。
-- [ ] 推送后 GitHub Actions 首次运行全绿。
+- [x] `.github/workflows/ci.yml` 存在，且 YAML 合法。（2026-09-14 用 YAML 解析器实测通过）
+- [x] 触发条件覆盖 `pull_request` 与 `push` 到 `main`。
+- [x] 包含 `gofmt` / `go vet` / `go build` / `go test` 四项检查。
+- [x] 使用 `actions/setup-go` 且启用内置缓存（`go-version-file: go.mod` + `cache: true`）。
+- [x] 本地预演等价命令全部通过：`gofmt -l .` 无输出、`go vet ./...`、
+      `go build ./...`、`go test ./...` 均成功。（2026-09-14 实测全绿）
+- [ ] 推送后 GitHub Actions 首次运行全绿。**待推送后确认**：`ci.yml`（提交 `c6780c5`）
+      尚未推送，不在 `origin/main` 上，因此 GitHub Actions 的 workflow runs 数仍为 0，CI 从未运行。
+
+## 完成记录（2026-09-14）
+
+- 实现提交：`c6780c5`（`ci(devops): DEV-002 新增后端 GitHub Actions CI`）。
+- 本地验证：`gofmt -l .` 无输出；`go vet ./...`、`go build ./...`、`go test ./...` 全部通过。
+- YAML 结构校验：`name: CI`、触发器 `pull_request` + `push: [main]`、`permissions: contents: read`、
+  步骤为 checkout → setup-go → Verify gofmt → go vet → go build → go test。
+- 唯一未闭环项为「推送后首次运行全绿」，属推送授权范畴，见 Acceptance Criteria 末条。
 
 ## Open Questions
 

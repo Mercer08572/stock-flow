@@ -188,12 +188,23 @@ Agent 运行在沙箱中，通常只允许写入项目工作区与系统临时�
   - `GOPATH=/tmp/agent-cache/go-path`（仅需要时）
   - `GOBIN=/tmp/agent-cache/bin`（仅 `go install` 工具时）
 - pnpm / npm：
-  - 统一使用 store：`pnpm --store-dir /tmp/agent-cache/pnpm-store <命令>`。
-  - 注意：pnpm 10 及以上**忽略项目 `.npmrc` 中的 `store-dir`**（该配置仅在 pnpm ≤9 有效），
-    必须使用 `--store-dir` 命令行标志，或设置 `XDG_DATA_HOME=/tmp/agent-cache/data`
-    （store 会落到 `$XDG_DATA_HOME/pnpm/store`）。
+  - 统一使用 store：`pnpm --config.store-dir=/tmp/agent-cache/pnpm-store <命令>`
+    （这是**唯一实测有效**的写法，见下）。
+  - 注意：pnpm 10 及以上**忽略项目 `.npmrc` 中的 `store-dir`**（该配置仅在 pnpm ≤9 有效）。
+  - 实测结论（2026-09-14，pnpm 10.15.1）：
+    - 未指定 store 时，pnpm 会把 store 解析到**工作区根的 `.pnpm-store/v11`**；
+      `pnpm run <脚本>`（包括 `pnpm check` 这类内部再次调用 pnpm 的脚本）都会重建该目录。
+    - ✅ `pnpm --config.store-dir=/tmp/agent-cache/pnpm-store <命令>`：对 `run <脚本>`、
+      自带子命令、以及脚本内嵌套的 pnpm 调用均生效（实测完整 `pnpm check` 退出码 0，
+      且未生成项目内 store）。
+    - ❌ `pnpm --store-dir=... run <脚本>`：直接报 `Unknown option: 'store-dir'`
+      （该标志只被部分子命令接受，如 `pnpm store path`，不能用于脚本调用）。
+    - ❌ 手工设置 `npm_config_store_dir=...`：被 pnpm 10 **静默忽略**，store 仍落在项目内。
+    - ❌ `XDG_DATA_HOME` 指向空目录：pnpm 会因 `packageManager` 固定版本切换失败
+      （`Failed to switch pnpm to v10.15.1 ... ENOENT`）。
   - npm 对应 `cache=/tmp/agent-cache/npm-cache`（npm 仍可从 `.npmrc` 读取）。
-  - 不得让 store 落到项目内路径（如项目根的 `.pnpm-store`）。
+  - 不得让 store 落到项目内路径（如项目根的 `.pnpm-store`）；跑完 pnpm 后应用
+    `ls -d .pnpm-store` 复核，发现即删除。
 - 需要固定版本的独立工具（如 sqlc）：
   - 优先用 `go run <module>@<version>`（编译产物进 GOCACHE），
     或 `GOBIN=/tmp/agent-cache/bin go install <module>@<version>`。
