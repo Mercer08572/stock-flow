@@ -4127,6 +4127,20 @@ const docTemplate = `{
                 }
             }
         }
+    },
+    "securityDefinitions": {
+        "APIAppCredentials": {
+            "description": "外部系统认证。除本请求头外还必须提供 X-Stock-Flow-Secret，密钥仅在签发时明文返回一次。",
+            "type": "apiKey",
+            "name": "X-Stock-Flow-App-ID",
+            "in": "header"
+        },
+        "AdminSession": {
+            "description": "管理员会话 Cookie，由 POST /auth/admin/login 下发，HttpOnly 且不可通过 JS 读取。",
+            "type": "apiKey",
+            "name": "stock_flow_admin_session",
+            "in": "cookie"
+        }
     }
 }`
 
@@ -4137,7 +4151,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "Stock-Flow API",
-	Description:      "Back-end API service for the Stock-Flow inventory management system.",
+	Description:      "Back-end API service for the Stock-Flow inventory management system.\n\n管理员会话认证：登录后由服务端下发 HttpOnly 会话 Cookie，受保护接口在该 Cookie\n有效时即可访问；强制改密期间只有 login / logout / me / password 可用。\n\n外部系统认证：使用 API 应用的公开标识与密钥，两个请求头必须同时提供。",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 }

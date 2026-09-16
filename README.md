@@ -6,23 +6,26 @@ Stock-Flow 是一个面向库存管理场景的后端 API 服务。项目采用 
 
 ## 当前能力
 
-已实现的主数据能力：
+已实现的认证与主数据能力：
 
+- 管理员会话认证：`/api/v1/auth/admin`
+- API 应用与密钥管理：`/api/v1/auth/apps`
 - 计量单位管理：`/api/v1/units`
 - 物料分类管理：`/api/v1/material-categories`
 - 物料管理：`/api/v1/materials`
+- 物料单位换算：`/api/v1/materials/:id/unit-conversions`
 - SKU 管理：`/api/v1/skus`
-- 仓库管理：`/api/v1/warehouses`
+- 仓库管理：`/api/v1/warehouses`（含 `PUT /api/v1/warehouses/:id/disable` 停用）
+- 库存查询：`/api/v1/inventory/stocks`（余额、单条余额、批次层明细，**只读**）
 - 健康检查：`/api/v1/health`
 
 规划中的库存能力：
 
-- 库存余额
-- 批次库存
-- 库存预留
-- 库存流水
+- 库存写操作（入库）
+- 库存预留与释放
+- 库存扣减与 FIFO 分配
+- 库存流水查询
 - 库存操作幂等
-- FIFO 分配
 
 ## 技术栈
 
@@ -86,7 +89,7 @@ export DATABASE_URL='postgres://<user>:<password>@localhost:5432/stock_flow_dev?
 APP_ENV               # 默认 development；production 时强制要求 cookie secure
 ENV_FILE              # 可选，dotenv 文件路径，默认 ./.env
 GIN_MODE              # debug | release | test
-HTTP_ADDR             # 默认 :8080
+HTTP_ADDR             # 内置默认 :8080；.env.example 提供的是 :8181
 PORT                  # HTTP_ADDR 的别名，仅当 HTTP_ADDR 未设置时生效
 DATABASE_URL          # 数据库连接串，必需
 SHUTDOWN_TIMEOUT
@@ -126,16 +129,41 @@ make migrate-up
 make migrate-version
 ```
 
-### 4. 启动服务
+### 4. 初始化管理员
+
+迁移 `202607130005` 会创建一个用户名 `admin`、`password_initialized = FALSE` 的引导账号，
+它的 `password_hash` 是一个**不可登录的占位值**。真实口令必须由本命令写入：
+
+```bash
+go run ./cmd/admin init --password-stdin
+# 从标准输入读取口令；交互式终端下输入不回显
+```
+
+也可以临时用环境变量注入，适合自动化部署：
+
+```bash
+ADMIN_INITIAL_PASSWORD='<临时强口令>' go run ./cmd/admin init
+```
+
+行为约定：
+
+- 初始化后该账号被标记为 `must_change_password = TRUE`，首次登录必须先改密才能访问业务接口。
+- 口令长度要求 12–128 字符，且不能与用户名相同。
+- **命令不可重复执行**：第二次运行会以非 0 退出码失败并提示 `already initialized`，
+  不会覆盖已有口令。需要重置口令时请在登录后走 `PUT /api/v1/auth/admin/password`。
+- 如果提示 `administrator "admin" not found`，说明当前库还没执行 `make migrate-up`。
+- 需要换用户名时用 `--username <name>`，但该账号必须已由迁移创建。
+
+### 5. 启动服务
 
 ```bash
 make run
 ```
 
-默认监听地址是 `:8080`。启动后可以检查服务状态：
+`.env.example` 提供的监听地址是 `:8181`（代码内置默认值是 `:8080`）。启动后可以检查服务状态：
 
 ```bash
-curl http://localhost:8080/api/v1/health
+curl http://localhost:8181/api/v1/health
 ```
 
 返回格式示例：
@@ -187,13 +215,29 @@ GOCACHE=/private/tmp/stock-flow-go-build-cache make test
 
 | 模块 | 路径 | 说明 |
 | --- | --- | --- |
-| health | `/api/v1/health` | 健康检查 |
+| health | `/api/v1/health` | 健康检查（无需认证） |
+| auth | `/api/v1/auth/admin/login` | 管理员登录（无需认证） |
+| auth | `/api/v1/auth/admin/logout` | 管理员登出 |
+| auth | `/api/v1/auth/admin/me` | 当前管理员身份 |
+| auth | `/api/v1/auth/admin/password` | 修改管理员口令（强制改密期间也可访问） |
+| auth | `/api/v1/auth/apps` | API 应用列表 / 创建 |
+| auth | `/api/v1/auth/apps/:id` | API 应用详情 / 更新 / 删除 |
+| auth | `/api/v1/auth/apps/:id/secrets` | 签发 / 列出应用密钥 |
+| auth | `/api/v1/auth/apps/:id/secrets/:secret_id/block` | 封禁密钥 |
 | unit | `/api/v1/units` | 计量单位 |
 | material category | `/api/v1/material-categories` | 物料分类 |
 | material | `/api/v1/materials` | 物料 |
+| material | `/api/v1/materials/:id/unit-conversions` | 物料单位换算 |
 | sku | `/api/v1/skus` | SKU |
 | warehouse | `/api/v1/warehouses` | 仓库 |
-| warehouse | `/api/v1/warehouses/:id/disable` | 禁用仓库 |
+| warehouse | `/api/v1/warehouses/:id/disable` | 停用仓库 |
+| inventory | `/api/v1/inventory/stocks` | 库存余额列表（只读） |
+| inventory | `/api/v1/inventory/stocks/:warehouse_id/:sku_id` | 单条库存余额（只读） |
+| inventory | `/api/v1/inventory/stocks/:warehouse_id/:sku_id/layers` | 库存层明细（只读） |
+
+除 `health` 与 `auth/admin/login` 外，其余接口都需要认证：管理员使用 HttpOnly 会话 Cookie，
+外部系统使用请求头 `X-Stock-Flow-App-ID` + `X-Stock-Flow-Secret`（见 `.env.example` 与
+`internal/auth/middleware.go`）。
 
 所有响应都通过 `pkg/response` 返回统一结构：
 
@@ -294,16 +338,18 @@ make test
 stock-flow/
 ├── cmd/
 │   ├── api/                 # API 服务入口
+│   ├── admin/               # 管理员引导命令（stock-flow-admin init）
 │   └── config/              # 配置辅助命令
 ├── .env.example             # 配置模板（.env 由使用者自行创建）
 ├── docs/                    # 架构、开发和数据库文档
 ├── internal/
+│   ├── auth/                # 管理员会话、API 应用与密钥
 │   ├── material/            # 物料、分类、单位模块
 │   ├── sku/                 # SKU 模块
-│   ├── inventory/           # 库存模块文档与后续实现位置
+│   ├── inventory/           # 库存余额、批次层与后续写操作
 │   ├── warehouse/           # 仓库模块
 │   └── shared/              # 配置、数据库、HTTP、健康检查等共享能力
-├── migrations/              # 数据库迁移
+├── migrations/              # 数据库迁移（规范见 migrations/AGENTS.md）
 ├── pkg/
 │   └── response/            # 统一响应结构
 ├── sql/

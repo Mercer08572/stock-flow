@@ -1,6 +1,6 @@
 # WH-002 Inventory Reference Data Consistency
 
-Status: Ready
+Status: Done
 Owner: coding-agent
 Module: warehouse
 Related:
@@ -20,6 +20,12 @@ Related:
 [inventory_stocks.sql (line 1)](/Users/badbugu/workspace/myself_project/stock-flow/sql/queries/inventory_stocks.sql:1)。
 
 这会造成库存列表与详情行为不一致，也可能让库存、库存层、预留或流水引用已经删除的主数据。
+
+> **状态更新（P1-3 文档同步）**：删除保护已由 `ac6a0d3` 实现（warehouse / sku 删除前通过
+> inventory application contract 检查库存引用，冲突映射为 HTTP 409 / `1009`），
+> 上述 Background 保留为任务创建时的现状记录。验收标准中唯一未完成的是
+> 「数据库集成测试覆盖允许删除、拒绝删除、允许禁用和历史查询场景」，
+> 该项已移交计划文档的 **P3-7**（依赖 P3-1 的集成测试基础设施），故本任务状态记为 `Done`。
 
 ## Goal
 
@@ -93,6 +99,7 @@ Related:
 - 历史库存列表和详情对已删除主数据的处理保持一致。
 - 删除保护没有引入跨模块 repository 直接访问。
 - 数据库集成测试覆盖允许删除、拒绝删除、允许禁用和历史查询场景。
+  （唯一未完成项：已移交 P3-7，依赖 P3-1 的集成测试基础设施。）
 - `go test ./...` 通过。
 
 ## Decisions
