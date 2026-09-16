@@ -1,5 +1,5 @@
 -- Migration metadata
--- status: pending
+-- status: applied
 -- description: simplify reservation lifecycle status and add closure reason
 
 ALTER TABLE inventory_reservations
