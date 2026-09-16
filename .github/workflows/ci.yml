@@ -39,3 +39,50 @@ jobs:
 
       - name: go test
         run: go test ./...
+
+  # 数据库集成测试：在一次性 PostgreSQL 上跑全量迁移，验证约束、种子与引导流程。
+  # 由 `//go:build integration` 标签隔离，未设置 TEST_DATABASE_URL 时会自动跳过。
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: stock_flow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/stock_flow_test?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # 测试通过 migrate CLI 执行 migrations/ 目录，与应用部署使用同一套迁移工具。
+      - name: Install golang-migrate
+        run: |
+          curl -fsSL https://github.com/golang-migrate/migrate/releases/download/v4.19.1/migrate.linux-amd64.tar.gz \
+            | tar xz -C /usr/local/bin migrate
+
+      - name: Verify migrate is available
+        run: migrate -version
+
+      - name: go vet (integration)
+        run: go vet -tags=integration ./...
+
+      - name: go test (integration)
+        run: go test -tags=integration -count=1 ./...

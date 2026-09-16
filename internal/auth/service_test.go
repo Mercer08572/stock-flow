@@ -88,6 +88,44 @@ func TestServiceRequiresInitializedPassword(t *testing.T) {
 	}
 }
 
+func TestServiceInitializeAdminPasswordSucceedsOnceThenRefusesToOverwrite(t *testing.T) {
+	hasher := testPasswordHasher()
+	placeholder, err := hasher.Hash("placeholder-value-that-nobody-knows")
+	if err != nil {
+		t.Fatalf("hash placeholder: %v", err)
+	}
+	repo := &fakeRepository{admin: &AdminUser{
+		ID: 1, Username: "admin", PasswordHash: placeholder, PasswordInitialized: false, MustChangePassword: true, Status: StatusActive,
+	}}
+	service := NewService(repo, NewInMemorySessionStore(), hasher, ServiceOptions{})
+	ctx := context.Background()
+
+	// The seeded row must stay unusable until an operator initializes it.
+	if _, err := service.Login(ctx, LoginInput{Username: "admin", Password: "placeholder-value-that-nobody-knows", ClientIP: "127.0.0.1"}); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("expected the seeded placeholder to be unusable, got %v", err)
+	}
+
+	if err := service.InitializeAdminPassword(ctx, "admin", "first-deployment-password"); err != nil {
+		t.Fatalf("initial initialize: %v", err)
+	}
+	if !repo.admin.PasswordInitialized || !repo.admin.MustChangePassword {
+		t.Fatalf("expected initialized and forced-password-change state, got %+v", repo.admin)
+	}
+	firstHash := repo.admin.PasswordHash
+
+	repo.admin.MustChangePassword = false
+	err = service.InitializeAdminPassword(ctx, "admin", "second-deployment-password")
+	if !errors.Is(err, ErrAdminAlreadyInitialized) {
+		t.Fatalf("expected ErrAdminAlreadyInitialized on the second run, got %v", err)
+	}
+	if repo.admin.PasswordHash != firstHash {
+		t.Fatal("expected the stored password hash to stay untouched after a refused re-initialization")
+	}
+	if !repo.admin.PasswordInitialized {
+		t.Fatal("expected the administrator to stay initialized")
+	}
+}
+
 func TestServiceChangePasswordInvalidatesOldSessionsAndIssuesNewSession(t *testing.T) {
 	hasher := testPasswordHasher()
 	encoded, _ := hasher.Hash("admin-test-password")
@@ -239,8 +277,11 @@ func (r *fakeRepository) GetAdminByID(_ context.Context, id int64) (*AdminUser, 
 }
 
 func (r *fakeRepository) InitializeAdminPassword(_ context.Context, username string, passwordHash string) error {
-	if r.admin == nil || r.admin.Username != username || r.admin.PasswordInitialized {
+	if r.admin == nil || r.admin.Username != username {
 		return ErrAdminNotFound
+	}
+	if r.admin.PasswordInitialized {
+		return ErrAdminAlreadyInitialized
 	}
 	r.admin.PasswordHash = passwordHash
 	r.admin.PasswordInitialized = true

@@ -11,16 +11,27 @@ WHERE id = $1
   AND deleted_at IS NULL;
 
 -- name: InitializeAdminPassword :one
-UPDATE admin_users
-SET password_hash = $2,
-    password_initialized = TRUE,
-    must_change_password = TRUE,
-    password_changed_at = NULL,
-    updated_at = NOW()
-WHERE username = $1
-  AND password_initialized = FALSE
-  AND deleted_at IS NULL
-RETURNING id;
+WITH target AS (
+    SELECT id, password_initialized
+    FROM admin_users
+    WHERE admin_users.username = sqlc.arg('username')
+      AND admin_users.deleted_at IS NULL
+    FOR UPDATE
+),
+updated AS (
+    UPDATE admin_users
+    SET password_hash = sqlc.arg('password_hash'),
+        password_initialized = TRUE,
+        must_change_password = TRUE,
+        password_changed_at = NULL,
+        updated_at = NOW()
+    WHERE id IN (SELECT id FROM target WHERE NOT password_initialized)
+    RETURNING id
+)
+SELECT
+    target.id,
+    (target.password_initialized OR EXISTS (SELECT 1 FROM updated))::boolean AS password_initialized
+FROM target;
 
 -- name: ChangeAdminPassword :execrows
 UPDATE admin_users

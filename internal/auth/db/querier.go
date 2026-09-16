@@ -17,7 +17,7 @@ type Querier interface {
 	GetAPIAppByIdentifier(ctx context.Context, appID string) (GetAPIAppByIdentifierRow, error)
 	GetAdminByID(ctx context.Context, id int64) (GetAdminByIDRow, error)
 	GetAdminByUsername(ctx context.Context, username string) (GetAdminByUsernameRow, error)
-	InitializeAdminPassword(ctx context.Context, arg InitializeAdminPasswordParams) (int64, error)
+	InitializeAdminPassword(ctx context.Context, arg InitializeAdminPasswordParams) (InitializeAdminPasswordRow, error)
 	ListAPIApps(ctx context.Context, arg ListAPIAppsParams) ([]ListAPIAppsRow, error)
 	ListAPISecrets(ctx context.Context, apiAppID int64) ([]ListAPISecretsRow, error)
 	ListAPISecretsForAuthentication(ctx context.Context, apiAppID int64) ([]ListAPISecretsForAuthenticationRow, error)

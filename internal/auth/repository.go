@@ -57,11 +57,19 @@ func (r *postgresRepository) GetAdminByID(ctx context.Context, id int64) (*Admin
 }
 
 func (r *postgresRepository) InitializeAdminPassword(ctx context.Context, username string, passwordHash string) error {
-	_, err := r.queries.InitializeAdminPassword(ctx, authdb.InitializeAdminPasswordParams{Username: username, PasswordHash: passwordHash})
+	row, err := r.queries.InitializeAdminPassword(ctx, authdb.InitializeAdminPasswordParams{Username: username, PasswordHash: passwordHash})
 	if errors.Is(err, pgx.ErrNoRows) {
+		// No row matched: the bootstrap administrator does not exist in this database.
 		return ErrAdminNotFound
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	if row.PasswordInitialized {
+		// The query keeps the stored hash untouched in this case; report it instead of silently overwriting.
+		return ErrAdminAlreadyInitialized
+	}
+	return nil
 }
 
 func (r *postgresRepository) ChangeAdminPassword(ctx context.Context, id int64, passwordHash string, changedAt time.Time) error {

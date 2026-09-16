@@ -94,6 +94,24 @@ CREATE INDEX idx_api_secrets_status
     ON api_secrets (status)
     WHERE deleted_at IS NULL;
 
+-- Bootstrap administrator row.
+--
+-- A brand-new database must contain exactly one administrator account, otherwise
+-- `stock-flow-admin init` has nothing to update and can never provision a deployment.
+--
+-- password_hash below is an Argon2id hash of a random value that is not recorded anywhere,
+-- so it matches chk_admin_users_password_hash_argon2id while remaining impossible to log in with.
+-- The real initial password is written by `stock-flow-admin init`; until then the row keeps
+-- password_initialized = FALSE / must_change_password = TRUE
+-- (defaults added by 202607140006), which internal/auth uses to reject every login attempt.
+-- Do not replace it with a reusable plain password or a fixed usable hash.
+INSERT INTO admin_users (username, password_hash, status)
+VALUES (
+    'admin',
+    '$argon2id$v=19$m=65536,t=3,p=2$kh1tRCiets3++0uR69wK7Q$P3YXeq+qkOyBuldryA72SBa8YkKFtvPM/5B1K1j6uQU',
+    'active'
+);
+
 COMMENT ON TABLE admin_users IS 'Stock-Flow administrator accounts';
 COMMENT ON COLUMN admin_users.password_hash IS 'Encoded Argon2id password hash';
 COMMENT ON TABLE api_apps IS 'Registered external systems allowed to call Stock-Flow APIs';

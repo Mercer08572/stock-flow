@@ -330,16 +330,27 @@ func (q *Queries) GetAdminByUsername(ctx context.Context, username string) (GetA
 }
 
 const initializeAdminPassword = `-- name: InitializeAdminPassword :one
-UPDATE admin_users
-SET password_hash = $2,
-    password_initialized = TRUE,
-    must_change_password = TRUE,
-    password_changed_at = NULL,
-    updated_at = NOW()
-WHERE username = $1
-  AND password_initialized = FALSE
-  AND deleted_at IS NULL
-RETURNING id
+WITH target AS (
+    SELECT id, password_initialized
+    FROM admin_users
+    WHERE admin_users.username = $1
+      AND admin_users.deleted_at IS NULL
+    FOR UPDATE
+),
+updated AS (
+    UPDATE admin_users
+    SET password_hash = $2,
+        password_initialized = TRUE,
+        must_change_password = TRUE,
+        password_changed_at = NULL,
+        updated_at = NOW()
+    WHERE id IN (SELECT id FROM target WHERE NOT password_initialized)
+    RETURNING id
+)
+SELECT
+    target.id,
+    (target.password_initialized OR EXISTS (SELECT 1 FROM updated))::boolean AS password_initialized
+FROM target
 `
 
 type InitializeAdminPasswordParams struct {
@@ -347,11 +358,16 @@ type InitializeAdminPasswordParams struct {
 	PasswordHash string `db:"password_hash" json:"password_hash"`
 }
 
-func (q *Queries) InitializeAdminPassword(ctx context.Context, arg InitializeAdminPasswordParams) (int64, error) {
+type InitializeAdminPasswordRow struct {
+	ID                  int64 `db:"id" json:"id"`
+	PasswordInitialized bool  `db:"password_initialized" json:"password_initialized"`
+}
+
+func (q *Queries) InitializeAdminPassword(ctx context.Context, arg InitializeAdminPasswordParams) (InitializeAdminPasswordRow, error) {
 	row := q.db.QueryRow(ctx, initializeAdminPassword, arg.Username, arg.PasswordHash)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
+	var i InitializeAdminPasswordRow
+	err := row.Scan(&i.ID, &i.PasswordInitialized)
+	return i, err
 }
 
 const listAPIApps = `-- name: ListAPIApps :many
