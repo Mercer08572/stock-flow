@@ -75,10 +75,18 @@ Related:
 - 占位哈希：`$argon2id$v=19$m=65536,t=3,p=2$kh1tRCiets3++0uR69wK7Q$P3YXeq+qkOyBuldryA72SBa8YkKFtvPM/5B1K1j6uQU`
   （salt 是公开的占位标签哈希，口令是随机 32 字节且未记录）。
 - `InitializeAdminPassword` 改为 CTE：`target`（`SELECT ... FOR UPDATE`）+ `updated`
-  （仅当 `NOT password_initialized` 时更新）。返回行表示账号存在，`password_initialized`
-  返回值为"更新后的状态"，因此：
-  - 无返回行 → `ErrAdminNotFound`
-  - 返回行且 `password_initialized = TRUE` → `ErrAdminAlreadyInitialized`（此时未写入任何数据）
+  （仅当 `NOT password_initialized` 时更新）。返回行表示账号存在；第二个返回值必须表达
+  **"本次调用是否真的写入了口令"**（列名 `updated`），而不是"账号当前是否已初始化"：
+  - 无返回行（`pgx.ErrNoRows`）→ `ErrAdminNotFound`
+  - 返回行且 `updated = false` → `ErrAdminAlreadyInitialized`（本次未写入任何数据）
+  - 返回行且 `updated = true` → 成功
+- **踩过的坑（务必保留这条约束）**：最初的实现返回
+  `(target.password_initialized OR EXISTS (SELECT 1 FROM updated))`，而这个表达式在
+  「写入成功」与「已初始化、未写入」两种情形下**都是 `TRUE`**，导致 `cmd/admin init`
+  在任何新库上第一次执行就被判成"已初始化"（CI 报
+  `admin password is already initialized`）。SQL 的写入逻辑本身是对的，错的是返回的结果契约：
+  两个互斥结果共用一个布尔值，调用方无法区分。修复方式就是改为只返回 `updated`。
+  这一条必须保留，避免后人"简化"回原来的写法。
 - 仓库层映射 PG 错误，服务层保持业务规则，CLI 只负责把错误翻译成可执行提示。
 - CLI 拆出 `runWithDeps(args, stdin, stdout, serviceFactory)` 以便在不连库的情况下测试参数、
   口令读取与错误文案；`main()` 行为不变。
@@ -114,6 +122,28 @@ go test -tags=integration ./internal/auth/...   # 无 TEST_DATABASE_URL 时自�
 - 本机无 Docker、无本地 PostgreSQL（`.env` 指向 `localhost:5432`，不通），
   因此 `TEST_DATABASE_URL` 路径**未在本地执行**，由 CI 的 `integration` job 覆盖。
 - 空库全流程演练（迁移 → init → 登录 → 强制改密）同样依赖可用数据库，本地未执行。
+
+### 首轮 CI 事故与修复（2026-09-17）
+
+- **现象**：后端首次 CI 的 `integration` job 在
+  `integration_test.go:84 initialize administrator password: admin password is already initialized`
+  失败；`quality` job（普通单测）全绿。
+- **根因**：见 Implementation Notes 中的"踩过的坑"——返回值把两种互斥结果塌缩为同一个布尔值。
+  真正执行写入的 `updated` CTE 逻辑没有错，SQL 在真库上的写入/跳过行为均正确。
+- **为什么单测没拦住**：`fakeRepository` 按"正确意图"实现（已初始化才报错），与真 SQL 的
+  错误信号不一致；该不一致恰好只能由真库暴露。这正是 P3-1 集成测试基础设施的价值所在。
+- **修复验证（本机，无 Docker 环境下的替代验证）**：用 PGlite（PostgreSQL 16 的 WASM 构建，
+  与 CI 的 `postgres:16-alpine` 同大版本）跑项目**真实 migrations**，并直接从
+  `internal/auth/db/auth.sql.go` 抽取生成代码里逐字符相同的 SQL：
+
+  | 场景 | 修复前返回 | 修复后返回 | 判定 |
+  | --- | --- | --- | --- |
+  | 全新库首次初始化 | `password_initialized = true` | `updated = true` | 写入成功 |
+  | 已初始化后重复执行 | `password_initialized = true`（与上一行相同，无法区分） | `updated = false` | 已初始化，拒绝且不覆盖 |
+  | 账号不存在 | 0 行 | 0 行 | `ErrAdminNotFound` |
+
+  另用 pglite 复现了修复前的歧义（两种情形返回值完全相同），确认这不是环境差异所致。
+- **仍未验证**：修复后的真库集成测试需由 CI 复跑确认（本机无法运行 PostgreSQL 服务）。
 
 ## Open Questions
 

@@ -17,6 +17,7 @@ type Querier interface {
 	GetAPIAppByIdentifier(ctx context.Context, appID string) (GetAPIAppByIdentifierRow, error)
 	GetAdminByID(ctx context.Context, id int64) (GetAdminByIDRow, error)
 	GetAdminByUsername(ctx context.Context, username string) (GetAdminByUsernameRow, error)
+	// 返回 updated 表示"本次是否真的写入口令"（不能用 password_initialized：写入成功与已初始化时它都是 TRUE）。
 	InitializeAdminPassword(ctx context.Context, arg InitializeAdminPasswordParams) (InitializeAdminPasswordRow, error)
 	ListAPIApps(ctx context.Context, arg ListAPIAppsParams) ([]ListAPIAppsRow, error)
 	ListAPISecrets(ctx context.Context, apiAppID int64) ([]ListAPISecretsRow, error)

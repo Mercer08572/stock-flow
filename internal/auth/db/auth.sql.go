@@ -349,7 +349,7 @@ updated AS (
 )
 SELECT
     target.id,
-    (target.password_initialized OR EXISTS (SELECT 1 FROM updated))::boolean AS password_initialized
+    (SELECT EXISTS (SELECT 1 FROM updated))::boolean AS updated
 FROM target
 `
 
@@ -359,14 +359,15 @@ type InitializeAdminPasswordParams struct {
 }
 
 type InitializeAdminPasswordRow struct {
-	ID                  int64 `db:"id" json:"id"`
-	PasswordInitialized bool  `db:"password_initialized" json:"password_initialized"`
+	ID      int64 `db:"id" json:"id"`
+	Updated bool  `db:"updated" json:"updated"`
 }
 
+// 返回 updated 表示"本次是否真的写入口令"（不能用 password_initialized：写入成功与已初始化时它都是 TRUE）。
 func (q *Queries) InitializeAdminPassword(ctx context.Context, arg InitializeAdminPasswordParams) (InitializeAdminPasswordRow, error) {
 	row := q.db.QueryRow(ctx, initializeAdminPassword, arg.Username, arg.PasswordHash)
 	var i InitializeAdminPasswordRow
-	err := row.Scan(&i.ID, &i.PasswordInitialized)
+	err := row.Scan(&i.ID, &i.Updated)
 	return i, err
 }
 

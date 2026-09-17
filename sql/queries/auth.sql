@@ -10,6 +10,7 @@ FROM admin_users
 WHERE id = $1
   AND deleted_at IS NULL;
 
+-- 返回 updated 表示"本次是否真的写入口令"（不能用 password_initialized：写入成功与已初始化时它都是 TRUE）。
 -- name: InitializeAdminPassword :one
 WITH target AS (
     SELECT id, password_initialized
@@ -30,7 +31,7 @@ updated AS (
 )
 SELECT
     target.id,
-    (target.password_initialized OR EXISTS (SELECT 1 FROM updated))::boolean AS password_initialized
+    (SELECT EXISTS (SELECT 1 FROM updated))::boolean AS updated
 FROM target;
 
 -- name: ChangeAdminPassword :execrows

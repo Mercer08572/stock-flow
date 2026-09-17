@@ -65,8 +65,10 @@ func (r *postgresRepository) InitializeAdminPassword(ctx context.Context, userna
 	if err != nil {
 		return err
 	}
-	if row.PasswordInitialized {
-		// The query keeps the stored hash untouched in this case; report it instead of silently overwriting.
+	if !row.Updated {
+		// The stored hash was left untouched because the administrator is already initialized.
+		// The query reports "did this call write", not "is it initialized": the latter is TRUE
+		// both after a successful write and when the write was skipped.
 		return ErrAdminAlreadyInitialized
 	}
 	return nil
