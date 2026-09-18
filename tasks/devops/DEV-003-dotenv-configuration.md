@@ -82,9 +82,9 @@ configs/test.example.yaml          <- 模板
 
 ## Domain Rules
 
-- 优先级必须是：**已导出**的环境变量 > `.env` > 内置默认值。
-  - 「已导出」的口径是"变量是否存在于环境中"，**空串也算已导出**（2026-09-17 起，
-    见下方「后续变更」）。
+- 优先级必须是：**已设置**的环境变量 > `.env` > 内置默认值。
+  - 「已设置」的口径是"变量是否存在于环境中"，**空串也算已设置**，且空值会被原样应用、
+    不回落内置默认值（2026-09-18 起，见下方「后续变更」）。
 - `.env` **缺失不是错误**：生产与 CI 应直接注入真实环境变量。
 - `ENV_FILE` 显式指定的文件缺失**是错误**：显式意图必须被满足，不能静默忽略。
 - `.env` 存在但解析失败**是错误**：不能静默使用默认值继续启动。
@@ -112,11 +112,27 @@ os.Getenv(...)（applyEnv）         <- 已导出的环境变量，最高优先�
   改为直接使用 `godotenv.Load`，原因：
   1. 自行合并带来约 20 行复杂度，且"已设置"的判定散落在两个地方；
   2. `godotenv.Load` 的「key 存在即生效」是标准且易解释的行为。
-- 取舍：现在 `export FOO=`（或 `export FOO='   '`）会阻止 `.env` 生效，变量落到内置默认值；
-  需要 `.env` 值时改用 `unset FOO`。此代价经确认后接受。
 - 连带影响：测试辅助函数 `clearConfigEnv` 由 `t.Setenv(key, "")` 改为 `os.Unsetenv`，
   否则被测环境里的空串会挡住 `.env`。`env()` 仍保留 `TrimSpace`，但它现在只承担
   配置值归一化，不再参与优先级判定。
+
+### 后续变更（2026-09-18）
+
+- 上一条变更后，`applyEnv` 仍用 `env(key) != ""` 判断，导致**显式空值被静默替换成内置默认值**
+  （实测 13 个键里 12 个如此：`APP_ENV=""` → `development`、`HTTP_ADDR=""` → `:8080`、
+  `SHUTDOWN_TIMEOUT=""` → `10s` …）。这属于"设置了却被忽略"，已按用户要求取消。
+- 现在 `applyEnv` / `applyAuthEnv` 统一改用 `lookupEnv(key) (string, bool)`：
+  **键存在即应用，值可以为空**。空值不再回落默认值，而是进入各自的解析或校验路径：
+  - 字符串字段：`APP_ENV` / `HTTP_ADDR` / `DATABASE_URL` / `GIN_MODE` /
+    `AUTH_ADMIN_COOKIE_SAME_SITE` → 校验失败（如 `APP_ENV is required`）；
+  - 数字/时长/布尔字段：`SHUTDOWN_TIMEOUT`、`AUTH_*` 时长与整型、`AUTH_ADMIN_COOKIE_SECURE`
+    → 解析错误；`PORT=""` → `HTTP_ADDR port is required`。
+- 语义结果是"**设置即生效，绝不被静默忽略**"：想用内置默认值必须 `unset` 变量。
+- 测试：原 `TestBlankExportedEnvBlocksEnvFile` 拆分为
+  `TestBlankExportedHTTPAddrFailsInsteadOfUsingDefaults`、
+  `TestBlankExportedAPPEnvIsAppliedAndFailsValidation`、
+  `TestBlankExportedNonStringValuesFailParsing`（4 个子用例）、
+  `TestBlankEnvFileValueIsAppliedNotDefaulted`。
 
 ### 字段变更
 

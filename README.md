@@ -67,10 +67,11 @@ cp .env.example .env
 export 导出的环境变量  >  .env 文件  >  内置默认值
 ```
 
-**只要变量存在于环境中就一定生效，空串也算已导出**；`.env` 只填补环境里完全没有的变量。
-所以想让 `.env` 的值生效，请用 `unset DATABASE_URL`，**不要**用 `export DATABASE_URL=`——
-后者会把 `.env` 挡住，变量最终落到内置默认值（`DATABASE_URL` 则会直接报
-`DATABASE_URL is required`）。
+**只要变量存在于环境中就一定生效，空串也算已设置**；`.env` 只填补环境里完全没有的变量。
+而且**显式设置的空值会被原样应用，绝不会回落到内置默认值**：字符串字段（如 `APP_ENV`、
+`HTTP_ADDR`、`DATABASE_URL`）会因空值直接校验失败，数字/时长/布尔字段（如
+`SHUTDOWN_TIMEOUT`、`AUTH_ADMIN_COOKIE_SECURE`）会报解析错误。想用内置默认值就
+`unset` 该变量，**不要**用 `export DATABASE_URL=`。
 
 `.env` 是**可选**的：生产与 CI 直接注入真实环境变量即可，没有 `.env` 也能启动。
 但用 `ENV_FILE` 显式指定的文件必须存在，否则启动会失败（显式意图不会被静默忽略）。

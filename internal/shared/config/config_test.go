@@ -143,10 +143,10 @@ SHUTDOWN_TIMEOUT=15s
 	}
 }
 
-// An exported key is present in the environment even when its value is blank, and
-// godotenv.Load refuses to overwrite a present key, so the env file cannot fill it
-// in. Use `unset FOO` instead of `export FOO=` when a value must come from the file.
-func TestBlankExportedEnvBlocksEnvFile(t *testing.T) {
+// A key present in the environment is applied even when blank: the blank wins over
+// the env file and is NOT replaced by a built-in default. For HTTP_ADDR that means
+// an explicit blank is a configuration error rather than a silent fallback.
+func TestBlankExportedHTTPAddrFailsInsteadOfUsingDefaults(t *testing.T) {
 	clearConfigEnv(t)
 
 	envFile := writeEnvFile(t, `
@@ -154,22 +154,76 @@ HTTP_ADDR=:18080
 DATABASE_URL=postgres://file:pass@localhost:5432/app?sslmode=disable
 `)
 	t.Setenv("ENV_FILE", envFile)
-	// Whitespace only: the value survives precedence and is then normalized by env().
+	// Whitespace only: env() normalizes it to an empty value.
 	t.Setenv("HTTP_ADDR", "   ")
 	t.Setenv("DATABASE_URL", testDatabaseURL)
 
-	cfg, err := config.Load()
-	if err != nil {
-		t.Fatalf("load config: %v", err)
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("expected an explicit blank HTTP_ADDR to fail validation")
 	}
+	if !strings.Contains(err.Error(), "HTTP_ADDR") {
+		t.Fatalf("expected the error to name HTTP_ADDR, got %v", err)
+	}
+}
 
-	if cfg.HTTPAddr == ":18080" {
-		t.Fatal("expected the blank export to win over the env file")
+// A blank value is applied to the config instead of being replaced by the built-in
+// default. APP_ENV has a default, so the failure proves the blank was applied.
+func TestBlankExportedAPPEnvIsAppliedAndFailsValidation(t *testing.T) {
+	clearConfigEnv(t)
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+	t.Setenv("APP_ENV", "")
+
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("expected a blank APP_ENV to fail validation instead of using the default")
 	}
-	// env() normalizes the whitespace away, so applyEnv keeps the built-in default
-	// instead of the value from the env file.
-	if cfg.HTTPAddr != ":8080" {
-		t.Fatalf("expected the built-in default after normalization, got %q", cfg.HTTPAddr)
+	if !strings.Contains(err.Error(), "APP_ENV") {
+		t.Fatalf("expected the error to name APP_ENV, got %v", err)
+	}
+}
+
+// Numeric, duration, and boolean fields reject an explicit blank as a parse error
+// rather than quietly using the default.
+func TestBlankExportedNonStringValuesFailParsing(t *testing.T) {
+	for _, key := range []string{
+		"SHUTDOWN_TIMEOUT",
+		"AUTH_ADMIN_SESSION_TTL",
+		"AUTH_ADMIN_COOKIE_SECURE",
+		"AUTH_LOGIN_FAILURE_MAX_ATTEMPTS",
+	} {
+		t.Run(key, func(t *testing.T) {
+			clearConfigEnv(t)
+			t.Setenv("DATABASE_URL", testDatabaseURL)
+			t.Setenv(key, "")
+
+			_, err := config.Load()
+			if err == nil {
+				t.Fatalf("expected a blank %s to be rejected", key)
+			}
+			if !strings.Contains(err.Error(), key) {
+				t.Fatalf("expected the error to name %s, got %v", key, err)
+			}
+		})
+	}
+}
+
+// A blank value written in the env file is applied the same way as a blank export.
+func TestBlankEnvFileValueIsAppliedNotDefaulted(t *testing.T) {
+	clearConfigEnv(t)
+
+	envFile := writeEnvFile(t, `
+APP_ENV=
+DATABASE_URL=postgres://file:pass@localhost:5432/app?sslmode=disable
+`)
+	t.Setenv("ENV_FILE", envFile)
+
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("expected a blank APP_ENV from the env file to fail validation")
+	}
+	if !strings.Contains(err.Error(), "APP_ENV") {
+		t.Fatalf("expected the error to name APP_ENV, got %v", err)
 	}
 }
 

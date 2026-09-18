@@ -47,11 +47,12 @@ type Config struct {
 //
 //	exported environment variables > .env file > built-in defaults
 //
-// A variable counts as exported when it is present in the environment, even with
-// a blank value, so a blank export keeps the .env file from filling it in. The
-// .env file itself is optional because deployments are expected to inject real
-// environment variables; a missing file is an error only when ENV_FILE asked
-// for it explicitly.
+// A variable counts as set when it is present in the environment, even with a
+// blank value: an explicit blank is applied as-is and never falls back to a
+// built-in default, so removing a variable -- rather than blanking it -- is what
+// restores the default. The .env file itself is optional because deployments are
+// expected to inject real environment variables; a missing file is an error only
+// when ENV_FILE asked for it explicitly.
 func Load() (Config, error) {
 	envFile, err := loadEnvFile()
 	if err != nil {
@@ -89,7 +90,7 @@ func defaultConfig() Config {
 
 // loadEnvFile copies the dotenv file into the process environment and returns
 // the path it read. godotenv.Load only fills keys that are absent from the
-// environment, so an exported value always wins -- including a blank one: use
+// environment, so an explicit value always wins -- including a blank one: use
 // `unset FOO` rather than `export FOO=` when a value must come from the file.
 func loadEnvFile() (string, error) {
 	path := env(envFileEnv)
@@ -111,21 +112,21 @@ func loadEnvFile() (string, error) {
 }
 
 func applyEnv(cfg *Config) error {
-	if value := env("APP_ENV"); value != "" {
+	if value, ok := lookupEnv("APP_ENV"); ok {
 		cfg.Environment = value
 	}
-	if value := env("GIN_MODE"); value != "" {
+	if value, ok := lookupEnv("GIN_MODE"); ok {
 		cfg.GinMode = value
 	}
-	if value := env("HTTP_ADDR"); value != "" {
+	if value, ok := lookupEnv("HTTP_ADDR"); ok {
 		cfg.HTTPAddr = value
-	} else if value := env("PORT"); value != "" {
+	} else if value, ok := lookupEnv("PORT"); ok {
 		cfg.HTTPAddr = addressFromPort(value)
 	}
-	if value := env("DATABASE_URL"); value != "" {
+	if value, ok := lookupEnv("DATABASE_URL"); ok {
 		cfg.DatabaseURL = value
 	}
-	if value := env("SHUTDOWN_TIMEOUT"); value != "" {
+	if value, ok := lookupEnv("SHUTDOWN_TIMEOUT"); ok {
 		timeout, err := time.ParseDuration(value)
 		if err != nil {
 			return fmt.Errorf("parse SHUTDOWN_TIMEOUT: %w", err)
@@ -145,7 +146,7 @@ func applyAuthEnv(cfg *Config) error {
 		target *time.Duration
 	}{{"AUTH_ADMIN_SESSION_TTL", &cfg.AuthAdminSessionTTL}, {"AUTH_LOGIN_FAILURE_WINDOW", &cfg.AuthLoginFailureWindow}, {"AUTH_LOGIN_LOCKOUT", &cfg.AuthLoginLockout}}
 	for _, item := range durations {
-		if value := env(item.key); value != "" {
+		if value, ok := lookupEnv(item.key); ok {
 			parsed, err := time.ParseDuration(value)
 			if err != nil {
 				return fmt.Errorf("parse %s: %w", item.key, err)
@@ -153,10 +154,10 @@ func applyAuthEnv(cfg *Config) error {
 			*item.target = parsed
 		}
 	}
-	if value := strings.ToLower(env("AUTH_ADMIN_COOKIE_SAME_SITE")); value != "" {
-		cfg.AuthAdminCookieSameSite = value
+	if value, ok := lookupEnv("AUTH_ADMIN_COOKIE_SAME_SITE"); ok {
+		cfg.AuthAdminCookieSameSite = strings.ToLower(value)
 	}
-	if value := env("AUTH_ADMIN_COOKIE_SECURE"); value != "" {
+	if value, ok := lookupEnv("AUTH_ADMIN_COOKIE_SECURE"); ok {
 		parsed, err := strconv.ParseBool(value)
 		if err != nil {
 			return fmt.Errorf("parse AUTH_ADMIN_COOKIE_SECURE: %w", err)
@@ -168,7 +169,7 @@ func applyAuthEnv(cfg *Config) error {
 		target *int
 	}{{"AUTH_LOGIN_FAILURE_MAX_ATTEMPTS", &cfg.AuthLoginFailureMaxAttempts}, {"AUTH_LOGIN_IP_MAX_ATTEMPTS", &cfg.AuthLoginIPMaxAttempts}}
 	for _, item := range ints {
-		if value := env(item.key); value != "" {
+		if value, ok := lookupEnv(item.key); ok {
 			parsed, err := strconv.Atoi(value)
 			if err != nil {
 				return fmt.Errorf("parse %s: %w", item.key, err)
@@ -179,9 +180,20 @@ func applyAuthEnv(cfg *Config) error {
 	return nil
 }
 
+// lookupEnv reports whether key is present in the process environment and returns
+// its value with surrounding whitespace removed. An explicitly set but blank value
+// counts as present, so it is applied as-is and replaces the built-in default:
+// setting a variable never silently falls back to a default. Use `unset KEY` when
+// the default is wanted.
+func lookupEnv(key string) (string, bool) {
+	if _, ok := os.LookupEnv(key); !ok {
+		return "", false
+	}
+	return env(key), true
+}
+
 // env returns the value of key with surrounding whitespace removed. It normalizes
-// configuration values only; it no longer decides precedence, which now belongs to
-// godotenv.Load (a key is either present in the environment or it is not).
+// configuration values only; precedence belongs to lookupEnv.
 func env(key string) string {
 	return strings.TrimSpace(os.Getenv(key))
 }

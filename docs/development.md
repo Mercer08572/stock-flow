@@ -38,11 +38,13 @@ go run ./cmd/api
 
 优先级规则：
 
-- **只要变量存在于环境中就一定生效，空串也算已导出**；`.env` 只填补环境里完全没有的变量。
-- 想让 `.env` 的值生效请用 `unset FOO`，**不要**用 `export FOO=`：后者会把 `.env` 挡住，
-  该变量最终落到内置默认值（若它没有默认值则校验失败）。
-- 配置值在读取时会做 `TrimSpace`，所以 `export HTTP_ADDR='   '` 会先挡住 `.env`、
-  再被归一化成空值，最终使用内置默认值。
+- **只要变量存在于环境中就一定生效，空串也算已设置**；`.env` 只填补环境里完全没有的变量。
+- **显式设置的空值会被原样应用，不会回落到内置默认值**：字符串字段（`APP_ENV`、`GIN_MODE`、
+  `HTTP_ADDR`、`DATABASE_URL`、`AUTH_ADMIN_COOKIE_SAME_SITE`）会校验失败；
+  数字/时长/布尔字段（`SHUTDOWN_TIMEOUT`、`AUTH_*` 的时长与整型、`AUTH_ADMIN_COOKIE_SECURE`、
+  `PORT`）会报解析错误。想使用内置默认值请 `unset` 该变量，不要 `export FOO=`。
+- 配置值在读取时会做 `TrimSpace`，所以 `export HTTP_ADDR='   '` 与 `export HTTP_ADDR=` 等效。
+- `.env` 里写成 `FOO=` 与导出空值等效：同样会被当作显式空值应用。
 - `.env` 缺失**不是错误**：生产与 CI 直接注入环境变量即可。
 - `ENV_FILE` 显式指定的文件缺失**是错误**，不会被静默忽略。
 - `.env` 存在但内容非法**是错误**，不会退回默认值继续启动。
