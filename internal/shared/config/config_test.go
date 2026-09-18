@@ -143,9 +143,10 @@ SHUTDOWN_TIMEOUT=15s
 	}
 }
 
-// A variable exported with a blank value counts as unset, matching env()'s
-// definition, so the env file is still able to fill it in.
-func TestBlankExportedEnvFallsBackToEnvFile(t *testing.T) {
+// An exported key is present in the environment even when its value is blank, and
+// godotenv.Load refuses to overwrite a present key, so the env file cannot fill it
+// in. Use `unset FOO` instead of `export FOO=` when a value must come from the file.
+func TestBlankExportedEnvBlocksEnvFile(t *testing.T) {
 	clearConfigEnv(t)
 
 	envFile := writeEnvFile(t, `
@@ -153,15 +154,22 @@ HTTP_ADDR=:18080
 DATABASE_URL=postgres://file:pass@localhost:5432/app?sslmode=disable
 `)
 	t.Setenv("ENV_FILE", envFile)
+	// Whitespace only: the value survives precedence and is then normalized by env().
 	t.Setenv("HTTP_ADDR", "   ")
+	t.Setenv("DATABASE_URL", testDatabaseURL)
 
 	cfg, err := config.Load()
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
 
-	if cfg.HTTPAddr != ":18080" {
-		t.Fatalf("expected blank export to defer to env file, got %q", cfg.HTTPAddr)
+	if cfg.HTTPAddr == ":18080" {
+		t.Fatal("expected the blank export to win over the env file")
+	}
+	// env() normalizes the whitespace away, so applyEnv keeps the built-in default
+	// instead of the value from the env file.
+	if cfg.HTTPAddr != ":8080" {
+		t.Fatalf("expected the built-in default after normalization, got %q", cfg.HTTPAddr)
 	}
 }
 
@@ -246,8 +254,9 @@ func TestLoadRejectsHTTPAddrWithoutPort(t *testing.T) {
 	}
 }
 
-// clearConfigEnv blanks every supported key. A blank value is treated as unset
-// by the loader, so this is equivalent to removing the variables.
+// clearConfigEnv removes every supported key. godotenv.Load keeps any key that is
+// already present in the environment, so clearing must unset the variables rather
+// than blank them. Original values are restored when the test finishes.
 func clearConfigEnv(t *testing.T) {
 	t.Helper()
 
@@ -269,7 +278,12 @@ func clearConfigEnv(t *testing.T) {
 	}
 
 	for _, key := range keys {
-		t.Setenv(key, "")
+		if value, ok := os.LookupEnv(key); ok {
+			t.Cleanup(func() { _ = os.Setenv(key, value) })
+		} else {
+			t.Cleanup(func() { _ = os.Unsetenv(key) })
+		}
+		_ = os.Unsetenv(key)
 	}
 }
 

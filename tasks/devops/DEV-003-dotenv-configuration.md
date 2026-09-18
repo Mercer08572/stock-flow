@@ -82,9 +82,9 @@ configs/test.example.yaml          <- 模板
 
 ## Domain Rules
 
-- 优先级必须是：**非空**的导出环境变量 > `.env` > 内置默认值。
-  - 「非空」的口径与既有 `env()` 辅助函数一致（`strings.TrimSpace` 后为空视为未设置）。
-    这样 `.env` 可以填补一个被导出为空串的变量，且与旧 YAML 实现的行为一致。
+- 优先级必须是：**已导出**的环境变量 > `.env` > 内置默认值。
+  - 「已导出」的口径是"变量是否存在于环境中"，**空串也算已导出**（2026-09-17 起，
+    见下方「后续变更」）。
 - `.env` **缺失不是错误**：生产与 CI 应直接注入真实环境变量。
 - `ENV_FILE` 显式指定的文件缺失**是错误**：显式意图必须被满足，不能静默忽略。
 - `.env` 存在但解析失败**是错误**：不能静默使用默认值继续启动。
@@ -97,15 +97,26 @@ configs/test.example.yaml          <- 模板
 ```text
 defaultConfig()                    <- 内置默认值
    ↓ 被覆盖
-.env（godotenv.Read）              <- 仅在对应变量「非空导出」时才被跳过
+.env（godotenv.Load）              <- 仅填补环境里不存在的 key
    ↓ 被覆盖
-os.Getenv(...)（applyEnv）         <- 导出环境变量，最高优先级
+os.Getenv(...)（applyEnv）         <- 已导出的环境变量，最高优先级
 ```
 
-实现上用 `godotenv.Read` 读取成 `map[string]string` 后自行合并，而不是直接用
-`godotenv.Load`。原因：`Load` 以「变量是否**存在于** environ」判断，导出为空串的
-变量会阻止 `.env` 生效；而本项目的既有口径是「空白即未设置」。自行合并可以让
-文件层与环境层的「已设置」判定保持一致，也便于用 `t.Setenv(key, "")` 写测试。
+实现上直接使用 `godotenv.Load(path)`：它以「变量是否存在于 environ」判断是否填充，
+语义清晰且无需自行合并。
+
+### 后续变更（2026-09-17）
+
+- 原实现用 `godotenv.Read` 读取成 `map[string]string` 后自行合并，以便实现
+  「空白即未设置」（`export FOO=` 仍允许 `.env` 填补）。该规则已于 2026-09-17 取消，
+  改为直接使用 `godotenv.Load`，原因：
+  1. 自行合并带来约 20 行复杂度，且"已设置"的判定散落在两个地方；
+  2. `godotenv.Load` 的「key 存在即生效」是标准且易解释的行为。
+- 取舍：现在 `export FOO=`（或 `export FOO='   '`）会阻止 `.env` 生效，变量落到内置默认值；
+  需要 `.env` 值时改用 `unset FOO`。此代价经确认后接受。
+- 连带影响：测试辅助函数 `clearConfigEnv` 由 `t.Setenv(key, "")` 改为 `os.Unsetenv`，
+  否则被测环境里的空串会挡住 `.env`。`env()` 仍保留 `TrimSpace`，但它现在只承担
+  配置值归一化，不再参与优先级判定。
 
 ### 字段变更
 

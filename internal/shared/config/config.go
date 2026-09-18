@@ -47,7 +47,8 @@ type Config struct {
 //
 //	exported environment variables > .env file > built-in defaults
 //
-// A blank exported value counts as unset, so the .env file can fill it in. The
+// A variable counts as exported when it is present in the environment, even with
+// a blank value, so a blank export keeps the .env file from filling it in. The
 // .env file itself is optional because deployments are expected to inject real
 // environment variables; a missing file is an error only when ENV_FILE asked
 // for it explicitly.
@@ -87,8 +88,9 @@ func defaultConfig() Config {
 }
 
 // loadEnvFile copies the dotenv file into the process environment and returns
-// the path it read. Values already exported with a non-blank value are left
-// untouched so the environment keeps the highest precedence.
+// the path it read. godotenv.Load only fills keys that are absent from the
+// environment, so an exported value always wins -- including a blank one: use
+// `unset FOO` rather than `export FOO=` when a value must come from the file.
 func loadEnvFile() (string, error) {
 	path := env(envFileEnv)
 	explicit := path != ""
@@ -96,22 +98,13 @@ func loadEnvFile() (string, error) {
 		path = defaultEnvFile
 	}
 
-	values, err := godotenv.Read(path)
+	err := godotenv.Load(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) && !explicit {
 			// No dotenv file is the normal case in production and CI.
 			return "", nil
 		}
 		return "", fmt.Errorf("read env file %q: %w", path, err)
-	}
-
-	for key, value := range values {
-		if env(key) != "" {
-			continue
-		}
-		if err := os.Setenv(key, value); err != nil {
-			return "", fmt.Errorf("apply %s from %q: %w", key, path, err)
-		}
 	}
 
 	return path, nil
@@ -186,6 +179,9 @@ func applyAuthEnv(cfg *Config) error {
 	return nil
 }
 
+// env returns the value of key with surrounding whitespace removed. It normalizes
+// configuration values only; it no longer decides precedence, which now belongs to
+// godotenv.Load (a key is either present in the environment or it is not).
 func env(key string) string {
 	return strings.TrimSpace(os.Getenv(key))
 }
