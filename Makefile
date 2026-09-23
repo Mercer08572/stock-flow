@@ -4,9 +4,10 @@ SQLC_VERSION := v1.29.0
 SWAG_VERSION := v1.8.12
 API_PACKAGE := ./cmd/api
 CONFIG_PACKAGE := ./cmd/config
+ADMIN_PACKAGE := ./cmd/admin
 PG_DUMP ?= pg_dump
 
-.PHONY: help fmt test run swagger sqlc config-database-url schema-dump migrate-up migrate-down migrate-down-all migrate-version migrate-force
+.PHONY: help fmt test run admin-init swagger sqlc config-database-url schema-dump migrate-up migrate-down migrate-down-all migrate-version migrate-force
 
 # Allow an optional positional step count, for example: make migrate-up 2.
 ifeq ($(firstword $(MAKECMDGOALS)),migrate-up)
@@ -25,6 +26,7 @@ help:
 	@echo "  make fmt               - Format Go source files"
 	@echo "  make test              - Run Go tests"
 	@echo "  make run               - Run API server"
+	@echo "  make admin-init        - Initialize the administrator password"
 	@echo ""
 	@echo "Code generation:"
 	@echo "  make swagger           - Generate Swagger/OpenAPI documentation"
@@ -54,6 +56,9 @@ test:
 
 run:
 	go run $(API_PACKAGE)
+
+admin-init:
+	go run $(ADMIN_PACKAGE) init
 
 swagger:
 	go run github.com/swaggo/swag/cmd/swag@$(SWAG_VERSION) init \
