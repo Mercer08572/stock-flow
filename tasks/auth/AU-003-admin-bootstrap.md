@@ -97,15 +97,15 @@ Related:
 ## Acceptance Criteria
 
 - [x] 空库执行全量迁移后 `admin_users` 恰好有 1 行 `username = 'admin'`，`password_initialized = FALSE`，
-      `must_change_password = TRUE`（集成测试断言，本地未执行）
-- [x] 占位哈希不能被任意口令验证通过（集成测试断言，本地未执行）
-- [x] 首次 `InitializeAdminPassword` 成功，口令可用新哈希验证通过（集成测试断言，本地未执行）
+      `must_change_password = TRUE`（集成测试断言，已由 CI 真库执行通过）
+- [x] 占位哈希不能被任意口令验证通过（集成测试断言，已由 CI 真库执行通过）
+- [x] 首次 `InitializeAdminPassword` 成功，口令可用新哈希验证通过（集成测试断言，已由 CI 真库执行通过）
 - [x] 第二次执行返回 `ErrAdminAlreadyInitialized`，且存储哈希不变（单元测试 + 集成测试）
 - [x] 未知用户名返回 `ErrAdminNotFound`，CLI 提示先执行迁移（单元测试）
 - [x] CLI 成功路径打印 `administrator "admin" initialized; ...`（单元测试）
 - [x] 错误信息不回显口令（单元测试）
 - [x] `gofmt -l .`、`go vet ./...`、`go build ./...`、`go test ./...` 通过（本地实测）
-- [x] CI 新增 postgres service 的集成测试 job（推送后首跑待确认）
+- [x] CI 新增 postgres service 的集成测试 job（2026-09-24 核查：run `35815838642` 的 `integration` job success）
 - [x] 任务文档与 `migrations/AGENTS.md` 记录本次对已应用迁移的例外
 
 ## 验证记录（2026-09-16）
@@ -122,6 +122,24 @@ go test -tags=integration ./internal/auth/...   # 无 TEST_DATABASE_URL 时自�
 - 本机无 Docker、无本地 PostgreSQL（`.env` 指向 `localhost:5432`，不通），
   因此 `TEST_DATABASE_URL` 路径**未在本地执行**，由 CI 的 `integration` job 覆盖。
 - 空库全流程演练（迁移 → init → 登录 → 强制改密）同样依赖可用数据库，本地未执行。
+
+### CI 复跑确认（2026-09-24 核查）
+
+- `stock-flow` 的 GitHub Actions run **#2**（`3a1fcab`，2026-09-23）结论 **success**，
+  其中 `integration` job 在 `postgres:16-alpine` service 容器上执行：`migrate` CLI 安装 → 空库全量迁移 →
+  `go test -tags=integration -count=1 ./...`，全部步骤成功。因此上文第一条「由 CI 覆盖」的验收项
+  已获得**真库证据**（本机仍未执行，因为本机无 PostgreSQL 与 Docker）。
+- 同一次 run 的 `quality` job（gofmt / vet / build / test）同样 success。
+
+### 覆盖缺口（2026-09-24 核查，如实标注）
+
+- 集成测试的边界是「迁移 → 初始化」：它断言了种子行、占位哈希不可登录、初始化成功、
+  重复执行被拒且不覆盖、未知用户报 `ErrAdminNotFound`。
+- **未覆盖**：P1-1 验收项 ② 的后半段——用初始化后的口令**登录成功**、会话被要求强制改密、
+  改密后放行、旧会话失效。这一链路目前只有 `service_test.go` / `middleware_test.go` 用
+  fake repository 覆盖，没有真库端到端断言。
+- 2026-09-24 已提出补测方案（在 `integration_test.go` 末尾续接 `Login` → `ChangePassword` →
+  旧 token 失效 → 新口令再登录），**经用户决定暂不做**，留给 P3-1（数据库集成测试基础设施）一并处理。
 
 ### 首轮 CI 事故与修复（2026-09-17）
 
@@ -143,7 +161,9 @@ go test -tags=integration ./internal/auth/...   # 无 TEST_DATABASE_URL 时自�
   | 账号不存在 | 0 行 | 0 行 | `ErrAdminNotFound` |
 
   另用 pglite 复现了修复前的歧义（两种情形返回值完全相同），确认这不是环境差异所致。
-- **仍未验证**：修复后的真库集成测试需由 CI 复跑确认（本机无法运行 PostgreSQL 服务）。
+- **已确认（2026-09-24 核查）**：修复后的真库集成测试已由 CI 复跑通过——
+  run `35815838642`（`3a1fcab`，2026-09-23）的 `integration` job **success**，
+  失败日志中的 `initialize administrator password: admin password is already initialized` 已不再出现。
 
 ## Open Questions
 
