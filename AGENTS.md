@@ -45,6 +45,7 @@ Stock-Flow 是库存管理系统的后端 API 服务。
 每个业务领域均作为独立模块实现。
 
 示例：
+
 - material
 - sku
 - inventory
@@ -166,59 +167,6 @@ func NewMaterialService(repo MaterialRepository) MaterialService {
 - `type` 必须是以下之一：`feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`build`、`ci`、`chore`、`revert`。
 - `subject` 需用祈使句简要概括核心改动，不超过 72 字符，确保能清晰体现修改内容和意图。
 
-## 沙箱环境构建缓存约定
-
-Agent 运行在沙箱中，通常只允许写入项目工作区与系统临时目录（/tmp）。因此**所有缓存、
-临时文件与临时下载的工具都必须放在系统临时目录下**，禁止在项目仓库内创建任何缓存目录
-（如 `.pnpm-store`、`.tools`、`.goroot_tmp`、`.gocache` 等），确保缓存不跟随项目。
-
-### 通用约定
-
-- 统一缓存根目录：`/tmp/agent-cache`（macOS 上 `/tmp` 即 `/private/tmp`）。
-  该目录可跨项目共享：pnpm store 与 Go 模块缓存都是内容寻址的，跨项目共享安全且能提高缓存命中率。
-- 禁止在项目内创建缓存/依赖目录；需要临时文件时使用 `mktemp -d`（默认位于系统临时目录）。
-- 若项目内发现历史遗留的缓存目录（如 `.pnpm-store`、`.tools`），直接删除即可：
-  它们是可再生内容，不得提交、不得保留。
-
-### 各工具约定
-
-- Go：执行任何 `go` 命令前，先导出（或写入 Makefile 默认值，可用环境变量覆盖）：
-  - `GOCACHE=/tmp/agent-cache/go-build`
-  - `GOMODCACHE=/tmp/agent-cache/go-mod`
-  - `GOTMPDIR=/tmp/agent-cache/go-tmp`（使用前确保目录存在：`mkdir -p`）
-  - `GOPATH=/tmp/agent-cache/go-path`（仅需要时）
-  - `GOBIN=/tmp/agent-cache/bin`（仅 `go install` 工具时）
-- pnpm / npm：
-  - 统一使用 store：`pnpm --config.store-dir=/tmp/agent-cache/pnpm-store <命令>`
-    （这是**唯一实测有效**的写法，见下）。
-  - 注意：pnpm 10 及以上**忽略项目 `.npmrc` 中的 `store-dir`**（该配置仅在 pnpm ≤9 有效）。
-  - 实测结论（2026-09-14，pnpm 10.15.1）：
-    - 未指定 store 时，pnpm 会把 store 解析到**工作区根的 `.pnpm-store/v11`**；
-      `pnpm run <脚本>`（包括 `pnpm check` 这类内部再次调用 pnpm 的脚本）都会重建该目录。
-    - ✅ `pnpm --config.store-dir=/tmp/agent-cache/pnpm-store <命令>`：对 `run <脚本>`、
-      自带子命令、以及脚本内嵌套的 pnpm 调用均生效（实测完整 `pnpm check` 退出码 0，
-      且未生成项目内 store）。
-    - ❌ `pnpm --store-dir=... run <脚本>`：直接报 `Unknown option: 'store-dir'`
-      （该标志只被部分子命令接受，如 `pnpm store path`，不能用于脚本调用）。
-    - ❌ 手工设置 `npm_config_store_dir=...`：被 pnpm 10 **静默忽略**，store 仍落在项目内。
-    - ❌ `XDG_DATA_HOME` 指向空目录：pnpm 会因 `packageManager` 固定版本切换失败
-      （`Failed to switch pnpm to v10.15.1 ... ENOENT`）。
-  - npm 对应 `cache=/tmp/agent-cache/npm-cache`（npm 仍可从 `.npmrc` 读取）。
-  - 不得让 store 落到项目内路径（如项目根的 `.pnpm-store`）；跑完 pnpm 后应用
-    `ls -d .pnpm-store` 复核，发现即删除。
-- 需要固定版本的独立工具（如 sqlc）：
-  - 优先用 `go run <module>@<version>`（编译产物进 GOCACHE），
-    或 `GOBIN=/tmp/agent-cache/bin go install <module>@<version>`。
-  - 禁止把工具二进制下载到项目内（如项目内 `.tools/bin`）。
-
-### 例外与权衡
-
-- `node_modules/`、`dist/`、编译产物等属于**构建产物**而非缓存，仍按项目约定放在项目内
-  并由 `.gitignore` 排除，不受本约束限制。
-- `/tmp` 会被系统清理（重启必清空；macOS 约 3 天未访问即清理）。缓存被清理后重新下载即可，
-  属正常现象；不得因此把缓存改回项目内。
-- 本条款的意图是约束"缓存与临时文件"的位置，不限制业务数据、源码或文档在项目内的正常存放。
-
 ## 实现任何功能之前
 
 1. 阅读 `AGENTS.md`。
@@ -233,6 +181,6 @@ Agent 运行在沙箱中，通常只允许写入项目工作区与系统临时�
 1. `AGENTS.md`
 2. 包内的子级 `AGENTS.md`
 3. `tasks`
-5. 源代码
+4. 源代码
 
 若存在冲突，以优先级更高的文档为准。
