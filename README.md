@@ -16,7 +16,7 @@ Stock-Flow 是一个面向库存管理场景的后端 API 服务。项目采用 
 - 物料单位换算：`/api/v1/materials/:id/unit-conversions`
 - SKU 管理：`/api/v1/skus`
 - 仓库管理：`/api/v1/warehouses`（含 `PUT /api/v1/warehouses/:id/disable` 停用）
-- 库存查询：`/api/v1/inventory/stocks`（余额、单条余额、批次层明细，**只读**）
+- 库存查询：`/api/v1/inventory/stocks`（余额、单条余额、库存层明细，**只读**）
 - 健康检查：`/api/v1/health`
 
 规划中的库存能力：
@@ -324,7 +324,7 @@ material -> sku -> inventory(warehouse, batch)
 - `material` 负责物料主数据、分类和基础单位。
 - `sku` 负责库存可管理的具体 SKU 定义。
 - `warehouse` 负责仓库主数据，不负责库存数量。
-- `inventory` 负责库存余额、批次、预留和库存流水。
+- `inventory` 负责库存余额、库存层、批次、预留和库存流水。
 
 更多设计文档见：
 
@@ -377,7 +377,7 @@ stock-flow/
 │   ├── auth/                # 管理员会话、API 应用与密钥
 │   ├── material/            # 物料、分类、单位模块
 │   ├── sku/                 # SKU 模块
-│   ├── inventory/           # 库存余额、批次层与后续写操作
+│   ├── inventory/           # 库存余额、库存层与后续写操作
 │   ├── warehouse/           # 仓库模块
 │   └── shared/              # 配置、数据库、HTTP、健康检查等共享能力
 ├── migrations/              # 数据库迁移（规范见 migrations/AGENTS.md）
