@@ -3,6 +3,8 @@ package category
 import (
 	"context"
 	"strings"
+
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
 type CategoryService interface {
@@ -51,7 +53,7 @@ func (s *categoryService) List(ctx context.Context, filter CategoryListFilter) (
 
 func (s *categoryService) Get(ctx context.Context, id int64) (*Category, error) {
 	if id <= 0 {
-		return nil, NewValidationError("material category id must be greater than zero")
+		return nil, apperr.NewValidationError("material category id must be greater than zero")
 	}
 
 	return s.repo.GetCategoryByID(ctx, id)
@@ -101,7 +103,7 @@ func (s *categoryService) Update(ctx context.Context, input UpdateCategoryInput)
 
 func (s *categoryService) Delete(ctx context.Context, id int64) error {
 	if id <= 0 {
-		return NewValidationError("material category id must be greater than zero")
+		return apperr.NewValidationError("material category id must be greater than zero")
 	}
 
 	return s.repo.SoftDeleteCategory(ctx, id)
@@ -112,10 +114,10 @@ func (s *categoryService) validateParent(ctx context.Context, categoryID int64, 
 		return nil
 	}
 	if *parentID <= 0 {
-		return NewValidationError("parent_id must be greater than zero")
+		return apperr.NewValidationError("parent_id must be greater than zero")
 	}
 	if categoryID > 0 && *parentID == categoryID {
-		return NewValidationError("parent_id must not equal material category id")
+		return apperr.NewValidationError("parent_id must not equal material category id")
 	}
 
 	exists, err := s.repo.CategoryExists(ctx, *parentID)
@@ -133,13 +135,13 @@ func normalizeCategoryListFilter(filter CategoryListFilter) (CategoryListFilter,
 	if filter.Status != nil {
 		status := Status(strings.TrimSpace(string(*filter.Status)))
 		if !status.IsValid() {
-			return CategoryListFilter{}, NewValidationError("status must be active or inactive")
+			return CategoryListFilter{}, apperr.NewValidationError("status must be active or inactive")
 		}
 		filter.Status = &status
 	}
 
 	if filter.ParentID != nil && *filter.ParentID <= 0 {
-		return CategoryListFilter{}, NewValidationError("parent_id must be greater than zero")
+		return CategoryListFilter{}, apperr.NewValidationError("parent_id must be greater than zero")
 	}
 
 	if filter.Limit <= 0 {
@@ -178,10 +180,10 @@ func normalizeUpdateCategoryInput(input UpdateCategoryInput) (UpdateCategoryInpu
 	input.Remark = normalizeRemark(input.Remark)
 
 	if input.ID <= 0 {
-		return UpdateCategoryInput{}, NewValidationError("material category id must be greater than zero")
+		return UpdateCategoryInput{}, apperr.NewValidationError("material category id must be greater than zero")
 	}
 	if input.Status == "" {
-		return UpdateCategoryInput{}, NewValidationError("status is required")
+		return UpdateCategoryInput{}, apperr.NewValidationError("status is required")
 	}
 	if err := validateCategoryFields(input.Code, input.Name, input.Status); err != nil {
 		return UpdateCategoryInput{}, err
@@ -192,13 +194,13 @@ func normalizeUpdateCategoryInput(input UpdateCategoryInput) (UpdateCategoryInpu
 
 func validateCategoryFields(code string, name string, status Status) error {
 	if code == "" {
-		return NewValidationError("code is required")
+		return apperr.NewValidationError("code is required")
 	}
 	if name == "" {
-		return NewValidationError("name is required")
+		return apperr.NewValidationError("name is required")
 	}
 	if !status.IsValid() {
-		return NewValidationError("status must be active or inactive")
+		return apperr.NewValidationError("status must be active or inactive")
 	}
 
 	return nil

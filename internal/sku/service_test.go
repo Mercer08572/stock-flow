@@ -8,6 +8,7 @@ import (
 
 	material "github.com/Mercer08572/stock-flow/internal/material/material"
 	"github.com/Mercer08572/stock-flow/internal/sku"
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
 func TestServiceCreateSKU(t *testing.T) {
@@ -91,7 +92,7 @@ func TestServiceCreateValidatesRequiredFields(t *testing.T) {
 		UnitID:     20,
 	})
 
-	var validationErr *sku.ValidationError
+	var validationErr *apperr.ValidationError
 	if !errors.As(err, &validationErr) {
 		t.Fatalf("expected validation error, got %v", err)
 	}
@@ -172,7 +173,7 @@ func TestServiceDeleteValidatesID(t *testing.T) {
 
 	err := service.Delete(ctx, 0)
 
-	var validationErr *sku.ValidationError
+	var validationErr *apperr.ValidationError
 	if !errors.As(err, &validationErr) {
 		t.Fatalf("expected validation error, got %v", err)
 	}

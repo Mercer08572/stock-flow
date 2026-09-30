@@ -3712,6 +3712,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "data": {},
+                "error_code": {
+                    "description": "ErrorCode 是稳定的业务错误码（见 pkg/apperr）。成功响应与无业务身份的错误不出现。",
+                    "type": "string"
+                },
                 "message": {
                     "type": "string"
                 },

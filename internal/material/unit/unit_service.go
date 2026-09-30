@@ -3,6 +3,8 @@ package unit
 import (
 	"context"
 	"strings"
+
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
 type UnitService interface {
@@ -50,7 +52,7 @@ func (s *unitService) List(ctx context.Context, filter UnitListFilter) (UnitList
 
 func (s *unitService) Get(ctx context.Context, id int64) (*Unit, error) {
 	if id <= 0 {
-		return nil, NewValidationError("unit id must be greater than zero")
+		return nil, apperr.NewValidationError("unit id must be greater than zero")
 	}
 
 	return s.repo.GetUnitByID(ctx, id)
@@ -92,7 +94,7 @@ func (s *unitService) Update(ctx context.Context, input UpdateUnitInput) (*Unit,
 
 func (s *unitService) Delete(ctx context.Context, id int64) error {
 	if id <= 0 {
-		return NewValidationError("unit id must be greater than zero")
+		return apperr.NewValidationError("unit id must be greater than zero")
 	}
 
 	return s.repo.SoftDeleteUnit(ctx, id)
@@ -102,7 +104,7 @@ func normalizeUnitListFilter(filter UnitListFilter) (UnitListFilter, error) {
 	if filter.Status != nil {
 		status := Status(strings.TrimSpace(string(*filter.Status)))
 		if !status.IsValid() {
-			return UnitListFilter{}, NewValidationError("status must be active or inactive")
+			return UnitListFilter{}, apperr.NewValidationError("status must be active or inactive")
 		}
 		filter.Status = &status
 	}
@@ -110,7 +112,7 @@ func normalizeUnitListFilter(filter UnitListFilter) (UnitListFilter, error) {
 	if filter.UnitType != nil {
 		unitType := UnitType(strings.TrimSpace(string(*filter.UnitType)))
 		if !unitType.IsValid() {
-			return UnitListFilter{}, NewValidationError("unit_type is invalid")
+			return UnitListFilter{}, apperr.NewValidationError("unit_type is invalid")
 		}
 		filter.UnitType = &unitType
 	}
@@ -154,10 +156,10 @@ func normalizeUpdateUnitInput(input UpdateUnitInput) (UpdateUnitInput, error) {
 	input.Status = Status(strings.TrimSpace(string(input.Status)))
 
 	if input.ID <= 0 {
-		return UpdateUnitInput{}, NewValidationError("unit id must be greater than zero")
+		return UpdateUnitInput{}, apperr.NewValidationError("unit id must be greater than zero")
 	}
 	if input.Status == "" {
-		return UpdateUnitInput{}, NewValidationError("status is required")
+		return UpdateUnitInput{}, apperr.NewValidationError("status is required")
 	}
 	if err := validateUnitFields(input.Code, input.Name, input.Symbol, input.UnitType, input.Precision, input.Status); err != nil {
 		return UpdateUnitInput{}, err
@@ -168,22 +170,22 @@ func normalizeUpdateUnitInput(input UpdateUnitInput) (UpdateUnitInput, error) {
 
 func validateUnitFields(code string, name string, symbol string, unitType UnitType, precision int32, status Status) error {
 	if code == "" {
-		return NewValidationError("code is required")
+		return apperr.NewValidationError("code is required")
 	}
 	if name == "" {
-		return NewValidationError("name is required")
+		return apperr.NewValidationError("name is required")
 	}
 	if symbol == "" {
-		return NewValidationError("symbol is required")
+		return apperr.NewValidationError("symbol is required")
 	}
 	if !unitType.IsValid() {
-		return NewValidationError("unit_type is invalid")
+		return apperr.NewValidationError("unit_type is invalid")
 	}
 	if precision < 0 || precision > 6 {
-		return NewValidationError("precision must be between 0 and 6")
+		return apperr.NewValidationError("precision must be between 0 and 6")
 	}
 	if !status.IsValid() {
-		return NewValidationError("status must be active or inactive")
+		return apperr.NewValidationError("status must be active or inactive")
 	}
 
 	return nil

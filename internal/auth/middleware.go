@@ -1,13 +1,11 @@
 package auth
 
 import (
-	"errors"
-	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Mercer08572/stock-flow/pkg/response"
+	"github.com/Mercer08572/stock-flow/internal/shared/httperr"
 )
 
 const (
@@ -15,8 +13,6 @@ const (
 	AppIDHeader              = "X-Stock-Flow-App-ID"
 	SecretHeader             = "X-Stock-Flow-Secret"
 	CallerGinContextKey      = "auth_caller"
-	CodeUnauthorized         = 1002
-	CodeForbidden            = 1003
 )
 
 type Middleware interface {
@@ -177,16 +173,8 @@ func CallerFromGinContext(c *gin.Context) (Caller, bool) {
 	return CallerFromContext(c.Request.Context())
 }
 
+// abortAuth 写出认证错误并终止请求。错误 → 响应的映射统一由 httperr 负责。
 func abortAuth(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, ErrAmbiguousAuth):
-		response.Error(c, http.StatusBadRequest, response.CodeBadRequest, err.Error())
-	case errors.Is(err, ErrUnauthorized), errors.Is(err, ErrInvalidCredentials), errors.Is(err, ErrSessionExpired), errors.Is(err, ErrAPISecretNotFound):
-		response.Error(c, http.StatusUnauthorized, CodeUnauthorized, "authentication failed")
-	case errors.Is(err, ErrPasswordChangeRequired):
-		response.Error(c, http.StatusForbidden, CodeForbidden, err.Error())
-	default:
-		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "internal server error")
-	}
+	httperr.Write(c, err)
 	c.Abort()
 }

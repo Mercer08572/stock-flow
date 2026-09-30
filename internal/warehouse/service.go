@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"strings"
+
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
 type Service interface {
@@ -65,7 +67,7 @@ func (s *service) List(ctx context.Context, filter ListFilter) (ListResult, erro
 
 func (s *service) Get(ctx context.Context, id int64) (*Warehouse, error) {
 	if id <= 0 {
-		return nil, NewValidationError("warehouse id must be greater than zero")
+		return nil, apperr.NewValidationError("warehouse id must be greater than zero")
 	}
 
 	return s.repo.GetByID(ctx, id)
@@ -73,7 +75,7 @@ func (s *service) Get(ctx context.Context, id int64) (*Warehouse, error) {
 
 func (s *service) GetReference(ctx context.Context, id int64) (*Reference, error) {
 	if id <= 0 {
-		return nil, NewValidationError("warehouse id must be greater than zero")
+		return nil, apperr.NewValidationError("warehouse id must be greater than zero")
 	}
 
 	return s.repo.GetReference(ctx, id)
@@ -115,7 +117,7 @@ func (s *service) Update(ctx context.Context, input UpdateInput) (*Warehouse, er
 
 func (s *service) Delete(ctx context.Context, id int64) error {
 	if id <= 0 {
-		return NewValidationError("warehouse id must be greater than zero")
+		return apperr.NewValidationError("warehouse id must be greater than zero")
 	}
 	if s.referenceChecker == nil {
 		return errors.New("warehouse inventory reference checker is required")
@@ -134,7 +136,7 @@ func (s *service) Delete(ctx context.Context, id int64) error {
 
 func (s *service) Disable(ctx context.Context, id int64) (*Warehouse, error) {
 	if id <= 0 {
-		return nil, NewValidationError("warehouse id must be greater than zero")
+		return nil, apperr.NewValidationError("warehouse id must be greater than zero")
 	}
 
 	return s.repo.Disable(ctx, id)
@@ -144,7 +146,7 @@ func normalizeListFilter(filter ListFilter) (ListFilter, error) {
 	if filter.Status != nil {
 		status := Status(strings.TrimSpace(string(*filter.Status)))
 		if !status.IsValid() {
-			return ListFilter{}, NewValidationError("status must be active or inactive")
+			return ListFilter{}, apperr.NewValidationError("status must be active or inactive")
 		}
 		filter.Status = &status
 	}
@@ -152,7 +154,7 @@ func normalizeListFilter(filter ListFilter) (ListFilter, error) {
 	if filter.Type != nil {
 		warehouseType := Type(strings.TrimSpace(string(*filter.Type)))
 		if !warehouseType.IsValid() {
-			return ListFilter{}, NewValidationError("type must be normal or virtual")
+			return ListFilter{}, apperr.NewValidationError("type must be normal or virtual")
 		}
 		filter.Type = &warehouseType
 	}
@@ -204,13 +206,13 @@ func normalizeUpdateInput(input UpdateInput) (UpdateInput, error) {
 	input.Remark = normalizeOptionalText(input.Remark)
 
 	if input.ID <= 0 {
-		return UpdateInput{}, NewValidationError("warehouse id must be greater than zero")
+		return UpdateInput{}, apperr.NewValidationError("warehouse id must be greater than zero")
 	}
 	if input.Type == "" {
-		return UpdateInput{}, NewValidationError("type is required")
+		return UpdateInput{}, apperr.NewValidationError("type is required")
 	}
 	if input.Status == "" {
-		return UpdateInput{}, NewValidationError("status is required")
+		return UpdateInput{}, apperr.NewValidationError("status is required")
 	}
 	if err := validateWarehouseFields(input.Code, input.Name, input.Type, input.Status); err != nil {
 		return UpdateInput{}, err
@@ -221,16 +223,16 @@ func normalizeUpdateInput(input UpdateInput) (UpdateInput, error) {
 
 func validateWarehouseFields(code string, name string, warehouseType Type, status Status) error {
 	if code == "" {
-		return NewValidationError("code is required")
+		return apperr.NewValidationError("code is required")
 	}
 	if name == "" {
-		return NewValidationError("name is required")
+		return apperr.NewValidationError("name is required")
 	}
 	if !warehouseType.IsValid() {
-		return NewValidationError("type must be normal or virtual")
+		return apperr.NewValidationError("type must be normal or virtual")
 	}
 	if !status.IsValid() {
-		return NewValidationError("status must be active or inactive")
+		return apperr.NewValidationError("status must be active or inactive")
 	}
 
 	return nil

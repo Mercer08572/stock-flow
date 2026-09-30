@@ -1,28 +1,15 @@
 package material
 
-import "errors"
+import (
+	"errors"
 
-var (
-	ErrNotFound          = errors.New("material not found")
-	ErrDuplicateCode     = errors.New("material code already exists")
-	ErrCategoryNotFound  = errors.New("material category not found")
-	ErrBaseUnitNotFound  = errors.New("material base unit not found")
-	ErrSKUUnitNotAllowed = errors.New("sku unit is not allowed for material")
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
-type ValidationError struct {
-	Message string
-}
-
-func (e *ValidationError) Error() string {
-	return e.Message
-}
-
-func NewValidationError(message string) error {
-	return &ValidationError{Message: message}
-}
-
-func IsValidationError(err error) bool {
-	var validationErr *ValidationError
-	return errors.As(err, &validationErr)
-}
+var (
+	ErrNotFound          = apperr.NotFound(apperr.CodeMaterialNotFound, "material not found")
+	ErrDuplicateCode     = apperr.Conflict(apperr.CodeMaterialCodeDuplicate, "material code already exists")
+	ErrCategoryNotFound  = apperr.BadRequest(apperr.CodeMaterialCategoryReferenceInvalid, "material category not found")
+	ErrBaseUnitNotFound  = apperr.BadRequest(apperr.CodeMaterialBaseUnitReferenceInvalid, "material base unit not found")
+	ErrSKUUnitNotAllowed = errors.New("sku unit is not allowed for material")
+)

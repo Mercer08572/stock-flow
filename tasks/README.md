@@ -222,6 +222,7 @@ Related:
 - Repository 只处理持久化。
 - 依赖通过 NewXxx(dep) 构造函数注入。
 - 所有 HTTP 响应通过 pkg/response 返回。
+- 领域错误用 pkg/apperr 声明（自带 HTTP 状态与业务错误码），经 internal/shared/httperr.Write 统一出口写出。
 
 ## Acceptance Criteria
 
@@ -272,6 +273,7 @@ Related:
 物料编码在未删除数据中必须唯一。
 删除为 soft delete，不物理删除数据库记录。
 HTTP 响应必须通过 pkg/response 返回。
+领域错误必须用 pkg/apperr 声明，并通过 internal/shared/httperr.Write 输出。
 ```
 
 ## 与代码结构的关系

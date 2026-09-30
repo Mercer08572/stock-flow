@@ -1,13 +1,14 @@
 package warehouse
 
 import (
-	"errors"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 	"github.com/Mercer08572/stock-flow/pkg/response"
+
+	"github.com/Mercer08572/stock-flow/internal/shared/httperr"
 )
 
 type Handler interface {
@@ -69,13 +70,13 @@ func (h *handler) RegisterRoutes(router gin.IRouter) {
 func (h *handler) List(c *gin.Context) {
 	filter, err := parseListFilter(c)
 	if err != nil {
-		writeError(c, err)
+		httperr.Write(c, err)
 		return
 	}
 
 	result, err := h.service.List(c.Request.Context(), filter)
 	if err != nil {
-		writeError(c, err)
+		httperr.Write(c, err)
 		return
 	}
 
@@ -95,13 +96,13 @@ func (h *handler) List(c *gin.Context) {
 func (h *handler) Get(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
-		writeError(c, err)
+		httperr.Write(c, err)
 		return
 	}
 
 	warehouse, err := h.service.Get(c.Request.Context(), id)
 	if err != nil {
-		writeError(c, err)
+		httperr.Write(c, err)
 		return
 	}
 
@@ -122,7 +123,7 @@ func (h *handler) Get(c *gin.Context) {
 func (h *handler) Create(c *gin.Context) {
 	var req CreateWarehouseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		writeError(c, NewValidationError("request body must be valid JSON"))
+		httperr.Write(c, apperr.NewValidationError("request body must be valid JSON"))
 		return
 	}
 
@@ -137,7 +138,7 @@ func (h *handler) Create(c *gin.Context) {
 		Remark:       req.Remark,
 	})
 	if err != nil {
-		writeError(c, err)
+		httperr.Write(c, err)
 		return
 	}
 
@@ -160,13 +161,13 @@ func (h *handler) Create(c *gin.Context) {
 func (h *handler) Update(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
-		writeError(c, err)
+		httperr.Write(c, err)
 		return
 	}
 
 	var req UpdateWarehouseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		writeError(c, NewValidationError("request body must be valid JSON"))
+		httperr.Write(c, apperr.NewValidationError("request body must be valid JSON"))
 		return
 	}
 
@@ -182,7 +183,7 @@ func (h *handler) Update(c *gin.Context) {
 		Remark:       req.Remark,
 	})
 	if err != nil {
-		writeError(c, err)
+		httperr.Write(c, err)
 		return
 	}
 
@@ -203,12 +204,12 @@ func (h *handler) Update(c *gin.Context) {
 func (h *handler) Delete(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
-		writeError(c, err)
+		httperr.Write(c, err)
 		return
 	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		writeError(c, err)
+		httperr.Write(c, err)
 		return
 	}
 
@@ -228,13 +229,13 @@ func (h *handler) Delete(c *gin.Context) {
 func (h *handler) Disable(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
-		writeError(c, err)
+		httperr.Write(c, err)
 		return
 	}
 
 	warehouse, err := h.service.Disable(c.Request.Context(), id)
 	if err != nil {
-		writeError(c, err)
+		httperr.Write(c, err)
 		return
 	}
 
@@ -244,7 +245,7 @@ func (h *handler) Disable(c *gin.Context) {
 func parseID(c *gin.Context) (int64, error) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
-		return 0, NewValidationError("warehouse id must be greater than zero")
+		return 0, apperr.NewValidationError("warehouse id must be greater than zero")
 	}
 
 	return id, nil
@@ -269,7 +270,7 @@ func parseListFilter(c *gin.Context) (ListFilter, error) {
 	if rawLimit := c.Query("limit"); rawLimit != "" {
 		limit, err := strconv.ParseInt(rawLimit, 10, 32)
 		if err != nil {
-			return ListFilter{}, NewValidationError("limit must be an integer")
+			return ListFilter{}, apperr.NewValidationError("limit must be an integer")
 		}
 		filter.Limit = int32(limit)
 	}
@@ -277,23 +278,10 @@ func parseListFilter(c *gin.Context) (ListFilter, error) {
 	if rawOffset := c.Query("offset"); rawOffset != "" {
 		offset, err := strconv.ParseInt(rawOffset, 10, 32)
 		if err != nil {
-			return ListFilter{}, NewValidationError("offset must be an integer")
+			return ListFilter{}, apperr.NewValidationError("offset must be an integer")
 		}
 		filter.Offset = int32(offset)
 	}
 
 	return filter, nil
-}
-
-func writeError(c *gin.Context, err error) {
-	switch {
-	case IsValidationError(err):
-		response.Error(c, http.StatusBadRequest, response.CodeBadRequest, err.Error())
-	case errors.Is(err, ErrDuplicateCode), errors.Is(err, ErrReferencedByInventory):
-		response.Error(c, http.StatusConflict, response.CodeConflict, err.Error())
-	case errors.Is(err, ErrNotFound):
-		response.Error(c, http.StatusNotFound, response.CodeNotFound, err.Error())
-	default:
-		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "internal server error")
-	}
 }

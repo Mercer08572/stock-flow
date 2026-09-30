@@ -254,15 +254,43 @@ GOCACHE=/private/tmp/stock-flow-go-build-cache make test
 }
 ```
 
+失败响应可能额外带一个**业务错误码** `error_code`（稳定契约，成功响应不出现）：
+
+```json
+{
+  "code": 1009,
+  "message": "warehouse code already exists",
+  "error_code": "WAREHOUSE_CODE_DUPLICATE",
+  "data": null,
+  "trace_id": "req_abc123xyz",
+  "timestamp": 1672531200000
+}
+```
+
 常用业务响应码：
 
 | code | 含义 |
 | --- | --- |
 | 200 | 成功 |
 | 1001 | 请求参数错误 |
+| 1002 | 未认证 |
+| 1003 | 拒绝访问 |
 | 1004 | 资源不存在 |
 | 1009 | 资源冲突 |
 | 1500 | 服务内部错误 |
+
+### 错误处理约定
+
+- 领域错误使用 `pkg/apperr` 定义：它自带 HTTP 状态与业务错误码，例如
+  `apperr.Conflict(apperr.CodeWarehouseCodeDuplicate, "warehouse code already exists")`。
+- **只有一个错误出口**：`internal/shared/httperr.Write`。处理器与中间件不要再自己写
+  「错误 → 状态码」的 switch。
+- 业务错误码是**对外契约**：码是机器可判别的身份（前端据此选择文案），`message`
+  只是英文默认文案。一码只对应一个 HTTP 状态，且不要修改已发布的码字符串。
+- 没有业务身份的输入校验用 `apperr.NewValidationError(msg)`；未识别的错误统一
+  500 且不暴露细节。
+- 新增业务错误时：在 `pkg/apperr/codes.go` 加码 → 在模块 `errors.go` 用构造器声明
+  → 前端 `src/api/error-messages.ts` 按需补中文文案。
 
 ## 架构说明
 

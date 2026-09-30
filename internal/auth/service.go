@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
 const defaultSessionTTL = 8 * time.Hour
@@ -222,7 +224,7 @@ func (s *service) ChangePassword(ctx context.Context, input ChangePasswordInput)
 	if same, err := s.passwords.Verify(input.NewPassword, admin.PasswordHash); err != nil {
 		return LoginResult{}, fmt.Errorf("compare new admin password: %w", err)
 	} else if same {
-		return LoginResult{}, NewValidationError("new password must differ from current password")
+		return LoginResult{}, apperr.NewValidationError("new password must differ from current password")
 	}
 	if err := validateNewPassword(admin.Username, input.NewPassword); err != nil {
 		return LoginResult{}, err
@@ -247,10 +249,10 @@ func (s *service) ChangePassword(ctx context.Context, input ChangePasswordInput)
 func validateNewPassword(username string, password string) error {
 	length := len([]rune(password))
 	if length < 12 || length > 128 {
-		return NewValidationError("password must contain 12 to 128 characters")
+		return apperr.NewValidationError("password must contain 12 to 128 characters")
 	}
 	if strings.EqualFold(username, password) {
-		return NewValidationError("password must not equal username")
+		return apperr.NewValidationError("password must not equal username")
 	}
 	return nil
 }
@@ -316,6 +318,11 @@ func (s *service) AuthenticateAPIApp(ctx context.Context, appID string, secret s
 
 	secrets, err := s.repo.ListAPISecretsForAuthentication(ctx, app.ID)
 	if err != nil {
+		// 认证路径上的「密钥不存在」等价于凭据无效（401），而不是管理接口里的 404：
+		// 与上面 ErrAPIAppNotFound 的处理保持一致。
+		if errors.Is(err, ErrAPISecretNotFound) {
+			return Caller{}, ErrInvalidCredentials
+		}
 		return Caller{}, err
 	}
 
@@ -367,7 +374,7 @@ func (s *service) ListAPIApps(ctx context.Context, filter ListFilter) (APIAppLis
 
 func (s *service) GetAPIApp(ctx context.Context, id int64) (*APIApp, error) {
 	if id <= 0 {
-		return nil, NewValidationError("api app id must be greater than zero")
+		return nil, apperr.NewValidationError("api app id must be greater than zero")
 	}
 	return s.repo.GetAPIAppByID(ctx, id)
 }
@@ -402,7 +409,7 @@ func (s *service) UpdateAPIApp(ctx context.Context, input UpdateAPIAppInput) (*A
 
 func (s *service) DeleteAPIApp(ctx context.Context, id int64) error {
 	if id <= 0 {
-		return NewValidationError("api app id must be greater than zero")
+		return apperr.NewValidationError("api app id must be greater than zero")
 	}
 	return s.repo.SoftDeleteAPIApp(ctx, id)
 }
@@ -441,7 +448,7 @@ func (s *service) IssueAPISecret(ctx context.Context, input IssueSecretInput) (*
 
 func (s *service) ListAPISecrets(ctx context.Context, apiAppID int64) ([]APISecret, error) {
 	if apiAppID <= 0 {
-		return nil, NewValidationError("api app id must be greater than zero")
+		return nil, apperr.NewValidationError("api app id must be greater than zero")
 	}
 	if _, err := s.repo.GetAPIAppByID(ctx, apiAppID); err != nil {
 		return nil, err
@@ -452,10 +459,10 @@ func (s *service) ListAPISecrets(ctx context.Context, apiAppID int64) ([]APISecr
 func (s *service) BlockAPISecret(ctx context.Context, apiAppID int64, secretID string) (*APISecret, error) {
 	secretID = strings.TrimSpace(secretID)
 	if apiAppID <= 0 {
-		return nil, NewValidationError("api app id must be greater than zero")
+		return nil, apperr.NewValidationError("api app id must be greater than zero")
 	}
 	if secretID == "" {
-		return nil, NewValidationError("secret id is required")
+		return nil, apperr.NewValidationError("secret id is required")
 	}
 	return s.repo.BlockAPISecret(ctx, apiAppID, secretID)
 }
@@ -479,7 +486,7 @@ func normalizeListFilter(filter ListFilter) (ListFilter, error) {
 	if filter.Status != nil {
 		status := Status(strings.TrimSpace(string(*filter.Status)))
 		if !status.IsValid() {
-			return ListFilter{}, NewValidationError("status must be active or inactive")
+			return ListFilter{}, apperr.NewValidationError("status must be active or inactive")
 		}
 		filter.Status = &status
 	}
@@ -504,20 +511,20 @@ func normalizeCreateAPIAppInput(input CreateAPIAppInput) (CreateAPIAppInput, err
 		input.Status = StatusActive
 	}
 	if input.Name == "" {
-		return CreateAPIAppInput{}, NewValidationError("name is required")
+		return CreateAPIAppInput{}, apperr.NewValidationError("name is required")
 	}
 	if !input.Status.IsValid() {
-		return CreateAPIAppInput{}, NewValidationError("status must be active or inactive")
+		return CreateAPIAppInput{}, apperr.NewValidationError("status must be active or inactive")
 	}
 	return input, nil
 }
 
 func normalizeUpdateAPIAppInput(input UpdateAPIAppInput) (UpdateAPIAppInput, error) {
 	if input.ID <= 0 {
-		return UpdateAPIAppInput{}, NewValidationError("api app id must be greater than zero")
+		return UpdateAPIAppInput{}, apperr.NewValidationError("api app id must be greater than zero")
 	}
 	if strings.TrimSpace(string(input.Status)) == "" {
-		return UpdateAPIAppInput{}, NewValidationError("status is required")
+		return UpdateAPIAppInput{}, apperr.NewValidationError("status is required")
 	}
 	normalized, err := normalizeCreateAPIAppInput(CreateAPIAppInput{
 		Name: input.Name, Description: input.Description, Status: input.Status, Metadata: input.Metadata,
@@ -536,13 +543,13 @@ func normalizeIssueSecretInput(input IssueSecretInput, now time.Time) (IssueSecr
 	input.Name = strings.TrimSpace(input.Name)
 	input.BoundMetadata = normalizeMetadata(input.BoundMetadata)
 	if input.APIAppID <= 0 {
-		return IssueSecretInput{}, NewValidationError("api app id must be greater than zero")
+		return IssueSecretInput{}, apperr.NewValidationError("api app id must be greater than zero")
 	}
 	if input.Name == "" {
-		return IssueSecretInput{}, NewValidationError("name is required")
+		return IssueSecretInput{}, apperr.NewValidationError("name is required")
 	}
 	if input.ExpiresAt != nil && !input.ExpiresAt.After(now) {
-		return IssueSecretInput{}, NewValidationError("expires_at must be in the future")
+		return IssueSecretInput{}, apperr.NewValidationError("expires_at must be in the future")
 	}
 	return input, nil
 }

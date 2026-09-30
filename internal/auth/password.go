@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"golang.org/x/crypto/argon2"
+
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
 type PasswordHasher interface {
@@ -50,7 +52,7 @@ func NewArgon2idPasswordHasher(params Argon2idParams) PasswordHasher {
 
 func (h *argon2idPasswordHasher) Hash(password string) (string, error) {
 	if password == "" {
-		return "", NewValidationError("password is required")
+		return "", apperr.NewValidationError("password is required")
 	}
 
 	salt := make([]byte, h.params.SaltLength)

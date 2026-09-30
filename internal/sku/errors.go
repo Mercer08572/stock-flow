@@ -1,30 +1,13 @@
 package sku
 
-import "errors"
+import "github.com/Mercer08572/stock-flow/pkg/apperr"
 
 var (
-	ErrNotFound              = errors.New("sku not found")
-	ErrDuplicateCode         = errors.New("sku code already exists")
-	ErrActiveSKUForMaterial  = errors.New("active sku already exists for material")
-	ErrMaterialNotFound      = errors.New("sku material not found")
-	ErrUnitNotFound          = errors.New("sku unit not found")
-	ErrInvalidUnit           = errors.New("sku unit is not allowed for material")
-	ErrReferencedByInventory = errors.New("sku is referenced by inventory and cannot be deleted")
+	ErrNotFound              = apperr.NotFound(apperr.CodeSKUNotFound, "sku not found")
+	ErrDuplicateCode         = apperr.Conflict(apperr.CodeSKUCodeDuplicate, "sku code already exists")
+	ErrActiveSKUForMaterial  = apperr.Conflict(apperr.CodeSKUActiveExistsForMaterial, "active sku already exists for material")
+	ErrReferencedByInventory = apperr.Conflict(apperr.CodeSKUReferencedByInventory, "sku is referenced by inventory and cannot be deleted")
+	ErrMaterialNotFound      = apperr.BadRequest(apperr.CodeSKUMaterialNotFound, "sku material not found")
+	ErrUnitNotFound          = apperr.BadRequest(apperr.CodeSKUUnitNotFound, "sku unit not found")
+	ErrInvalidUnit           = apperr.BadRequest(apperr.CodeSKUUnitNotAllowed, "sku unit is not allowed for material")
 )
-
-type ValidationError struct {
-	Message string
-}
-
-func (e *ValidationError) Error() string {
-	return e.Message
-}
-
-func NewValidationError(message string) error {
-	return &ValidationError{Message: message}
-}
-
-func IsValidationError(err error) bool {
-	var validationErr *ValidationError
-	return errors.As(err, &validationErr)
-}

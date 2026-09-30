@@ -5,6 +5,8 @@ import (
 	"math/big"
 	"regexp"
 	"strings"
+
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
 var decimalPattern = regexp.MustCompile(`^-?(?:\d+(?:\.\d*)?|\.\d+)$`)
@@ -61,10 +63,10 @@ func (s *service) List(ctx context.Context, filter ListFilter) (ListResult, erro
 
 func (s *service) Get(ctx context.Context, materialID int64, id int64) (*MaterialUnitConversion, error) {
 	if materialID <= 0 {
-		return nil, NewValidationError("material_id must be greater than zero")
+		return nil, apperr.NewValidationError("material_id must be greater than zero")
 	}
 	if id <= 0 {
-		return nil, NewValidationError("material unit conversion id must be greater than zero")
+		return nil, apperr.NewValidationError("material unit conversion id must be greater than zero")
 	}
 
 	return s.repo.GetByID(ctx, materialID, id)
@@ -104,10 +106,10 @@ func (s *service) Update(ctx context.Context, input UpdateInput) (*MaterialUnitC
 
 func (s *service) Delete(ctx context.Context, materialID int64, id int64) error {
 	if materialID <= 0 {
-		return NewValidationError("material_id must be greater than zero")
+		return apperr.NewValidationError("material_id must be greater than zero")
 	}
 	if id <= 0 {
-		return NewValidationError("material unit conversion id must be greater than zero")
+		return apperr.NewValidationError("material unit conversion id must be greater than zero")
 	}
 
 	return s.repo.SoftDelete(ctx, materialID, id)
@@ -171,13 +173,13 @@ func (s *service) validatePairAvailability(ctx context.Context, materialID int64
 
 func normalizeListFilter(filter ListFilter) (ListFilter, error) {
 	if filter.MaterialID <= 0 {
-		return ListFilter{}, NewValidationError("material_id must be greater than zero")
+		return ListFilter{}, apperr.NewValidationError("material_id must be greater than zero")
 	}
 	if filter.FromUnitID != nil && *filter.FromUnitID <= 0 {
-		return ListFilter{}, NewValidationError("from_unit_id must be greater than zero")
+		return ListFilter{}, apperr.NewValidationError("from_unit_id must be greater than zero")
 	}
 	if filter.ToUnitID != nil && *filter.ToUnitID <= 0 {
-		return ListFilter{}, NewValidationError("to_unit_id must be greater than zero")
+		return ListFilter{}, apperr.NewValidationError("to_unit_id must be greater than zero")
 	}
 
 	if filter.Limit <= 0 {
@@ -215,7 +217,7 @@ func normalizeUpdateInput(input UpdateInput) (UpdateInput, error) {
 	input.Factor = factor
 
 	if input.ID <= 0 {
-		return UpdateInput{}, NewValidationError("material unit conversion id must be greater than zero")
+		return UpdateInput{}, apperr.NewValidationError("material unit conversion id must be greater than zero")
 	}
 	if err := validateConversionFields(input.MaterialID, input.FromUnitID, input.ToUnitID); err != nil {
 		return UpdateInput{}, err
@@ -226,16 +228,16 @@ func normalizeUpdateInput(input UpdateInput) (UpdateInput, error) {
 
 func validateConversionFields(materialID int64, fromUnitID int64, toUnitID int64) error {
 	if materialID <= 0 {
-		return NewValidationError("material_id must be greater than zero")
+		return apperr.NewValidationError("material_id must be greater than zero")
 	}
 	if fromUnitID <= 0 {
-		return NewValidationError("from_unit_id must be greater than zero")
+		return apperr.NewValidationError("from_unit_id must be greater than zero")
 	}
 	if toUnitID <= 0 {
-		return NewValidationError("to_unit_id must be greater than zero")
+		return apperr.NewValidationError("to_unit_id must be greater than zero")
 	}
 	if fromUnitID == toUnitID {
-		return NewValidationError("from_unit_id and to_unit_id must be different")
+		return apperr.NewValidationError("from_unit_id and to_unit_id must be different")
 	}
 
 	return nil
@@ -244,18 +246,18 @@ func validateConversionFields(materialID int64, fromUnitID int64, toUnitID int64
 func normalizeFactor(value string) (string, error) {
 	factor := strings.TrimSpace(value)
 	if factor == "" {
-		return "", NewValidationError("factor is required")
+		return "", apperr.NewValidationError("factor is required")
 	}
 	if !decimalPattern.MatchString(factor) {
-		return "", NewValidationError("factor must be a decimal number")
+		return "", apperr.NewValidationError("factor must be a decimal number")
 	}
 
 	rat := new(big.Rat)
 	if _, ok := rat.SetString(factor); !ok {
-		return "", NewValidationError("factor must be a decimal number")
+		return "", apperr.NewValidationError("factor must be a decimal number")
 	}
 	if rat.Sign() <= 0 {
-		return "", NewValidationError("factor must be greater than zero")
+		return "", apperr.NewValidationError("factor must be greater than zero")
 	}
 
 	return factor, nil

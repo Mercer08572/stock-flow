@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -91,3 +92,13 @@ type RateLimitError struct {
 
 func (e *RateLimitError) Error() string { return ErrRateLimited.Error() }
 func (e *RateLimitError) Unwrap() error { return ErrRateLimited }
+
+// Headers 让错误出口补上 Retry-After，客户端据此知道多久后可以重试。
+func (e *RateLimitError) Headers() map[string]string {
+	seconds := int64(e.RetryAfter.Round(time.Second) / time.Second)
+	if seconds < 1 {
+		seconds = 1
+	}
+
+	return map[string]string{"Retry-After": strconv.FormatInt(seconds, 10)}
+}

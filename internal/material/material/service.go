@@ -3,6 +3,8 @@ package material
 import (
 	"context"
 	"strings"
+
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
 type Service interface {
@@ -42,7 +44,7 @@ func (s *service) List(ctx context.Context, filter ListFilter) (ListResult, erro
 
 func (s *service) Get(ctx context.Context, id int64) (*Material, error) {
 	if id <= 0 {
-		return nil, NewValidationError("material id must be greater than zero")
+		return nil, apperr.NewValidationError("material id must be greater than zero")
 	}
 
 	return s.repo.GetByID(ctx, id)
@@ -92,7 +94,7 @@ func (s *service) Update(ctx context.Context, input UpdateInput) (*Material, err
 
 func (s *service) Delete(ctx context.Context, id int64) error {
 	if id <= 0 {
-		return NewValidationError("material id must be greater than zero")
+		return apperr.NewValidationError("material id must be greater than zero")
 	}
 
 	return s.repo.SoftDelete(ctx, id)
@@ -100,10 +102,10 @@ func (s *service) Delete(ctx context.Context, id int64) error {
 
 func (s *service) ValidateSKUUnit(ctx context.Context, materialID int64, unitID int64) error {
 	if materialID <= 0 {
-		return NewValidationError("material id must be greater than zero")
+		return apperr.NewValidationError("material id must be greater than zero")
 	}
 	if unitID <= 0 {
-		return NewValidationError("unit id must be greater than zero")
+		return apperr.NewValidationError("unit id must be greater than zero")
 	}
 
 	item, err := s.repo.GetByID(ctx, materialID)
@@ -158,13 +160,13 @@ func normalizeListFilter(filter ListFilter) (ListFilter, error) {
 	if filter.Status != nil {
 		status := Status(strings.TrimSpace(string(*filter.Status)))
 		if !status.IsValid() {
-			return ListFilter{}, NewValidationError("status must be active or inactive")
+			return ListFilter{}, apperr.NewValidationError("status must be active or inactive")
 		}
 		filter.Status = &status
 	}
 
 	if filter.CategoryID != nil && *filter.CategoryID <= 0 {
-		return ListFilter{}, NewValidationError("category_id must be greater than zero")
+		return ListFilter{}, apperr.NewValidationError("category_id must be greater than zero")
 	}
 
 	if filter.Limit <= 0 {
@@ -204,10 +206,10 @@ func normalizeUpdateInput(input UpdateInput) (UpdateInput, error) {
 	input.Remark = normalizeRemark(input.Remark)
 
 	if input.ID <= 0 {
-		return UpdateInput{}, NewValidationError("material id must be greater than zero")
+		return UpdateInput{}, apperr.NewValidationError("material id must be greater than zero")
 	}
 	if input.Status == "" {
-		return UpdateInput{}, NewValidationError("status is required")
+		return UpdateInput{}, apperr.NewValidationError("status is required")
 	}
 	if err := validateMaterialFields(input.Code, input.Name, input.CategoryID, input.BaseUnitID, input.Status); err != nil {
 		return UpdateInput{}, err
@@ -218,19 +220,19 @@ func normalizeUpdateInput(input UpdateInput) (UpdateInput, error) {
 
 func validateMaterialFields(code string, name string, categoryID int64, baseUnitID int64, status Status) error {
 	if code == "" {
-		return NewValidationError("code is required")
+		return apperr.NewValidationError("code is required")
 	}
 	if name == "" {
-		return NewValidationError("name is required")
+		return apperr.NewValidationError("name is required")
 	}
 	if categoryID <= 0 {
-		return NewValidationError("category_id must be greater than zero")
+		return apperr.NewValidationError("category_id must be greater than zero")
 	}
 	if baseUnitID <= 0 {
-		return NewValidationError("base_unit_id must be greater than zero")
+		return apperr.NewValidationError("base_unit_id must be greater than zero")
 	}
 	if !status.IsValid() {
-		return NewValidationError("status must be active or inactive")
+		return apperr.NewValidationError("status must be active or inactive")
 	}
 
 	return nil

@@ -13,6 +13,7 @@ import (
 
 	"github.com/Mercer08572/stock-flow/internal/shared/http/middleware"
 	"github.com/Mercer08572/stock-flow/internal/sku"
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 	"github.com/Mercer08572/stock-flow/pkg/response"
 )
 
@@ -110,8 +111,9 @@ func TestHandlerMapsActiveSKUConflict(t *testing.T) {
 	}
 
 	var body struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
+		Code      int    `json:"code"`
+		Message   string `json:"message"`
+		ErrorCode string `json:"error_code"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("unmarshal response: %v", err)
@@ -121,6 +123,9 @@ func TestHandlerMapsActiveSKUConflict(t *testing.T) {
 	}
 	if body.Message != sku.ErrActiveSKUForMaterial.Error() {
 		t.Fatalf("expected conflict message, got %q", body.Message)
+	}
+	if body.ErrorCode != string(apperr.CodeSKUActiveExistsForMaterial) {
+		t.Fatalf("expected error code %q, got %q", apperr.CodeSKUActiveExistsForMaterial, body.ErrorCode)
 	}
 }
 
@@ -141,13 +146,17 @@ func TestHandlerMapsInventoryReferenceConflict(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusConflict, rec.Code)
 	}
 	var body struct {
-		Code int `json:"code"`
+		Code      int    `json:"code"`
+		ErrorCode string `json:"error_code"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("unmarshal response: %v", err)
 	}
 	if body.Code != response.CodeConflict {
 		t.Fatalf("expected response code %d, got %d", response.CodeConflict, body.Code)
+	}
+	if body.ErrorCode != string(apperr.CodeSKUReferencedByInventory) {
+		t.Fatalf("expected error code %q, got %q", apperr.CodeSKUReferencedByInventory, body.ErrorCode)
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/Mercer08572/stock-flow/internal/material/conversion"
 	"github.com/Mercer08572/stock-flow/internal/shared/http/middleware"
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 	"github.com/Mercer08572/stock-flow/pkg/response"
 )
 
@@ -108,8 +109,9 @@ func TestHandlerMapsReversePairConflict(t *testing.T) {
 	}
 
 	var body struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
+		Code      int    `json:"code"`
+		Message   string `json:"message"`
+		ErrorCode string `json:"error_code"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("unmarshal response: %v", err)
@@ -119,6 +121,9 @@ func TestHandlerMapsReversePairConflict(t *testing.T) {
 	}
 	if body.Message != conversion.ErrReversePair.Error() {
 		t.Fatalf("expected reverse pair message, got %q", body.Message)
+	}
+	if body.ErrorCode != string(apperr.CodeMaterialConversionReverseDuplicate) {
+		t.Fatalf("expected error code %q, got %q", apperr.CodeMaterialConversionReverseDuplicate, body.ErrorCode)
 	}
 }
 

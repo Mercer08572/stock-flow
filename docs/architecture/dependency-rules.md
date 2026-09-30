@@ -18,9 +18,26 @@ HTTP 请求 -> 处理器 -> 服务 -> 仓储 -> PostgreSQL
 - 解析路径、查询参数和请求体数据。
 - 仅执行请求级校验。
 - 调用服务接口。
-- 通过 `pkg/response` 返回响应。
+- 错误必须交给 `internal/shared/httperr.Write` 统一写出，禁止在处理器里手写
+  「错误 -> 状态码」的映射 switch。信封本身仍由 `pkg/response` 生成。
 - 不得包含业务逻辑。
 - 不得直接调用仓储。
+
+## 错误处理规则
+
+- 领域错误在模块的 `errors.go` 用 `pkg/apperr` 声明，错误自带 HTTP 状态与业务错误码：
+
+  ```go
+  ErrDuplicateCode = apperr.Conflict(apperr.CodeWarehouseCodeDuplicate, "warehouse code already exists")
+  ```
+
+- 错误码表集中在 `pkg/apperr/codes.go`。必须遵守两条规则：一码只对应一个 HTTP 状态；
+  已发布的码字符串不得修改（它是对外契约）。
+- 全项目只有一个错误出口 `internal/shared/httperr.Write`：它负责把错误写成 `pkg/response`
+  的统一信封。模块不得再各写一份 `writeError`。
+- 需要携带响应头的错误（如登录限流的 `Retry-After`）实现 `Headers() map[string]string` 即可。
+- 仅用于 CLI、不经 HTTP 出口的错误保持普通 `errors.New`。
+- 业务错误码与前端文案的对应关系见 `stock-flow-admin/src/api/error-messages.ts`。
 
 ## 服务层
 

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	material "github.com/Mercer08572/stock-flow/internal/material/material"
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
 type Service interface {
@@ -75,7 +76,7 @@ func (s *service) List(ctx context.Context, filter ListFilter) (ListResult, erro
 
 func (s *service) Get(ctx context.Context, id int64) (*SKU, error) {
 	if id <= 0 {
-		return nil, NewValidationError("sku id must be greater than zero")
+		return nil, apperr.NewValidationError("sku id must be greater than zero")
 	}
 
 	return s.repo.GetByID(ctx, id)
@@ -83,7 +84,7 @@ func (s *service) Get(ctx context.Context, id int64) (*SKU, error) {
 
 func (s *service) GetReference(ctx context.Context, id int64) (*Reference, error) {
 	if id <= 0 {
-		return nil, NewValidationError("sku id must be greater than zero")
+		return nil, apperr.NewValidationError("sku id must be greater than zero")
 	}
 
 	return s.repo.GetReference(ctx, id)
@@ -153,7 +154,7 @@ func (s *service) Update(ctx context.Context, input UpdateInput) (*SKU, error) {
 
 func (s *service) Delete(ctx context.Context, id int64) error {
 	if id <= 0 {
-		return NewValidationError("sku id must be greater than zero")
+		return apperr.NewValidationError("sku id must be greater than zero")
 	}
 	if s.referenceChecker == nil {
 		return errors.New("sku inventory reference checker is required")
@@ -185,8 +186,8 @@ func (s *service) validateReferences(ctx context.Context, materialID int64, unit
 		return ErrUnitNotFound
 	case errors.Is(err, material.ErrSKUUnitNotAllowed):
 		return ErrInvalidUnit
-	case material.IsValidationError(err):
-		return NewValidationError(err.Error())
+	case apperr.IsValidationError(err):
+		return apperr.NewValidationError(err.Error())
 	default:
 		return err
 	}
@@ -196,16 +197,16 @@ func normalizeListFilter(filter ListFilter) (ListFilter, error) {
 	if filter.Status != nil {
 		status := Status(strings.TrimSpace(string(*filter.Status)))
 		if !status.IsValid() {
-			return ListFilter{}, NewValidationError("status must be active or inactive")
+			return ListFilter{}, apperr.NewValidationError("status must be active or inactive")
 		}
 		filter.Status = &status
 	}
 
 	if filter.MaterialID != nil && *filter.MaterialID <= 0 {
-		return ListFilter{}, NewValidationError("material_id must be greater than zero")
+		return ListFilter{}, apperr.NewValidationError("material_id must be greater than zero")
 	}
 	if filter.UnitID != nil && *filter.UnitID <= 0 {
-		return ListFilter{}, NewValidationError("unit_id must be greater than zero")
+		return ListFilter{}, apperr.NewValidationError("unit_id must be greater than zero")
 	}
 
 	if filter.Limit <= 0 {
@@ -244,10 +245,10 @@ func normalizeUpdateInput(input UpdateInput) (UpdateInput, error) {
 	input.Remark = normalizeOptionalText(input.Remark)
 
 	if input.ID <= 0 {
-		return UpdateInput{}, NewValidationError("sku id must be greater than zero")
+		return UpdateInput{}, apperr.NewValidationError("sku id must be greater than zero")
 	}
 	if input.Status == "" {
-		return UpdateInput{}, NewValidationError("status is required")
+		return UpdateInput{}, apperr.NewValidationError("status is required")
 	}
 	if err := validateSKUFields(input.Code, input.Name, input.MaterialID, input.UnitID, input.Status); err != nil {
 		return UpdateInput{}, err
@@ -258,19 +259,19 @@ func normalizeUpdateInput(input UpdateInput) (UpdateInput, error) {
 
 func validateSKUFields(code string, name string, materialID int64, unitID int64, status Status) error {
 	if code == "" {
-		return NewValidationError("code is required")
+		return apperr.NewValidationError("code is required")
 	}
 	if name == "" {
-		return NewValidationError("name is required")
+		return apperr.NewValidationError("name is required")
 	}
 	if materialID <= 0 {
-		return NewValidationError("material_id must be greater than zero")
+		return apperr.NewValidationError("material_id must be greater than zero")
 	}
 	if unitID <= 0 {
-		return NewValidationError("unit_id must be greater than zero")
+		return apperr.NewValidationError("unit_id must be greater than zero")
 	}
 	if !status.IsValid() {
-		return NewValidationError("status must be active or inactive")
+		return apperr.NewValidationError("status must be active or inactive")
 	}
 
 	return nil

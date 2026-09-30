@@ -1,27 +1,10 @@
 package inventory
 
-import "errors"
+import "github.com/Mercer08572/stock-flow/pkg/apperr"
 
 var (
-	ErrNotFound          = errors.New("inventory stock not found")
-	ErrWarehouseNotFound = errors.New("inventory warehouse not found")
-	ErrSKUNotFound       = errors.New("inventory sku not found")
-	ErrBatchNotFound     = errors.New("inventory batch not found for sku")
+	ErrNotFound          = apperr.NotFound(apperr.CodeInventoryStockNotFound, "inventory stock not found")
+	ErrWarehouseNotFound = apperr.BadRequest(apperr.CodeInventoryWarehouseNotFound, "inventory warehouse not found")
+	ErrSKUNotFound       = apperr.BadRequest(apperr.CodeInventorySKUNotFound, "inventory sku not found")
+	ErrBatchNotFound     = apperr.BadRequest(apperr.CodeInventoryBatchNotFound, "inventory batch not found for sku")
 )
-
-type ValidationError struct {
-	Message string
-}
-
-func (e *ValidationError) Error() string {
-	return e.Message
-}
-
-func NewValidationError(message string) error {
-	return &ValidationError{Message: message}
-}
-
-func IsValidationError(err error) bool {
-	var validationErr *ValidationError
-	return errors.As(err, &validationErr)
-}

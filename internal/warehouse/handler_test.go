@@ -13,6 +13,7 @@ import (
 
 	"github.com/Mercer08572/stock-flow/internal/shared/http/middleware"
 	"github.com/Mercer08572/stock-flow/internal/warehouse"
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 	"github.com/Mercer08572/stock-flow/pkg/response"
 )
 
@@ -171,13 +172,17 @@ func TestHandlerMapsInventoryReferenceConflict(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusConflict, rec.Code)
 	}
 	var body struct {
-		Code int `json:"code"`
+		Code      int    `json:"code"`
+		ErrorCode string `json:"error_code"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("unmarshal response: %v", err)
 	}
 	if body.Code != response.CodeConflict {
 		t.Fatalf("expected response code %d, got %d", response.CodeConflict, body.Code)
+	}
+	if body.ErrorCode != string(apperr.CodeWarehouseReferencedByInventory) {
+		t.Fatalf("expected error code %q, got %q", apperr.CodeWarehouseReferencedByInventory, body.ErrorCode)
 	}
 }
 

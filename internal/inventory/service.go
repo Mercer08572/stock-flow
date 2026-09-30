@@ -8,6 +8,7 @@ import (
 
 	sku "github.com/Mercer08572/stock-flow/internal/sku"
 	warehouse "github.com/Mercer08572/stock-flow/internal/warehouse"
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
 type Service interface {
@@ -185,8 +186,8 @@ func (s *service) getWarehouseReference(ctx context.Context, id int64) (*warehou
 		if errors.Is(err, warehouse.ErrNotFound) {
 			return nil, ErrWarehouseNotFound
 		}
-		if warehouse.IsValidationError(err) {
-			return nil, NewValidationError(err.Error())
+		if apperr.IsValidationError(err) {
+			return nil, apperr.NewValidationError(err.Error())
 		}
 		return nil, err
 	}
@@ -203,8 +204,8 @@ func (s *service) getSKUReference(ctx context.Context, id int64) (*sku.Reference
 		if errors.Is(err, sku.ErrNotFound) {
 			return nil, ErrSKUNotFound
 		}
-		if sku.IsValidationError(err) {
-			return nil, NewValidationError(err.Error())
+		if apperr.IsValidationError(err) {
+			return nil, apperr.NewValidationError(err.Error())
 		}
 		return nil, err
 	}
@@ -229,10 +230,10 @@ func (s *service) applyStockReferences(ctx context.Context, stock *StockBalance)
 
 func normalizeListStocksFilter(filter ListStocksFilter) (ListStocksFilter, error) {
 	if filter.WarehouseID != nil && *filter.WarehouseID <= 0 {
-		return ListStocksFilter{}, NewValidationError("warehouse_id must be greater than zero")
+		return ListStocksFilter{}, apperr.NewValidationError("warehouse_id must be greater than zero")
 	}
 	if filter.SKUID != nil && *filter.SKUID <= 0 {
-		return ListStocksFilter{}, NewValidationError("sku_id must be greater than zero")
+		return ListStocksFilter{}, apperr.NewValidationError("sku_id must be greater than zero")
 	}
 	if filter.Limit <= 0 {
 		filter.Limit = DefaultListLimit
@@ -249,10 +250,10 @@ func normalizeListStocksFilter(filter ListStocksFilter) (ListStocksFilter, error
 
 func normalizeGetStockQuery(query GetStockQuery) (GetStockQuery, error) {
 	if query.WarehouseID <= 0 {
-		return GetStockQuery{}, NewValidationError("warehouse_id must be greater than zero")
+		return GetStockQuery{}, apperr.NewValidationError("warehouse_id must be greater than zero")
 	}
 	if query.SKUID <= 0 {
-		return GetStockQuery{}, NewValidationError("sku_id must be greater than zero")
+		return GetStockQuery{}, apperr.NewValidationError("sku_id must be greater than zero")
 	}
 
 	return query, nil
@@ -260,13 +261,13 @@ func normalizeGetStockQuery(query GetStockQuery) (GetStockQuery, error) {
 
 func normalizeListLayersFilter(filter ListLayersFilter) (ListLayersFilter, error) {
 	if filter.WarehouseID <= 0 {
-		return ListLayersFilter{}, NewValidationError("warehouse_id must be greater than zero")
+		return ListLayersFilter{}, apperr.NewValidationError("warehouse_id must be greater than zero")
 	}
 	if filter.SKUID <= 0 {
-		return ListLayersFilter{}, NewValidationError("sku_id must be greater than zero")
+		return ListLayersFilter{}, apperr.NewValidationError("sku_id must be greater than zero")
 	}
 	if filter.BatchID != nil && *filter.BatchID <= 0 {
-		return ListLayersFilter{}, NewValidationError("batch_id must be greater than zero")
+		return ListLayersFilter{}, apperr.NewValidationError("batch_id must be greater than zero")
 	}
 	if filter.Limit <= 0 {
 		filter.Limit = DefaultListLimit
@@ -318,11 +319,11 @@ func applyLayerAvailable(layer *StockLayer) error {
 func calculateAvailable(onHand string, reserved string) (string, error) {
 	onHandRat, ok := new(big.Rat).SetString(onHand)
 	if !ok {
-		return "", NewValidationError("on_hand_qty is invalid")
+		return "", apperr.NewValidationError("on_hand_qty is invalid")
 	}
 	reservedRat, ok := new(big.Rat).SetString(reserved)
 	if !ok {
-		return "", NewValidationError("reserved_qty is invalid")
+		return "", apperr.NewValidationError("reserved_qty is invalid")
 	}
 
 	available := new(big.Rat).Sub(onHandRat, reservedRat)

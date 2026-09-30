@@ -1,25 +1,8 @@
 package unit
 
-import "errors"
+import "github.com/Mercer08572/stock-flow/pkg/apperr"
 
 var (
-	ErrNotFound      = errors.New("unit not found")
-	ErrDuplicateCode = errors.New("unit code already exists")
+	ErrNotFound      = apperr.NotFound(apperr.CodeMaterialUnitNotFound, "unit not found")
+	ErrDuplicateCode = apperr.Conflict(apperr.CodeMaterialUnitCodeDuplicate, "unit code already exists")
 )
-
-type ValidationError struct {
-	Message string
-}
-
-func (e *ValidationError) Error() string {
-	return e.Message
-}
-
-func NewValidationError(message string) error {
-	return &ValidationError{Message: message}
-}
-
-func IsValidationError(err error) bool {
-	var validationErr *ValidationError
-	return errors.As(err, &validationErr)
-}
