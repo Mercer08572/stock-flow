@@ -64,21 +64,25 @@ func TestServiceCreateRejectsDuplicateCode(t *testing.T) {
 	}
 }
 
-func TestServiceCreateRejectsActiveSKUForMaterial(t *testing.T) {
+func TestServiceCreateAllowsSecondActiveSKUForMaterial(t *testing.T) {
 	ctx := context.Background()
 	repo := newFakeRepository()
-	repo.skus[1] = sku.SKU{ID: 1, MaterialID: 10, Code: "SKU-001", Status: sku.StatusActive}
+	repo.skus[1] = sku.SKU{ID: 1, MaterialID: 10, Code: "SKU-001", UnitID: 20, Status: sku.StatusActive}
 
 	service := sku.NewService(repo, &fakeMaterialValidator{})
-	_, err := service.Create(ctx, sku.CreateInput{
+	got, err := service.Create(ctx, sku.CreateInput{
 		MaterialID: 10,
 		Code:       "SKU-002",
 		Name:       "Steel plate box",
-		UnitID:     20,
+		UnitID:     30,
 	})
+	if err != nil {
+		// 自 202610030008 起同一物料允许多条启用 SKU（单位可公度由换算规则把关）
+		t.Fatalf("create second active sku: %v", err)
+	}
 
-	if !errors.Is(err, sku.ErrActiveSKUForMaterial) {
-		t.Fatalf("expected active sku conflict, got %v", err)
+	if got.MaterialID != 10 || got.Status != sku.StatusActive {
+		t.Fatalf("unexpected sku: %#v", got)
 	}
 }
 
@@ -311,16 +315,6 @@ func (r *fakeRepository) SoftDelete(_ context.Context, id int64) error {
 func (r *fakeRepository) SKUCodeExists(_ context.Context, code string, excludeID int64) (bool, error) {
 	for _, item := range r.skus {
 		if item.Code == code && item.ID != excludeID {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func (r *fakeRepository) ActiveSKUExistsForMaterial(_ context.Context, materialID int64, excludeID int64) (bool, error) {
-	for _, item := range r.skus {
-		if item.MaterialID == materialID && item.Status == sku.StatusActive && item.ID != excludeID {
 			return true, nil
 		}
 	}

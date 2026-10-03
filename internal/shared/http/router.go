@@ -129,7 +129,11 @@ func registerMaterialRoutes(router gin.IRouter, deps Dependencies) {
 func registerConversionRoutes(router gin.IRouter, deps Dependencies) {
 	service := deps.ConversionService
 	if service == nil && deps.DB != nil {
-		service = conversion.NewService(conversion.NewPostgresRepository(deps.DB))
+		materialValidator := deps.MaterialService
+		if materialValidator == nil {
+			materialValidator = material.NewService(material.NewPostgresRepository(deps.DB))
+		}
+		service = conversion.NewService(conversion.NewPostgresRepository(deps.DB), materialValidator)
 	}
 
 	if service == nil {

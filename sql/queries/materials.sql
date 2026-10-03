@@ -111,3 +111,16 @@ SELECT EXISTS (
       AND deleted_at IS NULL
       AND (from_unit_id = sqlc.arg('unit_id')::bigint OR to_unit_id = sqlc.arg('unit_id')::bigint)
 ) AS exists;
+
+-- name: GetMaterialBaseUnit :one
+SELECT base_unit_id
+FROM materials
+WHERE id = $1
+  AND deleted_at IS NULL;
+
+-- name: GetUnitsByIDs :many
+SELECT id,
+       unit_type
+FROM units
+WHERE id = ANY(sqlc.arg('unit_ids')::bigint[])
+  AND deleted_at IS NULL;

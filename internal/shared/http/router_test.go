@@ -134,6 +134,14 @@ func (s *fakeMaterialService) ValidateSKUUnit(context.Context, int64, int64) err
 	return nil
 }
 
+func (s *fakeMaterialService) CheckUnitConversion(_ context.Context, _ int64, fromUnitID int64, toUnitID int64) (material.UnitConversionCheck, error) {
+	return material.UnitConversionCheck{
+		Status:     material.UnitConversionOK,
+		FromUnitID: fromUnitID,
+		ToUnitID:   toUnitID,
+	}, nil
+}
+
 type fakeConversionService struct{}
 
 func (s *fakeConversionService) List(context.Context, conversion.ListFilter) (conversion.ListResult, error) {

@@ -58,6 +58,8 @@ const (
 	CodeMaterialConversionMaterialInvalid  Code = "MATERIAL_CONVERSION_MATERIAL_INVALID"
 	CodeMaterialConversionFromUnitInvalid  Code = "MATERIAL_CONVERSION_FROM_UNIT_INVALID"
 	CodeMaterialConversionToUnitInvalid    Code = "MATERIAL_CONVERSION_TO_UNIT_INVALID"
+	CodeMaterialConversionUnitTypeMismatch Code = "MATERIAL_CONVERSION_UNIT_TYPE_MISMATCH"
+	CodeMaterialConversionBaseUnitRequired Code = "MATERIAL_CONVERSION_BASE_UNIT_REQUIRED"
 
 	// 库存
 	CodeInventoryStockNotFound     Code = "INVENTORY_STOCK_NOT_FOUND"

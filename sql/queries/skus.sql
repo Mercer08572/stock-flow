@@ -87,13 +87,3 @@ SELECT EXISTS (
       AND deleted_at IS NULL
       AND (sqlc.arg('exclude_id')::bigint = 0 OR id <> sqlc.arg('exclude_id')::bigint)
 ) AS exists;
-
--- name: ActiveSKUExistsForMaterial :one
-SELECT EXISTS (
-    SELECT 1
-    FROM skus
-    WHERE material_id = $1
-      AND status = 'active'
-      AND deleted_at IS NULL
-      AND (sqlc.arg('exclude_id')::bigint = 0 OR id <> sqlc.arg('exclude_id')::bigint)
-) AS exists;

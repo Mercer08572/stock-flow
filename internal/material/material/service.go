@@ -14,6 +14,7 @@ type Service interface {
 	Update(ctx context.Context, input UpdateInput) (*Material, error)
 	Delete(ctx context.Context, id int64) error
 	ValidateSKUUnit(ctx context.Context, materialID int64, unitID int64) error
+	CheckUnitConversion(ctx context.Context, materialID int64, fromUnitID int64, toUnitID int64) (UnitConversionCheck, error)
 }
 
 type service struct {
@@ -134,6 +135,69 @@ func (s *service) ValidateSKUUnit(ctx context.Context, materialID int64, unitID 
 	}
 
 	return nil
+}
+
+/**
+ * 校验一条物料级换算规则。
+ *
+ * 两条规则（均由本模块负责，见 `unit_check.go`）：
+ * 1. 两个单位的 `unit_type` 必须可公度（同类，或「包装 ↔ 计数」例外）；
+ * 2. 至少一端必须是物料的基础单位——否则换算图无法保证能回到基础单位，
+ *    「SKU 单位可用集合」就会包含实际换算不出来的单位。
+ *
+ * 第 2 条同时把方向规范化为「基础单位 → 另一单位」，因此仓储里不会出现
+ * 以非基础单位为起点的换算对。
+ */
+func (s *service) CheckUnitConversion(ctx context.Context, materialID int64, fromUnitID int64, toUnitID int64) (UnitConversionCheck, error) {
+	if materialID <= 0 {
+		return UnitConversionCheck{}, apperr.NewValidationError("material id must be greater than zero")
+	}
+	if fromUnitID <= 0 {
+		return UnitConversionCheck{}, apperr.NewValidationError("from unit id must be greater than zero")
+	}
+	if toUnitID <= 0 {
+		return UnitConversionCheck{}, apperr.NewValidationError("to unit id must be greater than zero")
+	}
+
+	// 物料不存在时沿用物料模块的既有错误（GetByID 返回 ErrNotFound）
+	item, err := s.repo.GetByID(ctx, materialID)
+	if err != nil {
+		return UnitConversionCheck{}, err
+	}
+
+	unitTypes, err := s.repo.UnitTypes(ctx, []int64{fromUnitID, toUnitID})
+	if err != nil {
+		return UnitConversionCheck{}, err
+	}
+
+	check := UnitConversionCheck{FromUnitID: fromUnitID, ToUnitID: toUnitID}
+
+	fromType, fromExists := unitTypes[fromUnitID]
+	if !fromExists {
+		check.Status = UnitConversionFromUnitMissing
+		return check, nil
+	}
+	toType, toExists := unitTypes[toUnitID]
+	if !toExists {
+		check.Status = UnitConversionToUnitMissing
+		return check, nil
+	}
+
+	check.FromType = fromType
+	check.ToType = toType
+
+	if !CommensurableUnitTypes(fromType, toType) {
+		check.Status = UnitConversionUnitTypeMismatch
+		return check, nil
+	}
+
+	if !check.TouchesBaseUnit(item.BaseUnitID) {
+		check.Status = UnitConversionBaseUnitRequired
+		return check, nil
+	}
+
+	check.Status = UnitConversionOK
+	return check, nil
 }
 
 func (s *service) validateReferences(ctx context.Context, categoryID int64, baseUnitID int64) error {

@@ -26,7 +26,6 @@ type Repository interface {
 	Update(ctx context.Context, input UpdateInput) (*SKU, error)
 	SoftDelete(ctx context.Context, id int64) error
 	SKUCodeExists(ctx context.Context, code string, excludeID int64) (bool, error)
-	ActiveSKUExistsForMaterial(ctx context.Context, materialID int64, excludeID int64) (bool, error)
 }
 
 type MaterialValidator interface {
@@ -108,16 +107,7 @@ func (s *service) Create(ctx context.Context, input CreateInput) (*SKU, error) {
 		return nil, ErrDuplicateCode
 	}
 
-	if normalized.Status == StatusActive {
-		exists, err := s.repo.ActiveSKUExistsForMaterial(ctx, normalized.MaterialID, 0)
-		if err != nil {
-			return nil, err
-		}
-		if exists {
-			return nil, ErrActiveSKUForMaterial
-		}
-	}
-
+	// 同一物料允许存在多条启用 SKU；单位可公度由物料级换算规则把关
 	return s.repo.Create(ctx, normalized)
 }
 
@@ -139,16 +129,7 @@ func (s *service) Update(ctx context.Context, input UpdateInput) (*SKU, error) {
 		return nil, ErrDuplicateCode
 	}
 
-	if normalized.Status == StatusActive {
-		exists, err := s.repo.ActiveSKUExistsForMaterial(ctx, normalized.MaterialID, normalized.ID)
-		if err != nil {
-			return nil, err
-		}
-		if exists {
-			return nil, ErrActiveSKUForMaterial
-		}
-	}
-
+	// 同一物料允许存在多条启用 SKU；单位可公度由物料级换算规则把关
 	return s.repo.Update(ctx, normalized)
 }
 

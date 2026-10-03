@@ -11,29 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const activeSKUExistsForMaterial = `-- name: ActiveSKUExistsForMaterial :one
-SELECT EXISTS (
-    SELECT 1
-    FROM skus
-    WHERE material_id = $1
-      AND status = 'active'
-      AND deleted_at IS NULL
-      AND ($2::bigint = 0 OR id <> $2::bigint)
-) AS exists
-`
-
-type ActiveSKUExistsForMaterialParams struct {
-	MaterialID int64 `db:"material_id" json:"material_id"`
-	ExcludeID  int64 `db:"exclude_id" json:"exclude_id"`
-}
-
-func (q *Queries) ActiveSKUExistsForMaterial(ctx context.Context, arg ActiveSKUExistsForMaterialParams) (bool, error) {
-	row := q.db.QueryRow(ctx, activeSKUExistsForMaterial, arg.MaterialID, arg.ExcludeID)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
-}
-
 const createSKU = `-- name: CreateSKU :one
 INSERT INTO skus (material_id, code, name, unit_id, status, remark)
 VALUES ($1, $2, $3, $4, $5, $6)

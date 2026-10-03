@@ -70,6 +70,20 @@ func (q *Queries) CreateMaterial(ctx context.Context, arg CreateMaterialParams) 
 	return i, err
 }
 
+const getMaterialBaseUnit = `-- name: GetMaterialBaseUnit :one
+SELECT base_unit_id
+FROM materials
+WHERE id = $1
+  AND deleted_at IS NULL
+`
+
+func (q *Queries) GetMaterialBaseUnit(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRow(ctx, getMaterialBaseUnit, id)
+	var base_unit_id int64
+	err := row.Scan(&base_unit_id)
+	return base_unit_id, err
+}
+
 const getMaterialByID = `-- name: GetMaterialByID :one
 SELECT id,
        code,
@@ -112,6 +126,39 @@ func (q *Queries) GetMaterialByID(ctx context.Context, id int64) (GetMaterialByI
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getUnitsByIDs = `-- name: GetUnitsByIDs :many
+SELECT id,
+       unit_type
+FROM units
+WHERE id = ANY($1::bigint[])
+  AND deleted_at IS NULL
+`
+
+type GetUnitsByIDsRow struct {
+	ID       int64  `db:"id" json:"id"`
+	UnitType string `db:"unit_type" json:"unit_type"`
+}
+
+func (q *Queries) GetUnitsByIDs(ctx context.Context, unitIds []int64) ([]GetUnitsByIDsRow, error) {
+	rows, err := q.db.Query(ctx, getUnitsByIDs, unitIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUnitsByIDsRow
+	for rows.Next() {
+		var i GetUnitsByIDsRow
+		if err := rows.Scan(&i.ID, &i.UnitType); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listMaterials = `-- name: ListMaterials :many

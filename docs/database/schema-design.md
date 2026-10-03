@@ -219,6 +219,10 @@ deleted_at      TIMESTAMPTZ NULL
 
 - `factor` 必须大于零。
 - `(material_id, from_unit_id, to_unit_id)` 在未删除的换算关系中必须唯一。
+- 换算方向固定为「物料 `base_unit_id` → 另一单位」：提交反向对时会被规范化为该方向并取系数倒数，
+  因此同一对单位只有一种存储方向。
+- 两个单位的 `unit_type` 必须可公度：相同类型，或「包装 ↔ 计数」。
+- 至少一端必须是物料的 `base_unit_id`，否则换算图无法保证能回到基本单位。
 - `from_unit_id` 和 `to_unit_id` 必须不同。
 - 换算逻辑属于物料服务层或物料领域辅助组件。
 
@@ -251,8 +255,9 @@ deleted_at      TIMESTAMPTZ NULL
 规则：
 
 - `code` 在未删除的 SKU 中必须唯一。
-- 当前业务阶段应强制每种物料最多只有一个启用的 SKU。
-- 该模式仍必须允许未来扩展为一种物料对应多个 SKU。
+- 每种物料允许存在多个启用的 SKU（原「当前阶段最多一个启用 SKU」的约束已移除）。
+- 多个启用 SKU 的前提是单位可公度：每个 SKU 的 `unit_id` 必须与物料 `base_unit_id` 同属一个 `unit_type`
+  （「包装 ↔ 计数」例外），并已建立物料级换算规则。
 - `unit_id` 必须是物料基本单位，或可通过物料单位换算进行转换的单位。
 - SKU 不得存储库存数量字段。
 
@@ -261,7 +266,7 @@ deleted_at      TIMESTAMPTZ NULL
 - 在 `deleted_at IS NULL` 条件下为 `code` 创建唯一部分索引。
 - 在 `deleted_at IS NULL` 条件下为 `material_id` 创建索引。
 - 在 `deleted_at IS NULL` 条件下为 `unit_id` 创建索引。
-- 当前阶段使用部分唯一索引：每种物料只能有一个启用且未删除的 SKU。
+- 不再对 `(material_id)` 建「启用态唯一」的部分唯一索引（202610030008 已删除）。
 
 ## 仓库
 

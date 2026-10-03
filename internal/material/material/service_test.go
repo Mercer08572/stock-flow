@@ -174,6 +174,7 @@ type fakeRepository struct {
 	materials       map[int64]material.Material
 	categories      map[int64]bool
 	units           map[int64]bool
+	unitTypes       map[int64]string
 	allowedSKUUnits map[[2]int64]bool
 	nextID          int64
 }
@@ -183,6 +184,7 @@ func newFakeRepository() *fakeRepository {
 		materials:       make(map[int64]material.Material),
 		categories:      make(map[int64]bool),
 		units:           make(map[int64]bool),
+		unitTypes:       make(map[int64]string),
 		allowedSKUUnits: make(map[[2]int64]bool),
 		nextID:          1,
 	}
@@ -278,6 +280,120 @@ func (r *fakeRepository) UnitExists(_ context.Context, id int64) (bool, error) {
 	return r.units[id], nil
 }
 
+func (r *fakeRepository) UnitTypes(_ context.Context, unitIDs []int64) (map[int64]string, error) {
+	types := make(map[int64]string, len(unitIDs))
+	for _, id := range unitIDs {
+		if !r.units[id] {
+			continue
+		}
+		types[id] = r.unitType(id)
+	}
+
+	return types, nil
+}
+
+func (r *fakeRepository) MaterialBaseUnitID(_ context.Context, materialID int64) (int64, error) {
+	item, ok := r.materials[materialID]
+	if !ok {
+		return 0, material.ErrNotFound
+	}
+
+	return item.BaseUnitID, nil
+}
+
+/** 未显式登记类型的单位按重量处理：既有用例只关心「存在 + 同一类型」 */
+func (r *fakeRepository) unitType(id int64) string {
+	if unitType, ok := r.unitTypes[id]; ok {
+		return unitType
+	}
+
+	return material.UnitTypeNameWeight
+}
+
 func (r *fakeRepository) MaterialSKUUnitAllowed(_ context.Context, materialID int64, unitID int64) (bool, error) {
 	return r.allowedSKUUnits[[2]int64{materialID, unitID}], nil
+}
+
+func TestServiceCheckUnitConversionRejectsMismatchedTypes(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepository()
+	repo.materials[1] = material.Material{ID: 1, BaseUnitID: 20}
+	repo.units[20] = true
+	repo.units[30] = true
+	repo.unitTypes[20] = material.UnitTypeNameWeight
+	repo.unitTypes[30] = material.UnitTypeNameCount
+
+	service := material.NewService(repo)
+	check, err := service.CheckUnitConversion(ctx, 1, 20, 30)
+	if err != nil {
+		t.Fatalf("check unit conversion: %v", err)
+	}
+
+	if check.Status != material.UnitConversionUnitTypeMismatch {
+		t.Fatalf("expected unit type mismatch, got %q", check.Status)
+	}
+}
+
+func TestServiceCheckUnitConversionRequiresBaseUnit(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepository()
+	repo.materials[1] = material.Material{ID: 1, BaseUnitID: 20}
+	repo.units[20] = true
+	repo.units[30] = true
+	repo.units[40] = true
+
+	service := material.NewService(repo)
+	check, err := service.CheckUnitConversion(ctx, 1, 30, 40)
+	if err != nil {
+		t.Fatalf("check unit conversion: %v", err)
+	}
+
+	if check.Status != material.UnitConversionBaseUnitRequired {
+		t.Fatalf("expected base unit required, got %q", check.Status)
+	}
+}
+
+func TestServiceCheckUnitConversionAllowsPackageCountAgainstBaseUnit(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepository()
+	repo.materials[1] = material.Material{ID: 1, BaseUnitID: 20}
+	repo.units[20] = true
+	repo.units[30] = true
+	repo.unitTypes[20] = material.UnitTypeNameCount
+	repo.unitTypes[30] = material.UnitTypeNamePackage
+
+	service := material.NewService(repo)
+	check, err := service.CheckUnitConversion(ctx, 1, 20, 30)
+	if err != nil {
+		t.Fatalf("check unit conversion: %v", err)
+	}
+
+	if !check.IsOK() {
+		t.Fatalf("expected ok for 1 box = 12 pcs, got %q", check.Status)
+	}
+}
+
+func TestServiceCheckUnitConversionReportsMissingUnits(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepository()
+	repo.materials[1] = material.Material{ID: 1, BaseUnitID: 20}
+	repo.units[20] = true
+
+	service := material.NewService(repo)
+
+	missingTo, err := service.CheckUnitConversion(ctx, 1, 20, 30)
+	if err != nil {
+		t.Fatalf("check unit conversion: %v", err)
+	}
+	if missingTo.Status != material.UnitConversionToUnitMissing {
+		t.Fatalf("expected to unit missing, got %q", missingTo.Status)
+	}
+
+	missingFrom, err := service.CheckUnitConversion(ctx, 1, 30, 20)
+	if err != nil {
+		t.Fatalf("check unit conversion: %v", err)
+	}
+	if missingFrom.Status != material.UnitConversionFromUnitMissing {
+		t.Fatalf("expected from unit missing, got %q", missingFrom.Status)
+	}
 }

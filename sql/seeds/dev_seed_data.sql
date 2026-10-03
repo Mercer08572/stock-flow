@@ -179,7 +179,7 @@ INSERT INTO material_unit_conversions
 
 \echo '>>> [4/6] 写入 SKU、仓库'
 
--- 12 个 SKU：10 active（每个物料最多 1 个 active，符合 ux_skus_active_material_current_stage）
+-- 12 个 SKU：10 active（每条 SKU 的单位都等于其物料基础单位；物料 8、9 另有一条 inactive 遗留 SKU）
 -- + 2 个 inactive 遗留 SKU（物料 8、9），用于验证同一物料存在多条非 active SKU。
 INSERT INTO skus (id, material_id, code, name, unit_id, status, remark, created_at, updated_at) VALUES
     ( 1,  1, 'SKU-AL-6061',         '铝板 6061（千克）',   3,  'active',   NULL,                       '2025-01-09 09:00:00+08', '2025-01-09 09:00:00+08'),

@@ -7,17 +7,60 @@ import (
 	"time"
 
 	"github.com/Mercer08572/stock-flow/internal/material/conversion"
+	"github.com/Mercer08572/stock-flow/internal/material/material"
 	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
+
+/** 换算服务依赖物料模块的单位规则校验；测试里用与被测数据同源的假实现 */
+func newService(repo *fakeRepository) conversion.Service {
+	return conversion.NewService(repo, fakeUnitValidator{repo: repo})
+}
+
+type fakeUnitValidator struct {
+	repo *fakeRepository
+}
+
+func (v fakeUnitValidator) CheckUnitConversion(_ context.Context, materialID int64, fromUnitID int64, toUnitID int64) (material.UnitConversionCheck, error) {
+	check := material.UnitConversionCheck{FromUnitID: fromUnitID, ToUnitID: toUnitID}
+
+	fromType, fromExists := v.repo.unitTypeOf(fromUnitID)
+	if !fromExists {
+		check.Status = material.UnitConversionFromUnitMissing
+		return check, nil
+	}
+	toType, toExists := v.repo.unitTypeOf(toUnitID)
+	if !toExists {
+		check.Status = material.UnitConversionToUnitMissing
+		return check, nil
+	}
+
+	check.FromType = fromType
+	check.ToType = toType
+
+	if !material.CommensurableUnitTypes(fromType, toType) {
+		check.Status = material.UnitConversionUnitTypeMismatch
+		return check, nil
+	}
+
+	baseUnitID, ok := v.repo.baseUnits[materialID]
+	if !ok || !check.TouchesBaseUnit(baseUnitID) {
+		check.Status = material.UnitConversionBaseUnitRequired
+		return check, nil
+	}
+
+	check.Status = material.UnitConversionOK
+	return check, nil
+}
 
 func TestServiceCreateConversion(t *testing.T) {
 	ctx := context.Background()
 	repo := newFakeRepository()
 	repo.materials[10] = true
+	repo.baseUnits[10] = 30
 	repo.units[20] = true
 	repo.units[30] = true
 
-	service := conversion.NewService(repo)
+	service := newService(repo)
 	got, err := service.Create(ctx, conversion.CreateInput{
 		MaterialID: 10,
 		FromUnitID: 30,
@@ -40,6 +83,7 @@ func TestServiceCreateRejectsDuplicatePair(t *testing.T) {
 	ctx := context.Background()
 	repo := newFakeRepository()
 	repo.materials[10] = true
+	repo.baseUnits[10] = 30
 	repo.units[20] = true
 	repo.units[30] = true
 	repo.conversions[1] = conversion.MaterialUnitConversion{
@@ -50,7 +94,7 @@ func TestServiceCreateRejectsDuplicatePair(t *testing.T) {
 		Factor:     "12",
 	}
 
-	service := conversion.NewService(repo)
+	service := newService(repo)
 	_, err := service.Create(ctx, conversion.CreateInput{
 		MaterialID: 10,
 		FromUnitID: 30,
@@ -67,6 +111,7 @@ func TestServiceCreateRejectsReversePair(t *testing.T) {
 	ctx := context.Background()
 	repo := newFakeRepository()
 	repo.materials[10] = true
+	repo.baseUnits[10] = 30
 	repo.units[20] = true
 	repo.units[30] = true
 	repo.conversions[1] = conversion.MaterialUnitConversion{
@@ -77,7 +122,7 @@ func TestServiceCreateRejectsReversePair(t *testing.T) {
 		Factor:     "0.0833333333",
 	}
 
-	service := conversion.NewService(repo)
+	service := newService(repo)
 	_, err := service.Create(ctx, conversion.CreateInput{
 		MaterialID: 10,
 		FromUnitID: 30,
@@ -96,7 +141,7 @@ func TestServiceCreateValidatesReferences(t *testing.T) {
 	repo.units[20] = true
 	repo.units[30] = true
 
-	service := conversion.NewService(repo)
+	service := newService(repo)
 	_, err := service.Create(ctx, conversion.CreateInput{
 		MaterialID: 10,
 		FromUnitID: 30,
@@ -113,10 +158,11 @@ func TestServiceCreateValidatesFactor(t *testing.T) {
 	ctx := context.Background()
 	repo := newFakeRepository()
 	repo.materials[10] = true
+	repo.baseUnits[10] = 30
 	repo.units[20] = true
 	repo.units[30] = true
 
-	service := conversion.NewService(repo)
+	service := newService(repo)
 	_, err := service.Create(ctx, conversion.CreateInput{
 		MaterialID: 10,
 		FromUnitID: 30,
@@ -154,7 +200,7 @@ func TestServiceListNormalizesFilter(t *testing.T) {
 	fromUnitID := int64(30)
 	toUnitID := int64(20)
 
-	service := conversion.NewService(repo)
+	service := newService(repo)
 	result, err := service.List(ctx, conversion.ListFilter{
 		MaterialID: 10,
 		FromUnitID: &fromUnitID,
@@ -179,7 +225,7 @@ func TestServiceListNormalizesFilter(t *testing.T) {
 
 func TestServiceDeleteValidatesID(t *testing.T) {
 	ctx := context.Background()
-	service := conversion.NewService(newFakeRepository())
+	service := newService(newFakeRepository())
 
 	err := service.Delete(ctx, 10, 0)
 
@@ -195,6 +241,8 @@ func TestServiceDeleteValidatesID(t *testing.T) {
 type fakeRepository struct {
 	materials   map[int64]bool
 	units       map[int64]bool
+	unitTypes   map[int64]string
+	baseUnits   map[int64]int64
 	conversions map[int64]conversion.MaterialUnitConversion
 	nextID      int64
 }
@@ -203,6 +251,8 @@ func newFakeRepository() *fakeRepository {
 	return &fakeRepository{
 		materials:   make(map[int64]bool),
 		units:       make(map[int64]bool),
+		unitTypes:   make(map[int64]string),
+		baseUnits:   make(map[int64]int64),
 		conversions: make(map[int64]conversion.MaterialUnitConversion),
 		nextID:      1,
 	}
@@ -285,6 +335,27 @@ func (r *fakeRepository) MaterialExists(_ context.Context, id int64) (bool, erro
 
 func (r *fakeRepository) UnitExists(_ context.Context, id int64) (bool, error) {
 	return r.units[id], nil
+}
+
+func (r *fakeRepository) MaterialBaseUnitID(_ context.Context, materialID int64) (int64, error) {
+	baseUnitID, ok := r.baseUnits[materialID]
+	if !ok {
+		return 0, conversion.ErrMaterialNotFound
+	}
+
+	return baseUnitID, nil
+}
+
+/** 未显式登记类型的单位按重量处理：大多数用例只关心「同类型 + 基础单位在两端」 */
+func (r *fakeRepository) unitTypeOf(id int64) (string, bool) {
+	if !r.units[id] {
+		return "", false
+	}
+	if unitType, ok := r.unitTypes[id]; ok {
+		return unitType, true
+	}
+
+	return material.UnitTypeNameWeight, true
 }
 
 func (r *fakeRepository) ConversionExists(_ context.Context, materialID int64, fromUnitID int64, toUnitID int64, excludeID int64) (bool, error) {

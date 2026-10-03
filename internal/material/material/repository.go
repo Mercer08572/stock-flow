@@ -21,6 +21,8 @@ type Repository interface {
 	MaterialCodeExists(ctx context.Context, code string, excludeID int64) (bool, error)
 	MaterialCategoryExists(ctx context.Context, id int64) (bool, error)
 	UnitExists(ctx context.Context, id int64) (bool, error)
+	UnitTypes(ctx context.Context, unitIDs []int64) (map[int64]string, error)
+	MaterialBaseUnitID(ctx context.Context, materialID int64) (int64, error)
 	MaterialSKUUnitAllowed(ctx context.Context, materialID int64, unitID int64) (bool, error)
 }
 
@@ -136,6 +138,30 @@ func (r *postgresRepository) UnitExists(ctx context.Context, id int64) (bool, er
 	}
 
 	return exists, nil
+}
+
+/** 批量取单位类型；缺失的 ID 不会出现在结果里，调用方据此判定「单位不存在」 */
+func (r *postgresRepository) UnitTypes(ctx context.Context, unitIDs []int64) (map[int64]string, error) {
+	rows, err := r.queries.GetUnitsByIDs(ctx, unitIDs)
+	if err != nil {
+		return nil, mapPostgresError(err)
+	}
+
+	types := make(map[int64]string, len(rows))
+	for _, row := range rows {
+		types[row.ID] = row.UnitType
+	}
+
+	return types, nil
+}
+
+func (r *postgresRepository) MaterialBaseUnitID(ctx context.Context, materialID int64) (int64, error) {
+	baseUnitID, err := r.queries.GetMaterialBaseUnit(ctx, materialID)
+	if err != nil {
+		return 0, mapPostgresError(err)
+	}
+
+	return baseUnitID, nil
 }
 
 func (r *postgresRepository) MaterialSKUUnitAllowed(ctx context.Context, materialID int64, unitID int64) (bool, error) {

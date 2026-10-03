@@ -173,3 +173,11 @@ func (s *fakeService) ValidateSKUUnit(ctx context.Context, materialID int64, uni
 	}
 	return nil
 }
+
+func (s *fakeService) CheckUnitConversion(_ context.Context, _ int64, fromUnitID int64, toUnitID int64) (material.UnitConversionCheck, error) {
+	return material.UnitConversionCheck{
+		Status:     material.UnitConversionOK,
+		FromUnitID: fromUnitID,
+		ToUnitID:   toUnitID,
+	}, nil
+}

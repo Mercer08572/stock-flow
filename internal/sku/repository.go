@@ -117,18 +117,6 @@ func (r *postgresRepository) SKUCodeExists(ctx context.Context, code string, exc
 	return exists, nil
 }
 
-func (r *postgresRepository) ActiveSKUExistsForMaterial(ctx context.Context, materialID int64, excludeID int64) (bool, error) {
-	exists, err := r.queries.ActiveSKUExistsForMaterial(ctx, skudb.ActiveSKUExistsForMaterialParams{
-		MaterialID: materialID,
-		ExcludeID:  excludeID,
-	})
-	if err != nil {
-		return false, mapPostgresError(err)
-	}
-
-	return exists, nil
-}
-
 func mapPostgresError(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
@@ -141,11 +129,9 @@ func mapPostgresError(err error) error {
 
 	switch pgErr.Code {
 	case "23505":
-		switch pgErr.ConstraintName {
-		case "ux_skus_code":
+		// 唯一约束只剩编码（启用态物料唯一索引已在 202610030008 中删除）
+		if pgErr.ConstraintName == "ux_skus_code" {
 			return ErrDuplicateCode
-		case "ux_skus_active_material_current_stage":
-			return ErrActiveSKUForMaterial
 		}
 	case "23503":
 		switch pgErr.ConstraintName {

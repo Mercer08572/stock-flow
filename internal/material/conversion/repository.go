@@ -143,6 +143,15 @@ func (r *postgresRepository) UnitExists(ctx context.Context, id int64) (bool, er
 	return exists, nil
 }
 
+func (r *postgresRepository) MaterialBaseUnitID(ctx context.Context, materialID int64) (int64, error) {
+	baseUnitID, err := r.queries.GetMaterialBaseUnit(ctx, materialID)
+	if err != nil {
+		return 0, mapPostgresError(err)
+	}
+
+	return baseUnitID, nil
+}
+
 func (r *postgresRepository) ConversionExists(ctx context.Context, materialID int64, fromUnitID int64, toUnitID int64, excludeID int64) (bool, error) {
 	exists, err := r.queries.MaterialUnitConversionExists(ctx, materialdb.MaterialUnitConversionExistsParams{
 		MaterialID: materialID,
