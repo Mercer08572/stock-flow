@@ -25,22 +25,26 @@ WHERE warehouse_id = sqlc.arg('warehouse_id')::bigint
   AND deleted_at IS NULL;
 
 -- name: ListInventoryStockLayers :many
-SELECT id,
-       warehouse_id,
-       sku_id,
-       batch_id,
-       received_at,
-       on_hand_qty,
-       reserved_qty,
-       (on_hand_qty - reserved_qty)::numeric AS available_qty,
-       created_at,
-       updated_at
-FROM inventory_stock_layers
-WHERE warehouse_id = sqlc.arg('warehouse_id')::bigint
-  AND sku_id = sqlc.arg('sku_id')::bigint
-  AND deleted_at IS NULL
-  AND (sqlc.narg('batch_id')::bigint IS NULL OR batch_id = sqlc.narg('batch_id')::bigint)
-ORDER BY received_at, id
+-- 分配顺序：先按批次 dispatch_priority（0-9 提升、10 默认、11+ 延后；非批次层视为 10），
+-- 再按 received_at, id 即 FIFO。
+-- 注意：左侧不过滤批次 deleted_at，否则批次被软删除时其库存层会从结果中消失。
+SELECT l.id,
+       l.warehouse_id,
+       l.sku_id,
+       l.batch_id,
+       l.received_at,
+       l.on_hand_qty,
+       l.reserved_qty,
+       (l.on_hand_qty - l.reserved_qty)::numeric AS available_qty,
+       l.created_at,
+       l.updated_at
+FROM inventory_stock_layers AS l
+LEFT JOIN inventory_batches AS b ON b.id = l.batch_id
+WHERE l.warehouse_id = sqlc.arg('warehouse_id')::bigint
+  AND l.sku_id = sqlc.arg('sku_id')::bigint
+  AND l.deleted_at IS NULL
+  AND (sqlc.narg('batch_id')::bigint IS NULL OR l.batch_id = sqlc.narg('batch_id')::bigint)
+ORDER BY COALESCE(b.dispatch_priority, 10), l.received_at, l.id
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: WarehouseExistsForInventory :one

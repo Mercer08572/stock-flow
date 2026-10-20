@@ -279,6 +279,7 @@ CREATE TABLE inventory_batches (
     production_date   DATE        NULL,
     expiration_date   DATE        NULL,
     status            TEXT        NOT NULL DEFAULT 'active',
+    dispatch_priority INTEGER     NOT NULL DEFAULT 10,
     remark            TEXT        NULL,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -289,7 +290,9 @@ CREATE TABLE inventory_batches (
     CONSTRAINT chk_inventory_batches_date_range
         CHECK (production_date IS NULL OR expiration_date IS NULL OR expiration_date >= production_date),
     CONSTRAINT chk_inventory_batches_status
-        CHECK (status IN ('active', 'inactive'))
+        CHECK (status IN ('active', 'inactive')),
+    CONSTRAINT chk_inventory_batches_dispatch_priority_non_negative
+        CHECK (dispatch_priority >= 0)
 );
 
 CREATE UNIQUE INDEX ux_inventory_batches_sku_batch_no
@@ -311,6 +314,9 @@ CREATE INDEX idx_inventory_batches_expiration_date
 CREATE INDEX idx_inventory_batches_status
     ON inventory_batches (status)
     WHERE deleted_at IS NULL;
+
+COMMENT ON COLUMN inventory_batches.dispatch_priority IS
+    'Dispatch priority. Lower value is allocated first; 0-9 boosts, 10 is default, 11+ delays. Equal values fall back to FIFO by (received_at, id)';
 
 CREATE TABLE inventory_stocks (
     id           BIGSERIAL     PRIMARY KEY,

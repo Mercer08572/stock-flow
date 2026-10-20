@@ -13,6 +13,9 @@ type Querier interface {
 	HasSKUInventoryReferences(ctx context.Context, skuID int64) (bool, error)
 	HasWarehouseInventoryReferences(ctx context.Context, warehouseID int64) (bool, error)
 	InventoryBatchExistsForSKU(ctx context.Context, arg InventoryBatchExistsForSKUParams) (bool, error)
+	// 分配顺序：先按批次 dispatch_priority（0-9 提升、10 默认、11+ 延后；非批次层视为 10），
+	// 再按 received_at, id 即 FIFO。
+	// 注意：左侧不过滤批次 deleted_at，否则批次被软删除时其库存层会从结果中消失。
 	ListInventoryStockLayers(ctx context.Context, arg ListInventoryStockLayersParams) ([]ListInventoryStockLayersRow, error)
 	ListInventoryStocks(ctx context.Context, arg ListInventoryStocksParams) ([]ListInventoryStocksRow, error)
 	SKUExistsForInventory(ctx context.Context, id int64) (bool, error)

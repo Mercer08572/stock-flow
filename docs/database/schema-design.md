@@ -16,6 +16,7 @@ material -> sku -> inventory(warehouse, batch)
 - 批次建模为独立表。
 - 预留使用主表和分配明细表。
 - 在预留或扣减库存时记录 FIFO 分配。
+- 出库优先级放在批次上（`inventory_batches.dispatch_priority`），分配顺序为 `(dispatch_priority, received_at, id)`。
 - 幂等性使用 `operation_type + idempotency_key + request_hash`。
 - 库存数量使用 `NUMERIC(20,6)`。
 - 单位换算系数使用 `NUMERIC(24,10)`。
@@ -318,6 +319,7 @@ first_received_at TIMESTAMPTZ NULL
 production_date   DATE NULL
 expiration_date   DATE NULL
 status            TEXT NOT NULL DEFAULT 'active'
+dispatch_priority INTEGER NOT NULL DEFAULT 10
 remark            TEXT NULL
 created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -329,6 +331,7 @@ deleted_at        TIMESTAMPTZ NULL
 - `(sku_id, batch_no)` 在未删除的批次中必须唯一。
 - 批次元数据属于此表，而不属于库存余额表。
 - `status` 应为 `active` 或 `inactive`。
+- `dispatch_priority` 是出库优先级，数值越小越先被分配，必须大于或等于零。分带：`0`-`9` 为提升区，`10` 为默认值，`11` 及以上为延后区；同值之间按 FIFO 排序。非批次库存层（`batch_id` 为 null）在排序时视为优先级 `10`。
 
 建议的索引：
 
@@ -406,7 +409,8 @@ available_qty = on_hand_qty - reserved_qty
 规则：
 
 - 对于非批次库存，`batch_id` 可以为 null。
-- FIFO 分配先使用 `received_at` 排序，再以 `id` 作为确定性的顺序判定条件。
+- 分配顺序先按批次的 `dispatch_priority` 升序（非批次层视为 10），再使用 `received_at` 排序，最后以 `id` 作为确定性的顺序判定条件。
+- 只有当所有优先级相等时，分配顺序才退化为纯 FIFO。
 - `on_hand_qty` 必须大于或等于零。
 - `reserved_qty` 必须大于或等于零。
 - `reserved_qty` 必须小于或等于 `on_hand_qty`。
@@ -655,7 +659,7 @@ layer.reserved_qty += allocated_qty
 规则：
 
 - 检查可用数量。
-- 未提供 `batch_id` 时，按 FIFO 分配库存层。
+- 未提供 `batch_id` 时，按分配顺序（批次 `dispatch_priority` 升序，再按 FIFO）分配库存层。
 - 创建 `inventory_reservations`。
 - 创建 `inventory_reservation_items`。
 - 创建变动记录。
@@ -690,7 +694,7 @@ layer.on_hand_qty -= allocated_qty
 规则：
 
 - 检查可用数量。
-- 未提供 `batch_id` 时，按 FIFO 分配库存层。
+- 未提供 `batch_id` 时，按分配顺序（批次 `dispatch_priority` 升序，再按 FIFO）分配库存层。
 - 不更改 `reserved_qty`。
 - 创建变动记录。
 - 必须具备幂等性。

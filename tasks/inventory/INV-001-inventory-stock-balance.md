@@ -191,7 +191,7 @@ Expected queries:
 - `GET /api/v1/inventory/stocks/:warehouse_id/:sku_id` returns summary stock with calculated `available_qty`.
 - Detail query for a valid warehouse + SKU with no stock row returns zero quantities.
 - Detail query with missing warehouse or SKU returns validation/reference error.
-- `GET /api/v1/inventory/stocks/:warehouse_id/:sku_id/layers` lists non-deleted layers in FIFO order by `received_at`, then `id`.
+- `GET /api/v1/inventory/stocks/:warehouse_id/:sku_id/layers` lists non-deleted layers in allocation order: batch `dispatch_priority` ascending (non-batch layers as 10), then `received_at`, then `id`.
 - Layer response includes calculated `available_qty`.
 - Invalid IDs, invalid pagination values, missing warehouse, missing SKU, and invalid batch for SKU return errors.
 - Handler tests cover successful summary detail and at least one error mapping.

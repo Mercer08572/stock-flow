@@ -56,7 +56,7 @@ inventory_stock_layers（库存层）                         ↑
 术语：
 
 - **库存层（stock layer）**：`inventory_stock_layers` 的一行，表示某个仓库中某个 SKU 某一次到货所形成的、可被独立消耗的一段库存。它是**数量的最小单位**，也是 FIFO 分配与预留的最小单位。
-- **批次（batch）**：`inventory_batches` 的一行，是 **SKU 级主数据**（批号、生产日期、有效期、状态）。它没有数量字段，也没有 `warehouse_id`。
+- **批次（batch）**：`inventory_batches` 的一行，是 **SKU 级主数据**（批号、生产日期、有效期、状态、出库优先级）。它没有数量字段，也没有 `warehouse_id`。
 - **库存余额（stock balance）**：`inventory_stocks` 的一行，按仓库 + SKU 汇总，等于该仓库 + SKU 下所有未删除库存层的合计。
 - **非批次库存**：`batch_id` 为 NULL 的库存层。
 
@@ -64,7 +64,9 @@ inventory_stock_layers（库存层）                         ↑
 
 - 数量只存在于库存层与库存余额上；批次表不是数量来源。
 - 批次与库存层是 N:M 关系，而不是包含关系：同一批次可以在多个仓库各有一层，也可以没有任何层（尚未收货或已清空）；同一仓库的同一 SKU 可以同时存在带批次的层与不带批次的层。
-- FIFO 的顺序判定条件固定为 `(received_at, id)`；`batch_id` 不是排序键，也不参与顺序判定。
+- 分配顺序的判定条件固定为 `(dispatch_priority, received_at, id)`：先按批次的 `dispatch_priority` 升序（数值越小越先出），再按 `received_at`，最后以 `id` 作为确定性的顺序判定条件。全部优先级相等时退化为纯 FIFO。
+- `dispatch_priority` 分带：`0`-`9` 为提升区（越小越先出），`10` 为默认值，`11` 及以上为延后区；非批次库存层（`batch_id` 为 NULL）视为 `10`。
+- `batch_id` 自身不是排序键；批次只通过 `dispatch_priority` 影响分配顺序。
 - `batch_id` 只用于两件事：把操作目标限定到某个批次的库存层，以及按批次归组查询库存层明细。
 - "某仓库 + SKU + 批次现有多少库存"通过在库存层上按 `batch_id` 过滤得到，而不是在批次表上查数量。
 
@@ -86,7 +88,7 @@ warehouse + SKU + batch
 - 库存变更操作必须拒绝停用的仓库。
 - 如果提供 `batch_id`，操作将以带该 `batch_id` 的库存层为目标（可能命中多层或跨仓库的多层）。此时有两种情况：若这些层的数量充足，则全部从这些层执行操作；若数量不足，剩余部分仍按 FIFO 处理。
 - 出库操作未提供 `batch_id` 时，库存必须按 FIFO 分配。
-- FIFO 分配必须基于稳定的库存层排序：先按 `received_at` 排序，再以 `id` 作为确定性的顺序判定条件。
+- FIFO 分配必须基于稳定的库存层排序：先按批次 `dispatch_priority` 升序（非批次层视为 10），再按 `received_at`，最后以 `id` 作为确定性的顺序判定条件。
 - 可以按仓库 + SKU 汇总查询库存，也可以按仓库 + SKU + 批次查询明细。
 
 如果同时存储库存余额和库存层，二者必须在同一事务中保持一致。
@@ -346,5 +348,5 @@ POST /api/v1/inventory/decrease-reserved
 - 从预留数量中扣减库存时不减少 `reserved_qty`。
 - 在仓储中脱离服务层规则重新计算 FIFO 顺序。
 - 从物料、SKU、仓库或外部业务模块直接更新库存表。
-- 把 `batch_id` 当作 FIFO 排序键，或依赖批号字典序决定分配顺序。
+- 直接依赖 `batch_id` 数值或批号字典序决定分配顺序（优先级只能通过批次的 `dispatch_priority` 表达）。
 - 把 `inventory_batches` 当作数量来源（该表没有数量字段，也没有 `warehouse_id`）。
