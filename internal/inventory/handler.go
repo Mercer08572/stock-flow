@@ -24,10 +24,18 @@ func NewHandler(service Service) Handler {
 }
 
 func (h *handler) RegisterRoutes(router gin.IRouter) {
-	stocks := router.Group("/inventory/stocks")
+	inventory := router.Group("/inventory")
+
+	stocks := inventory.Group("/stocks")
 	stocks.GET("", h.ListStocks)
 	stocks.GET("/:warehouse_id/:sku_id/layers", h.ListLayers)
 	stocks.GET("/:warehouse_id/:sku_id", h.GetStock)
+
+	inventory.POST("/increase", h.IncreaseStock)
+	inventory.POST("/decrease", h.DecreaseStock)
+	inventory.POST("/reserve", h.ReserveStock)
+	inventory.POST("/release", h.ReleaseStock)
+	inventory.GET("/movements", h.ListMovements)
 }
 
 // ListStocks godoc

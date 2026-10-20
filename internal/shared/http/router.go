@@ -174,7 +174,12 @@ func registerInventoryRoutes(router gin.IRouter, deps Dependencies) {
 			skuReader = sku.NewService(sku.NewPostgresRepository(deps.DB), materialValidator)
 		}
 
-		service = inventory.NewService(inventory.NewPostgresRepository(deps.DB), warehouseReader, skuReader)
+		service = inventory.NewService(
+			inventory.NewPostgresRepository(deps.DB),
+			warehouseReader,
+			skuReader,
+			inventory.NewPostgresUnitOfWork(deps.DB),
+		)
 	}
 
 	if service == nil {

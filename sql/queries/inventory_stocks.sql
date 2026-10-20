@@ -47,22 +47,6 @@ WHERE l.warehouse_id = sqlc.arg('warehouse_id')::bigint
 ORDER BY COALESCE(b.dispatch_priority, 10), l.received_at, l.id
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
--- name: WarehouseExistsForInventory :one
-SELECT EXISTS (
-    SELECT 1
-    FROM warehouses
-    WHERE id = $1
-      AND deleted_at IS NULL
-) AS exists;
-
--- name: SKUExistsForInventory :one
-SELECT EXISTS (
-    SELECT 1
-    FROM skus
-    WHERE id = $1
-      AND deleted_at IS NULL
-) AS exists;
-
 -- name: InventoryBatchExistsForSKU :one
 SELECT EXISTS (
     SELECT 1

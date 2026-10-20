@@ -295,6 +295,95 @@ definitions:
       offset:
         type: integer
     type: object
+  inventory.Movement:
+    properties:
+      actor_id:
+        type: integer
+      actor_label:
+        type: string
+      actor_type:
+        type: string
+      batch_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      idempotency_key:
+        type: string
+      operation_type:
+        type: string
+      qty:
+        type: string
+      reservation_id:
+        type: integer
+      reservation_item_id:
+        type: integer
+      sku_id:
+        type: integer
+      source_id:
+        type: string
+      source_line_id:
+        type: string
+      source_type:
+        type: string
+      stock_layer_id:
+        type: integer
+      warehouse_id:
+        type: integer
+    type: object
+  inventory.MovementListResult:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/inventory.Movement'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  inventory.MovementRef:
+    properties:
+      id:
+        type: integer
+      qty:
+        type: string
+      stock_layer_id:
+        type: integer
+    type: object
+  inventory.ReservationAllocation:
+    properties:
+      batch_id:
+        type: integer
+      qty:
+        type: string
+      reservation_item_id:
+        type: integer
+      stock_layer_id:
+        type: integer
+    type: object
+  inventory.ReservationSnapshot:
+    properties:
+      allocations:
+        items:
+          $ref: '#/definitions/inventory.ReservationAllocation'
+        type: array
+      close_reason:
+        type: string
+      consumed_qty:
+        type: string
+      id:
+        type: integer
+      released_qty:
+        type: string
+      remaining_qty:
+        type: string
+      status:
+        type: string
+      total_qty:
+        type: string
+    type: object
   inventory.StockBalance:
     properties:
       available_qty:
@@ -354,6 +443,114 @@ definitions:
       limit:
         type: integer
       offset:
+        type: integer
+    type: object
+  inventory.StockOperationResult:
+    properties:
+      batch_id:
+        type: integer
+      movements:
+        items:
+          $ref: '#/definitions/inventory.MovementRef'
+        type: array
+      operation_type:
+        type: string
+      qty:
+        type: string
+      reservation:
+        $ref: '#/definitions/inventory.ReservationSnapshot'
+      sku_id:
+        type: integer
+      stock_after:
+        $ref: '#/definitions/inventory.StockQuantities'
+      warehouse_id:
+        type: integer
+    type: object
+  inventory.StockQuantities:
+    properties:
+      available_qty:
+        type: string
+      on_hand_qty:
+        type: string
+      reserved_qty:
+        type: string
+    type: object
+  inventory.decreaseStockHTTPRequest:
+    properties:
+      batch_id:
+        type: integer
+      idempotency_key:
+        type: string
+      qty:
+        type: string
+      reservation_id:
+        type: integer
+      sku_id:
+        type: integer
+      source_id:
+        type: string
+      source_line_id:
+        type: string
+      source_type:
+        type: string
+      warehouse_id:
+        type: integer
+    type: object
+  inventory.increaseStockHTTPRequest:
+    properties:
+      batch_id:
+        type: integer
+      idempotency_key:
+        type: string
+      qty:
+        type: string
+      sku_id:
+        type: integer
+      source_id:
+        type: string
+      source_line_id:
+        type: string
+      source_type:
+        type: string
+      warehouse_id:
+        type: integer
+    type: object
+  inventory.releaseStockHTTPRequest:
+    properties:
+      idempotency_key:
+        type: string
+      qty:
+        type: string
+      reservation_id:
+        type: integer
+      sku_id:
+        type: integer
+      source_id:
+        type: string
+      source_line_id:
+        type: string
+      source_type:
+        type: string
+      warehouse_id:
+        type: integer
+    type: object
+  inventory.reserveStockHTTPRequest:
+    properties:
+      batch_id:
+        type: integer
+      idempotency_key:
+        type: string
+      qty:
+        type: string
+      sku_id:
+        type: integer
+      source_id:
+        type: string
+      source_line_id:
+        type: string
+      source_type:
+        type: string
+      warehouse_id:
         type: integer
     type: object
   material.CreateMaterialRequest:
@@ -1246,6 +1443,222 @@ paths:
       summary: Health check
       tags:
       - Health
+  /inventory/decrease:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Decrease stock payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/inventory.decreaseStockHTTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.StockOperationResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Decrease stock
+      tags:
+      - Inventory
+  /inventory/increase:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Increase stock payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/inventory.increaseStockHTTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.StockOperationResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Increase stock
+      tags:
+      - Inventory
+  /inventory/movements:
+    get:
+      parameters:
+      - description: Warehouse ID
+        in: query
+        name: warehouse_id
+        type: integer
+      - description: SKU ID
+        in: query
+        name: sku_id
+        type: integer
+      - description: Operation type
+        enum:
+        - increase
+        - reserve
+        - release_reserved
+        - decrease_available
+        - decrease_reserved
+        in: query
+        name: operation_type
+        type: string
+      - description: Created from (RFC3339)
+        in: query
+        name: created_from
+        type: string
+      - description: Created to (RFC3339, exclusive)
+        in: query
+        name: created_to
+        type: string
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Page offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.MovementListResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: List inventory movements
+      tags:
+      - Inventory
+  /inventory/release:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Release stock payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/inventory.releaseStockHTTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.StockOperationResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Release reserved stock
+      tags:
+      - Inventory
+  /inventory/reserve:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Reserve stock payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/inventory.reserveStockHTTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.StockOperationResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Reserve stock
+      tags:
+      - Inventory
   /inventory/stocks:
     get:
       parameters:

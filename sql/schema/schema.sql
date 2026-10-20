@@ -401,6 +401,9 @@ CREATE TABLE inventory_reservations (
     source_type     TEXT          NULL,
     source_id       TEXT          NULL,
     source_line_id  TEXT          NULL,
+    actor_type      TEXT          NULL,
+    actor_id        BIGINT        NULL,
+    actor_label     TEXT          NULL,
     created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     deleted_at      TIMESTAMPTZ   NULL,
@@ -430,7 +433,14 @@ CREATE TABLE inventory_reservations (
             (status = 'closed' AND released_qty + consumed_qty = total_qty)
         ),
     CONSTRAINT chk_inventory_reservations_idempotency_key_not_blank
-        CHECK (btrim(idempotency_key) <> '')
+        CHECK (btrim(idempotency_key) <> ''),
+    CONSTRAINT chk_inventory_reservations_actor_type
+        CHECK (actor_type IS NULL OR actor_type IN ('admin', 'api_app')),
+    CONSTRAINT chk_inventory_reservations_actor_complete
+        CHECK (
+            (actor_type IS NULL AND actor_id IS NULL AND actor_label IS NULL)
+            OR (actor_type IS NOT NULL AND actor_id IS NOT NULL AND actor_label IS NOT NULL)
+        )
 );
 
 CREATE INDEX idx_inventory_reservations_warehouse_sku_status
@@ -451,6 +461,10 @@ CREATE INDEX idx_inventory_reservations_source
 
 CREATE INDEX idx_inventory_reservations_idempotency_key
     ON inventory_reservations (idempotency_key)
+    WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_inventory_reservations_actor
+    ON inventory_reservations (actor_type, actor_id, created_at)
     WHERE deleted_at IS NULL;
 
 COMMENT ON COLUMN inventory_reservations.status IS
@@ -501,6 +515,9 @@ CREATE TABLE inventory_movements (
     source_type         TEXT          NULL,
     source_id           TEXT          NULL,
     source_line_id      TEXT          NULL,
+    actor_type          TEXT          NULL,
+    actor_id            BIGINT        NULL,
+    actor_label         TEXT          NULL,
     created_at          TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     deleted_at          TIMESTAMPTZ   NULL,
@@ -510,7 +527,14 @@ CREATE TABLE inventory_movements (
     CONSTRAINT chk_inventory_movements_qty_positive
         CHECK (qty > 0),
     CONSTRAINT chk_inventory_movements_idempotency_key_not_blank
-        CHECK (btrim(idempotency_key) <> '')
+        CHECK (btrim(idempotency_key) <> ''),
+    CONSTRAINT chk_inventory_movements_actor_type
+        CHECK (actor_type IS NULL OR actor_type IN ('admin', 'api_app')),
+    CONSTRAINT chk_inventory_movements_actor_complete
+        CHECK (
+            (actor_type IS NULL AND actor_id IS NULL AND actor_label IS NULL)
+            OR (actor_type IS NOT NULL AND actor_id IS NOT NULL AND actor_label IS NOT NULL)
+        )
 );
 
 CREATE INDEX idx_inventory_movements_warehouse_sku_created_at
@@ -547,6 +571,10 @@ CREATE INDEX idx_inventory_movements_source
 
 CREATE INDEX idx_inventory_movements_operation_idempotency
     ON inventory_movements (operation_type, idempotency_key)
+    WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_inventory_movements_actor
+    ON inventory_movements (actor_type, actor_id, created_at)
     WHERE deleted_at IS NULL;
 
 CREATE TABLE inventory_idempotency_keys (

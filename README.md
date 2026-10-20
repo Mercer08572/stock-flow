@@ -16,16 +16,12 @@ Stock-Flow 是一个面向库存管理场景的后端 API 服务。项目采用 
 - 物料单位换算：`/api/v1/materials/:id/unit-conversions`
 - SKU 管理：`/api/v1/skus`
 - 仓库管理：`/api/v1/warehouses`（含 `PUT /api/v1/warehouses/:id/disable` 停用）
-- 库存查询：`/api/v1/inventory/stocks`（余额、单条余额、库存层明细，**只读**）
+- 库存查询：`/api/v1/inventory/stocks`（余额、单条余额、库存层明细）
+- 库存写操作：`/api/v1/inventory/increase`、`/decrease`、`/reserve`、`/release`
+- 库存流水查询：`/api/v1/inventory/movements`
 - 健康检查：`/api/v1/health`
 
-规划中的库存能力：
-
-- 库存写操作（入库）
-- 库存预留与释放
-- 库存扣减与 FIFO 分配
-- 库存流水查询
-- 库存操作幂等
+库存写操作具备事务、幂等键、FIFO/批次优先级分配、库存流水与调用方审计。
 
 ## 技术栈
 
@@ -234,9 +230,14 @@ GOCACHE=/private/tmp/stock-flow-go-build-cache make test
 | sku | `/api/v1/skus` | SKU |
 | warehouse | `/api/v1/warehouses` | 仓库 |
 | warehouse | `/api/v1/warehouses/:id/disable` | 停用仓库 |
-| inventory | `/api/v1/inventory/stocks` | 库存余额列表（只读） |
-| inventory | `/api/v1/inventory/stocks/:warehouse_id/:sku_id` | 单条库存余额（只读） |
-| inventory | `/api/v1/inventory/stocks/:warehouse_id/:sku_id/layers` | 库存层明细（只读） |
+| inventory | `/api/v1/inventory/stocks` | 库存余额列表 |
+| inventory | `/api/v1/inventory/stocks/:warehouse_id/:sku_id` | 单条库存余额 |
+| inventory | `/api/v1/inventory/stocks/:warehouse_id/:sku_id/layers` | 库存层明细 |
+| inventory | `/api/v1/inventory/increase` | 增加库存 |
+| inventory | `/api/v1/inventory/decrease` | 减少库存（可选引用预留单） |
+| inventory | `/api/v1/inventory/reserve` | 占用/预留库存 |
+| inventory | `/api/v1/inventory/release` | 释放预留库存 |
+| inventory | `/api/v1/inventory/movements` | 库存流水查询 |
 
 除 `health` 与 `auth/admin/login` 外，其余接口都需要认证：管理员使用 HttpOnly 会话 Cookie，
 外部系统使用请求头 `X-Stock-Flow-App-ID` + `X-Stock-Flow-Secret`（见 `.env.example` 与
@@ -377,7 +378,7 @@ stock-flow/
 │   ├── auth/                # 管理员会话、API 应用与密钥
 │   ├── material/            # 物料、分类、单位模块
 │   ├── sku/                 # SKU 模块
-│   ├── inventory/           # 库存余额、库存层与后续写操作
+│   ├── inventory/           # 库存余额、库存层、库存写操作、预留与流水
 │   ├── warehouse/           # 仓库模块
 │   └── shared/              # 配置、数据库、HTTP、健康检查等共享能力
 ├── migrations/              # 数据库迁移（规范见 migrations/AGENTS.md）

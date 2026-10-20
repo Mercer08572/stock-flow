@@ -15,6 +15,12 @@ type Service interface {
 	ListStocks(ctx context.Context, filter ListStocksFilter) (StockListResult, error)
 	GetStock(ctx context.Context, query GetStockQuery) (*StockBalance, error)
 	ListLayers(ctx context.Context, filter ListLayersFilter) (LayerListResult, error)
+
+	IncreaseStock(ctx context.Context, req IncreaseStockRequest) (*StockOperationResult, error)
+	ReserveStock(ctx context.Context, req ReserveStockRequest) (*StockOperationResult, error)
+	ReleaseStock(ctx context.Context, req ReleaseStockRequest) (*StockOperationResult, error)
+	DecreaseStock(ctx context.Context, req DecreaseStockRequest) (*StockOperationResult, error)
+	ListMovements(ctx context.Context, filter ListMovementsFilter) (MovementListResult, error)
 }
 
 type Repository interface {
@@ -24,27 +30,64 @@ type Repository interface {
 	BatchExistsForSKU(ctx context.Context, batchID int64, skuID int64) (bool, error)
 	HasWarehouseReferences(ctx context.Context, warehouseID int64) (bool, error)
 	HasSKUReferences(ctx context.Context, skuID int64) (bool, error)
+
+	GetBatch(ctx context.Context, batchID int64, skuID int64) (*BatchInfo, error)
+
+	EnsureStockRow(ctx context.Context, warehouseID int64, skuID int64) error
+	LockStockRow(ctx context.Context, warehouseID int64, skuID int64) (*StockBalance, error)
+	AddStockOnHand(ctx context.Context, warehouseID int64, skuID int64, qty string) error
+	ReserveStock(ctx context.Context, warehouseID int64, skuID int64, qty string) (bool, error)
+	ReleaseStockReserved(ctx context.Context, warehouseID int64, skuID int64, qty string) (bool, error)
+	DecreaseStockAvailable(ctx context.Context, warehouseID int64, skuID int64, qty string) (bool, error)
+	ConsumeStockReserved(ctx context.Context, warehouseID int64, skuID int64, qty string) (bool, error)
+
+	InsertStockLayer(ctx context.Context, warehouseID int64, skuID int64, batchID *int64, qty string) (*StockLayer, error)
+	ListAvailableStockLayersForUpdate(ctx context.Context, warehouseID int64, skuID int64, batchID *int64) ([]StockLayer, error)
+	AddStockLayerReserved(ctx context.Context, stockLayerID int64, qty string) (bool, error)
+	DecreaseStockLayerAvailable(ctx context.Context, stockLayerID int64, qty string) (bool, error)
+	ReleaseStockLayerReserved(ctx context.Context, stockLayerID int64, qty string) (bool, error)
+	ConsumeStockLayerReserved(ctx context.Context, stockLayerID int64, qty string) (bool, error)
+
+	InsertReservation(ctx context.Context, input ReservationInput) (*ReservationRecord, error)
+	LockReservation(ctx context.Context, reservationID int64) (*ReservationRecord, error)
+	AddReservationReleased(ctx context.Context, reservationID int64, qty string) (*ReservationRecord, error)
+	AddReservationConsumed(ctx context.Context, reservationID int64, qty string) (*ReservationRecord, error)
+	InsertReservationItem(ctx context.Context, reservationID int64, stockLayerID int64, qty string) (*ReservationItemRecord, error)
+	ListReservationItemsForUpdate(ctx context.Context, reservationID int64) ([]ReservationItemRecord, error)
+	AddReservationItemReleased(ctx context.Context, reservationItemID int64, qty string) (bool, error)
+	AddReservationItemConsumed(ctx context.Context, reservationItemID int64, qty string) (bool, error)
+
+	InsertMovement(ctx context.Context, input MovementInput) (*Movement, error)
+	ListMovements(ctx context.Context, filter ListMovementsFilter) ([]Movement, error)
+
+	ClaimIdempotencyKey(ctx context.Context, input IdempotencyClaim) (*IdempotencyRecord, bool, error)
+	GetIdempotencyKey(ctx context.Context, operationType string, key string) (*IdempotencyRecord, error)
+	CompleteIdempotencyKey(ctx context.Context, input IdempotencyCompletion) error
 }
 
 type WarehouseReader interface {
 	GetReference(ctx context.Context, id int64) (*warehouse.Reference, error)
+	Get(ctx context.Context, id int64) (*warehouse.Warehouse, error)
 }
 
 type SKUReader interface {
 	GetReference(ctx context.Context, id int64) (*sku.Reference, error)
+	Get(ctx context.Context, id int64) (*sku.SKU, error)
 }
 
 type service struct {
 	repo            Repository
 	warehouseReader WarehouseReader
 	skuReader       SKUReader
+	uow             UnitOfWork
 }
 
-func NewService(repo Repository, warehouseReader WarehouseReader, skuReader SKUReader) Service {
+func NewService(repo Repository, warehouseReader WarehouseReader, skuReader SKUReader, uow UnitOfWork) Service {
 	return &service{
 		repo:            repo,
 		warehouseReader: warehouseReader,
 		skuReader:       skuReader,
+		uow:             uow,
 	}
 }
 

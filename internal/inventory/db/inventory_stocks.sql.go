@@ -274,35 +274,3 @@ func (q *Queries) ListInventoryStocks(ctx context.Context, arg ListInventoryStoc
 	}
 	return items, nil
 }
-
-const sKUExistsForInventory = `-- name: SKUExistsForInventory :one
-SELECT EXISTS (
-    SELECT 1
-    FROM skus
-    WHERE id = $1
-      AND deleted_at IS NULL
-) AS exists
-`
-
-func (q *Queries) SKUExistsForInventory(ctx context.Context, id int64) (bool, error) {
-	row := q.db.QueryRow(ctx, sKUExistsForInventory, id)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
-}
-
-const warehouseExistsForInventory = `-- name: WarehouseExistsForInventory :one
-SELECT EXISTS (
-    SELECT 1
-    FROM warehouses
-    WHERE id = $1
-      AND deleted_at IS NULL
-) AS exists
-`
-
-func (q *Queries) WarehouseExistsForInventory(ctx context.Context, id int64) (bool, error) {
-	row := q.db.QueryRow(ctx, warehouseExistsForInventory, id)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
-}

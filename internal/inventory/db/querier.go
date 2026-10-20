@@ -9,17 +9,44 @@ import (
 )
 
 type Querier interface {
+	AddInventoryReservationConsumed(ctx context.Context, arg AddInventoryReservationConsumedParams) (AddInventoryReservationConsumedRow, error)
+	AddInventoryReservationItemConsumed(ctx context.Context, arg AddInventoryReservationItemConsumedParams) (int64, error)
+	AddInventoryReservationItemReleased(ctx context.Context, arg AddInventoryReservationItemReleasedParams) (int64, error)
+	AddInventoryReservationReleased(ctx context.Context, arg AddInventoryReservationReleasedParams) (AddInventoryReservationReleasedRow, error)
+	AddInventoryStockLayerReserved(ctx context.Context, arg AddInventoryStockLayerReservedParams) (int64, error)
+	AddInventoryStockOnHand(ctx context.Context, arg AddInventoryStockOnHandParams) (int64, error)
+	ClaimInventoryIdempotencyKey(ctx context.Context, arg ClaimInventoryIdempotencyKeyParams) (ClaimInventoryIdempotencyKeyRow, error)
+	CompleteInventoryIdempotencyKey(ctx context.Context, arg CompleteInventoryIdempotencyKeyParams) (int64, error)
+	ConsumeInventoryStockLayerReserved(ctx context.Context, arg ConsumeInventoryStockLayerReservedParams) (int64, error)
+	ConsumeInventoryStockReserved(ctx context.Context, arg ConsumeInventoryStockReservedParams) (int64, error)
+	DecreaseInventoryStockAvailable(ctx context.Context, arg DecreaseInventoryStockAvailableParams) (int64, error)
+	DecreaseInventoryStockLayerAvailable(ctx context.Context, arg DecreaseInventoryStockLayerAvailableParams) (int64, error)
+	EnsureInventoryStockRow(ctx context.Context, arg EnsureInventoryStockRowParams) error
+	GetInventoryBatchForSKU(ctx context.Context, arg GetInventoryBatchForSKUParams) (GetInventoryBatchForSKURow, error)
+	GetInventoryIdempotencyKey(ctx context.Context, arg GetInventoryIdempotencyKeyParams) (GetInventoryIdempotencyKeyRow, error)
 	GetInventoryStock(ctx context.Context, arg GetInventoryStockParams) (GetInventoryStockRow, error)
 	HasSKUInventoryReferences(ctx context.Context, skuID int64) (bool, error)
 	HasWarehouseInventoryReferences(ctx context.Context, warehouseID int64) (bool, error)
+	InsertInventoryMovement(ctx context.Context, arg InsertInventoryMovementParams) (InsertInventoryMovementRow, error)
+	InsertInventoryReservation(ctx context.Context, arg InsertInventoryReservationParams) (InsertInventoryReservationRow, error)
+	InsertInventoryReservationItem(ctx context.Context, arg InsertInventoryReservationItemParams) (InsertInventoryReservationItemRow, error)
+	InsertInventoryStockLayer(ctx context.Context, arg InsertInventoryStockLayerParams) (InsertInventoryStockLayerRow, error)
 	InventoryBatchExistsForSKU(ctx context.Context, arg InventoryBatchExistsForSKUParams) (bool, error)
+	ListInventoryMovements(ctx context.Context, arg ListInventoryMovementsParams) ([]ListInventoryMovementsRow, error)
+	ListInventoryReservationItemsForUpdate(ctx context.Context, reservationID int64) ([]ListInventoryReservationItemsForUpdateRow, error)
 	// 分配顺序：先按批次 dispatch_priority（0-9 提升、10 默认、11+ 延后；非批次层视为 10），
 	// 再按 received_at, id 即 FIFO。
 	// 注意：左侧不过滤批次 deleted_at，否则批次被软删除时其库存层会从结果中消失。
 	ListInventoryStockLayers(ctx context.Context, arg ListInventoryStockLayersParams) ([]ListInventoryStockLayersRow, error)
+	// 分配顺序：指定 batch_id 时目标批次优先，随后按 dispatch_priority、received_at、id。
+	// 非批次层视为 dispatch_priority = 10。锁定库存层行，防止并发分配超扣。
+	ListInventoryStockLayersForUpdate(ctx context.Context, arg ListInventoryStockLayersForUpdateParams) ([]ListInventoryStockLayersForUpdateRow, error)
 	ListInventoryStocks(ctx context.Context, arg ListInventoryStocksParams) ([]ListInventoryStocksRow, error)
-	SKUExistsForInventory(ctx context.Context, id int64) (bool, error)
-	WarehouseExistsForInventory(ctx context.Context, id int64) (bool, error)
+	LockInventoryReservation(ctx context.Context, id int64) (LockInventoryReservationRow, error)
+	LockInventoryStockRow(ctx context.Context, arg LockInventoryStockRowParams) (LockInventoryStockRowRow, error)
+	ReleaseInventoryStockLayerReserved(ctx context.Context, arg ReleaseInventoryStockLayerReservedParams) (int64, error)
+	ReleaseInventoryStockReserved(ctx context.Context, arg ReleaseInventoryStockReservedParams) (int64, error)
+	ReserveInventoryStock(ctx context.Context, arg ReserveInventoryStockParams) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

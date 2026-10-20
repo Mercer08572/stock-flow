@@ -849,6 +849,358 @@
                 }
             }
         },
+        "/inventory/decrease": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Decrease stock",
+                "parameters": [
+                    {
+                        "description": "Decrease stock payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/inventory.decreaseStockHTTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/inventory.StockOperationResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/inventory/increase": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Increase stock",
+                "parameters": [
+                    {
+                        "description": "Increase stock payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/inventory.increaseStockHTTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/inventory.StockOperationResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/inventory/movements": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "List inventory movements",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Warehouse ID",
+                        "name": "warehouse_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "SKU ID",
+                        "name": "sku_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "increase",
+                            "reserve",
+                            "release_reserved",
+                            "decrease_available",
+                            "decrease_reserved"
+                        ],
+                        "type": "string",
+                        "description": "Operation type",
+                        "name": "operation_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Created from (RFC3339)",
+                        "name": "created_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Created to (RFC3339, exclusive)",
+                        "name": "created_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page offset",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/inventory.MovementListResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/inventory/release": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Release reserved stock",
+                "parameters": [
+                    {
+                        "description": "Release stock payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/inventory.releaseStockHTTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/inventory.StockOperationResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/inventory/reserve": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Reserve stock",
+                "parameters": [
+                    {
+                        "description": "Reserve stock payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/inventory.reserveStockHTTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/inventory.StockOperationResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
         "/inventory/stocks": {
             "get": {
                 "produces": [
@@ -3498,6 +3850,142 @@
                 }
             }
         },
+        "inventory.Movement": {
+            "type": "object",
+            "properties": {
+                "actor_id": {
+                    "type": "integer"
+                },
+                "actor_label": {
+                    "type": "string"
+                },
+                "actor_type": {
+                    "type": "string"
+                },
+                "batch_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "idempotency_key": {
+                    "type": "string"
+                },
+                "operation_type": {
+                    "type": "string"
+                },
+                "qty": {
+                    "type": "string"
+                },
+                "reservation_id": {
+                    "type": "integer"
+                },
+                "reservation_item_id": {
+                    "type": "integer"
+                },
+                "sku_id": {
+                    "type": "integer"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "source_line_id": {
+                    "type": "string"
+                },
+                "source_type": {
+                    "type": "string"
+                },
+                "stock_layer_id": {
+                    "type": "integer"
+                },
+                "warehouse_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "inventory.MovementListResult": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/inventory.Movement"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                }
+            }
+        },
+        "inventory.MovementRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "qty": {
+                    "type": "string"
+                },
+                "stock_layer_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "inventory.ReservationAllocation": {
+            "type": "object",
+            "properties": {
+                "batch_id": {
+                    "type": "integer"
+                },
+                "qty": {
+                    "type": "string"
+                },
+                "reservation_item_id": {
+                    "type": "integer"
+                },
+                "stock_layer_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "inventory.ReservationSnapshot": {
+            "type": "object",
+            "properties": {
+                "allocations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/inventory.ReservationAllocation"
+                    }
+                },
+                "close_reason": {
+                    "type": "string"
+                },
+                "consumed_qty": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "released_qty": {
+                    "type": "string"
+                },
+                "remaining_qty": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_qty": {
+                    "type": "string"
+                }
+            }
+        },
         "inventory.StockBalance": {
             "type": "object",
             "properties": {
@@ -3587,6 +4075,171 @@
                     "type": "integer"
                 },
                 "offset": {
+                    "type": "integer"
+                }
+            }
+        },
+        "inventory.StockOperationResult": {
+            "type": "object",
+            "properties": {
+                "batch_id": {
+                    "type": "integer"
+                },
+                "movements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/inventory.MovementRef"
+                    }
+                },
+                "operation_type": {
+                    "type": "string"
+                },
+                "qty": {
+                    "type": "string"
+                },
+                "reservation": {
+                    "$ref": "#/definitions/inventory.ReservationSnapshot"
+                },
+                "sku_id": {
+                    "type": "integer"
+                },
+                "stock_after": {
+                    "$ref": "#/definitions/inventory.StockQuantities"
+                },
+                "warehouse_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "inventory.StockQuantities": {
+            "type": "object",
+            "properties": {
+                "available_qty": {
+                    "type": "string"
+                },
+                "on_hand_qty": {
+                    "type": "string"
+                },
+                "reserved_qty": {
+                    "type": "string"
+                }
+            }
+        },
+        "inventory.decreaseStockHTTPRequest": {
+            "type": "object",
+            "properties": {
+                "batch_id": {
+                    "type": "integer"
+                },
+                "idempotency_key": {
+                    "type": "string"
+                },
+                "qty": {
+                    "type": "string"
+                },
+                "reservation_id": {
+                    "type": "integer"
+                },
+                "sku_id": {
+                    "type": "integer"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "source_line_id": {
+                    "type": "string"
+                },
+                "source_type": {
+                    "type": "string"
+                },
+                "warehouse_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "inventory.increaseStockHTTPRequest": {
+            "type": "object",
+            "properties": {
+                "batch_id": {
+                    "type": "integer"
+                },
+                "idempotency_key": {
+                    "type": "string"
+                },
+                "qty": {
+                    "type": "string"
+                },
+                "sku_id": {
+                    "type": "integer"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "source_line_id": {
+                    "type": "string"
+                },
+                "source_type": {
+                    "type": "string"
+                },
+                "warehouse_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "inventory.releaseStockHTTPRequest": {
+            "type": "object",
+            "properties": {
+                "idempotency_key": {
+                    "type": "string"
+                },
+                "qty": {
+                    "type": "string"
+                },
+                "reservation_id": {
+                    "type": "integer"
+                },
+                "sku_id": {
+                    "type": "integer"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "source_line_id": {
+                    "type": "string"
+                },
+                "source_type": {
+                    "type": "string"
+                },
+                "warehouse_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "inventory.reserveStockHTTPRequest": {
+            "type": "object",
+            "properties": {
+                "batch_id": {
+                    "type": "integer"
+                },
+                "idempotency_key": {
+                    "type": "string"
+                },
+                "qty": {
+                    "type": "string"
+                },
+                "sku_id": {
+                    "type": "integer"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "source_line_id": {
+                    "type": "string"
+                },
+                "source_type": {
+                    "type": "string"
+                },
+                "warehouse_id": {
                     "type": "integer"
                 }
             }

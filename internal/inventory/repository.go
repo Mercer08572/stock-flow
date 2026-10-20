@@ -16,7 +16,11 @@ type postgresRepository struct {
 }
 
 func NewPostgresRepository(db *pgxpool.Pool) Repository {
-	return &postgresRepository{queries: inventorydb.New(db)}
+	return newPostgresRepository(inventorydb.New(db))
+}
+
+func newPostgresRepository(queries inventorydb.Querier) Repository {
+	return &postgresRepository{queries: queries}
 }
 
 func (r *postgresRepository) ListStocks(ctx context.Context, filter ListStocksFilter) ([]StockBalance, error) {

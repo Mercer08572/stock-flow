@@ -7,7 +7,7 @@ CONFIG_PACKAGE := ./cmd/config
 ADMIN_PACKAGE := ./cmd/admin
 PG_DUMP ?= pg_dump
 
-.PHONY: help fmt test run admin-init swagger sqlc config-database-url schema-dump migrate-up migrate-down migrate-down-all migrate-version migrate-force
+.PHONY: help fmt test test-integration run admin-init swagger sqlc config-database-url schema-dump migrate-up migrate-down migrate-down-all migrate-version migrate-force
 
 # Allow an optional positional step count, for example: make migrate-up 2.
 ifeq ($(firstword $(MAKECMDGOALS)),migrate-up)
@@ -25,6 +25,7 @@ help:
 	@echo "Go:"
 	@echo "  make fmt               - Format Go source files"
 	@echo "  make test              - Run Go tests"
+	@echo "  make test-integration  - Run database integration tests (requires TEST_DATABASE_URL)"
 	@echo "  make run               - Run API server"
 	@echo "  make admin-init        - Initialize the administrator password"
 	@echo ""
@@ -53,6 +54,11 @@ fmt:
 
 test:
 	go test ./...
+
+# Database integration tests are isolated by //go:build integration.
+# -p 1 serializes packages so they do not migrate/truncate the same test database at once.
+test-integration:
+	go test -tags=integration -count=1 -p 1 ./...
 
 run:
 	go run $(API_PACKAGE)

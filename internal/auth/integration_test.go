@@ -6,29 +6,25 @@ import (
 	"context"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Mercer08572/stock-flow/internal/auth"
+	"github.com/Mercer08572/stock-flow/internal/shared/testdb"
 )
 
 // TestAdminBootstrapAgainstMigratedDatabase walks the deployment bootstrap path against a real
 // PostgreSQL database: apply every migration in migrations/, then initialize the administrator.
 //
-// It only runs when TEST_DATABASE_URL points at a disposable database, because it drops and
-// recreates the whole schema. TestDatabaseURL is an environment variable, so unlike
-// internal/shared/config.Load it never falls back to .env or to DATABASE_URL.
+// It only runs when TEST_DATABASE_URL points at a disposable database. The shared testdb
+// helper creates an isolated schema per test process, so this test never touches the
+// database's public schema.
 func TestAdminBootstrapAgainstMigratedDatabase(t *testing.T) {
-	requireIntegrationEnv(t)
-
-	pool := newTestPool(t)
-	runMigrate(t, "drop", "-f")
-	runMigrate(t, "up")
+	db := testdb.Require(t)
+	pool := db.Pool
 
 	var adminRows int
 	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM admin_users`).Scan(&adminRows); err != nil {
@@ -113,71 +109,6 @@ func TestAdminBootstrapAgainstMigratedDatabase(t *testing.T) {
 	}
 
 	verifyMigrationMetadataIsApplied(t)
-}
-
-func requireIntegrationEnv(t *testing.T) {
-	t.Helper()
-	if os.Getenv(testDatabaseURLEnv) == "" {
-		t.Skipf("set %s to a disposable database to run the integration tests", testDatabaseURLEnv)
-	}
-	if resolveMigrateBinary() == "" {
-		t.Skip("the golang-migrate CLI is required to run the integration tests")
-	}
-}
-
-const testDatabaseURLEnv = "TEST_DATABASE_URL"
-
-// newTestPool connects to the disposable database described by TEST_DATABASE_URL while keeping
-// the developer .env file out of the picture.
-func newTestPool(t *testing.T) *pgxpool.Pool {
-	t.Helper()
-	// config.Load reads .env from the process working directory; pin it to an empty file so the
-	// database under test is decided solely by TEST_DATABASE_URL.
-	envFile := filepath.Join(t.TempDir(), "empty.env")
-	if err := os.WriteFile(envFile, nil, 0o600); err != nil {
-		t.Fatalf("write isolated env file: %v", err)
-	}
-	t.Setenv("ENV_FILE", envFile)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	pool, err := pgxpool.New(ctx, os.Getenv(testDatabaseURLEnv))
-	if err != nil {
-		t.Fatalf("connect to %s: %v", testDatabaseURLEnv, err)
-	}
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		t.Fatalf("ping %s: %v", testDatabaseURLEnv, err)
-	}
-	t.Cleanup(pool.Close)
-	return pool
-}
-
-func runMigrate(t *testing.T, args ...string) {
-	t.Helper()
-	migrationsPath, err := filepath.Abs(filepath.Join("..", "..", "migrations"))
-	if err != nil {
-		t.Fatalf("resolve migrations directory: %v", err)
-	}
-	commandArgs := append([]string{
-		"-path", migrationsPath,
-		"-database", migrateDatabaseURL(),
-	}, args...)
-	output, err := exec.Command(resolveMigrateBinary(), commandArgs...).CombinedOutput()
-	if err != nil {
-		t.Fatalf("migrate %v: %v\n%s", args, err, output)
-	}
-}
-
-func migrateDatabaseURL() string {
-	return "pgx5://" + strings.TrimPrefix(strings.TrimPrefix(os.Getenv(testDatabaseURLEnv), "postgres://"), "postgresql://")
-}
-
-func resolveMigrateBinary() string {
-	if path, err := exec.LookPath("migrate"); err == nil {
-		return path
-	}
-	return ""
 }
 
 func readAdminState(t *testing.T, pool *pgxpool.Pool) (passwordHash string, initialized bool, mustChange bool) {

@@ -127,11 +127,11 @@ warehouse_sku.reserved_qty = sum(layer.reserved_qty)
 
 ```go
 type InventoryService interface {
-    IncreaseStock(ctx context.Context, req IncreaseStockRequest) error
-    ReserveStock(ctx context.Context, req ReserveStockRequest) error
-    ReleaseReservedStock(ctx context.Context, req ReleaseReservedStockRequest) error
-    DecreaseAvailableStock(ctx context.Context, req DecreaseAvailableStockRequest) error
-    DecreaseReservedStock(ctx context.Context, req DecreaseReservedStockRequest) error
+    IncreaseStock(ctx context.Context, req IncreaseStockRequest) (*StockOperationResult, error)
+    ReserveStock(ctx context.Context, req ReserveStockRequest) (*StockOperationResult, error)
+    ReleaseStock(ctx context.Context, req ReleaseStockRequest) (*StockOperationResult, error)
+    DecreaseStock(ctx context.Context, req DecreaseStockRequest) (*StockOperationResult, error)
+    ListMovements(ctx context.Context, filter ListMovementsFilter) (MovementListResult, error)
     GetStock(ctx context.Context, query StockQuery) (*Stock, error)
 }
 ```
@@ -330,10 +330,18 @@ reserved_qty -= qty
 
 ```text
 POST /api/v1/inventory/increase
+POST /api/v1/inventory/decrease
 POST /api/v1/inventory/reserve
 POST /api/v1/inventory/release
-POST /api/v1/inventory/decrease-available
-POST /api/v1/inventory/decrease-reserved
+```
+
+`decrease` 带 `reservation_id` 时扣减预留库存（`decrease_reserved`），不带时扣减可用库存（`decrease_available`）。
+`release` 必须引用原始预留单，并支持部分释放。
+
+预期流水查询资源：
+
+```text
+GET /api/v1/inventory/movements
 ```
 
 所有响应必须使用 `pkg/response` 包。

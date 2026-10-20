@@ -113,9 +113,14 @@ func newInventoryRouter(service inventory.Service) *gin.Engine {
 }
 
 type fakeService struct {
-	listStocksFunc func(context.Context, inventory.ListStocksFilter) (inventory.StockListResult, error)
-	getStockFunc   func(context.Context, inventory.GetStockQuery) (*inventory.StockBalance, error)
-	listLayersFunc func(context.Context, inventory.ListLayersFilter) (inventory.LayerListResult, error)
+	listStocksFunc    func(context.Context, inventory.ListStocksFilter) (inventory.StockListResult, error)
+	getStockFunc      func(context.Context, inventory.GetStockQuery) (*inventory.StockBalance, error)
+	listLayersFunc    func(context.Context, inventory.ListLayersFilter) (inventory.LayerListResult, error)
+	increaseStockFunc func(context.Context, inventory.IncreaseStockRequest) (*inventory.StockOperationResult, error)
+	reserveStockFunc  func(context.Context, inventory.ReserveStockRequest) (*inventory.StockOperationResult, error)
+	releaseStockFunc  func(context.Context, inventory.ReleaseStockRequest) (*inventory.StockOperationResult, error)
+	decreaseStockFunc func(context.Context, inventory.DecreaseStockRequest) (*inventory.StockOperationResult, error)
+	listMovementsFunc func(context.Context, inventory.ListMovementsFilter) (inventory.MovementListResult, error)
 }
 
 func (s *fakeService) ListStocks(ctx context.Context, filter inventory.ListStocksFilter) (inventory.StockListResult, error) {
@@ -137,4 +142,39 @@ func (s *fakeService) ListLayers(ctx context.Context, filter inventory.ListLayer
 		return s.listLayersFunc(ctx, filter)
 	}
 	return inventory.LayerListResult{}, nil
+}
+
+func (s *fakeService) IncreaseStock(ctx context.Context, req inventory.IncreaseStockRequest) (*inventory.StockOperationResult, error) {
+	if s.increaseStockFunc != nil {
+		return s.increaseStockFunc(ctx, req)
+	}
+	return nil, errFakeRepositoryNotImplemented
+}
+
+func (s *fakeService) ReserveStock(ctx context.Context, req inventory.ReserveStockRequest) (*inventory.StockOperationResult, error) {
+	if s.reserveStockFunc != nil {
+		return s.reserveStockFunc(ctx, req)
+	}
+	return nil, errFakeRepositoryNotImplemented
+}
+
+func (s *fakeService) ReleaseStock(ctx context.Context, req inventory.ReleaseStockRequest) (*inventory.StockOperationResult, error) {
+	if s.releaseStockFunc != nil {
+		return s.releaseStockFunc(ctx, req)
+	}
+	return nil, errFakeRepositoryNotImplemented
+}
+
+func (s *fakeService) DecreaseStock(ctx context.Context, req inventory.DecreaseStockRequest) (*inventory.StockOperationResult, error) {
+	if s.decreaseStockFunc != nil {
+		return s.decreaseStockFunc(ctx, req)
+	}
+	return nil, errFakeRepositoryNotImplemented
+}
+
+func (s *fakeService) ListMovements(ctx context.Context, filter inventory.ListMovementsFilter) (inventory.MovementListResult, error) {
+	if s.listMovementsFunc != nil {
+		return s.listMovementsFunc(ctx, filter)
+	}
+	return inventory.MovementListResult{}, errFakeRepositoryNotImplemented
 }

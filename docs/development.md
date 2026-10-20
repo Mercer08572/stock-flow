@@ -217,7 +217,7 @@ sql/queries/materials.sql -> internal/material/db
 
 ## 测试
 
-使用以下命令运行所有测试：
+使用以下命令运行所有单元测试：
 
 ```bash
 make test
@@ -228,3 +228,34 @@ make test
 ```bash
 GOCACHE=/private/tmp/stock-flow-go-build-cache make test
 ```
+
+### 数据库集成测试
+
+集成测试由 `//go:build integration` 隔离，默认不会编译进 `go test ./...`。
+测试库连接串写在项目根目录的 `.env.test`（已被 `.gitignore` 忽略，不会入库）：
+
+```dotenv
+TEST_DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/stock_flow_test?sslmode=require
+TEST_DATABASE_ALLOW_DESTRUCTIVE=1
+```
+
+- 必须是**专用、可清空**的测试库，禁止指向开发库或生产库；远程库建议启用 TLS（`sslmode=require` 或 `verify-full`）。
+- 已 `export TEST_DATABASE_URL=...` 时环境变量优先；没有该文件且未导出变量时，集成测试自动跳过。
+- 缺少 `migrate` CLI 时同样跳过；可用 `MIGRATE_BIN=/path/to/migrate` 指定。
+- 安全闸门：库名不含 `test` 时必须显式设置 `TEST_DATABASE_ALLOW_DESTRUCTIVE=1`。
+- 测试会执行 `migrations/` 全量迁移，并用 `TRUNCATE ... RESTART IDENTITY CASCADE` 清理数据。
+
+运行：
+
+```bash
+make test-integration
+```
+
+等价于：
+
+```bash
+go test -tags=integration -count=1 -p 1 ./...
+```
+
+`-p 1` 用于串行化测试包，避免多个包同时对同一个测试库执行迁移或清理。
+不要在多个终端同时运行集成测试。

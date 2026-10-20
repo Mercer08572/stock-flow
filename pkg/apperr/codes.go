@@ -62,8 +62,17 @@ const (
 	CodeMaterialConversionBaseUnitRequired Code = "MATERIAL_CONVERSION_BASE_UNIT_REQUIRED"
 
 	// 库存
-	CodeInventoryStockNotFound     Code = "INVENTORY_STOCK_NOT_FOUND"
-	CodeInventoryWarehouseNotFound Code = "INVENTORY_WAREHOUSE_NOT_FOUND"
-	CodeInventorySKUNotFound       Code = "INVENTORY_SKU_NOT_FOUND"
-	CodeInventoryBatchNotFound     Code = "INVENTORY_BATCH_NOT_FOUND"
+	CodeInventoryStockNotFound         Code = "INVENTORY_STOCK_NOT_FOUND"
+	CodeInventoryWarehouseNotFound     Code = "INVENTORY_WAREHOUSE_NOT_FOUND"
+	CodeInventoryWarehouseInactive     Code = "INVENTORY_WAREHOUSE_INACTIVE"
+	CodeInventorySKUNotFound           Code = "INVENTORY_SKU_NOT_FOUND"
+	CodeInventoryBatchNotFound         Code = "INVENTORY_BATCH_NOT_FOUND"
+	CodeInventoryBatchInactive         Code = "INVENTORY_BATCH_INACTIVE"
+	CodeInventoryInsufficientAvailable Code = "INVENTORY_INSUFFICIENT_AVAILABLE"
+	CodeInventoryInsufficientReserved  Code = "INVENTORY_INSUFFICIENT_RESERVED"
+	CodeInventoryReservationNotFound   Code = "INVENTORY_RESERVATION_NOT_FOUND"
+	CodeInventoryReservationNotActive  Code = "INVENTORY_RESERVATION_NOT_ACTIVE"
+	CodeInventoryReservationMismatch   Code = "INVENTORY_RESERVATION_MISMATCH"
+	CodeInventoryIdempotencyConflict   Code = "INVENTORY_IDEMPOTENCY_CONFLICT"
+	CodeInventoryOperationInProgress   Code = "INVENTORY_OPERATION_IN_PROGRESS"
 )

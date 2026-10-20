@@ -22,7 +22,7 @@ func TestServiceGetStockCalculatesAvailableQty(t *testing.T) {
 		ReservedQty: "3.125000",
 		UpdatedAt:   &now,
 	}
-	service := inventory.NewService(repo, newFakeWarehouseReader(1), newFakeSKUReader(2))
+	service := newTestService(repo, newFakeWarehouseReader(1), newFakeSKUReader(2))
 
 	got, err := service.GetStock(ctx, inventory.GetStockQuery{WarehouseID: 1, SKUID: 2})
 	if err != nil {
@@ -54,7 +54,7 @@ func TestServiceGetStockAllowsDeletedMasterDataReferences(t *testing.T) {
 	skuReader := newFakeSKUReader(2)
 	skuReader.references[2] = sku.Reference{ID: 2, Code: "SKU-001", Name: "Item", Deleted: true}
 
-	service := inventory.NewService(repo, warehouseReader, skuReader)
+	service := newTestService(repo, warehouseReader, skuReader)
 	got, err := service.GetStock(ctx, inventory.GetStockQuery{WarehouseID: 1, SKUID: 2})
 	if err != nil {
 		t.Fatalf("get historical stock: %v", err)
@@ -69,7 +69,7 @@ func TestServiceGetStockAllowsDeletedMasterDataReferences(t *testing.T) {
 
 func TestServiceGetStockReturnsZeroBalanceForMissingStock(t *testing.T) {
 	ctx := context.Background()
-	service := inventory.NewService(newFakeRepository(), newFakeWarehouseReader(1), newFakeSKUReader(2))
+	service := newTestService(newFakeRepository(), newFakeWarehouseReader(1), newFakeSKUReader(2))
 
 	got, err := service.GetStock(ctx, inventory.GetStockQuery{WarehouseID: 1, SKUID: 2})
 	if err != nil {
@@ -86,7 +86,7 @@ func TestServiceGetStockReturnsZeroBalanceForMissingStock(t *testing.T) {
 
 func TestServiceGetStockValidatesReferences(t *testing.T) {
 	ctx := context.Background()
-	service := inventory.NewService(newFakeRepository(), newFakeWarehouseReader(), newFakeSKUReader(2))
+	service := newTestService(newFakeRepository(), newFakeWarehouseReader(), newFakeSKUReader(2))
 
 	_, err := service.GetStock(ctx, inventory.GetStockQuery{WarehouseID: 1, SKUID: 2})
 
@@ -115,7 +115,7 @@ func TestServiceListStocksNormalizesFilter(t *testing.T) {
 	}
 	warehouseID := int64(1)
 	skuID := int64(2)
-	service := inventory.NewService(repo, newFakeWarehouseReader(1), newFakeSKUReader(2, 3))
+	service := newTestService(repo, newFakeWarehouseReader(1), newFakeSKUReader(2, 3))
 
 	result, err := service.ListStocks(ctx, inventory.ListStocksFilter{
 		WarehouseID: &warehouseID,
@@ -167,7 +167,7 @@ func TestServiceListLayersFiltersByBatch(t *testing.T) {
 			UpdatedAt:   now,
 		},
 	)
-	service := inventory.NewService(repo, newFakeWarehouseReader(1), newFakeSKUReader(2))
+	service := newTestService(repo, newFakeWarehouseReader(1), newFakeSKUReader(2))
 
 	result, err := service.ListLayers(ctx, inventory.ListLayersFilter{
 		WarehouseID: 1,
@@ -186,7 +186,7 @@ func TestServiceListLayersFiltersByBatch(t *testing.T) {
 func TestServiceListLayersRejectsInvalidBatchForSKU(t *testing.T) {
 	ctx := context.Background()
 	batchID := int64(9)
-	service := inventory.NewService(newFakeRepository(), newFakeWarehouseReader(1), newFakeSKUReader(2))
+	service := newTestService(newFakeRepository(), newFakeWarehouseReader(1), newFakeSKUReader(2))
 
 	_, err := service.ListLayers(ctx, inventory.ListLayersFilter{
 		WarehouseID: 1,
@@ -272,6 +272,18 @@ func (r *fakeRepository) HasSKUReferences(_ context.Context, skuID int64) (bool,
 	return false, nil
 }
 
+type immediateUnitOfWork struct {
+	repo inventory.Repository
+}
+
+func (u immediateUnitOfWork) WithinTx(ctx context.Context, fn func(context.Context, inventory.Repository) error) error {
+	return fn(ctx, u.repo)
+}
+
+func newTestService(repo inventory.Repository, warehouseReader inventory.WarehouseReader, skuReader inventory.SKUReader) inventory.Service {
+	return inventory.NewService(repo, warehouseReader, skuReader, immediateUnitOfWork{repo: repo})
+}
+
 type fakeWarehouseReader struct {
 	references map[int64]warehouse.Reference
 }
@@ -292,6 +304,19 @@ func (r *fakeWarehouseReader) GetReference(_ context.Context, id int64) (*wareho
 	return &reference, nil
 }
 
+func (r *fakeWarehouseReader) Get(_ context.Context, id int64) (*warehouse.Warehouse, error) {
+	reference, exists := r.references[id]
+	if !exists {
+		return nil, warehouse.ErrNotFound
+	}
+	return &warehouse.Warehouse{
+		ID:     reference.ID,
+		Code:   reference.Code,
+		Name:   reference.Name,
+		Status: warehouse.StatusActive,
+	}, nil
+}
+
 type fakeSKUReader struct {
 	references map[int64]sku.Reference
 }
@@ -310,4 +335,17 @@ func (r *fakeSKUReader) GetReference(_ context.Context, id int64) (*sku.Referenc
 		return nil, sku.ErrNotFound
 	}
 	return &reference, nil
+}
+
+func (r *fakeSKUReader) Get(_ context.Context, id int64) (*sku.SKU, error) {
+	reference, exists := r.references[id]
+	if !exists {
+		return nil, sku.ErrNotFound
+	}
+	return &sku.SKU{
+		ID:     reference.ID,
+		Code:   reference.Code,
+		Name:   reference.Name,
+		Status: sku.StatusActive,
+	}, nil
 }

@@ -443,6 +443,9 @@ idempotency_key     TEXT NOT NULL
 source_type         TEXT NULL
 source_id           TEXT NULL
 source_line_id      TEXT NULL
+actor_type          TEXT NULL
+actor_id            BIGINT NULL
+actor_label         TEXT NULL
 created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at          TIMESTAMPTZ NULL
@@ -467,6 +470,7 @@ deleted_at          TIMESTAMPTZ NULL
 
 - 在 `deleted_at IS NULL` 条件下为 `(warehouse_id, sku_id, status)` 创建索引。
 - 在 `deleted_at IS NULL` 条件下为 `(source_type, source_id, source_line_id)` 创建索引。
+- 在 `deleted_at IS NULL` 条件下为 `(actor_type, actor_id, created_at)` 创建索引。
 - 在 `deleted_at IS NULL` 条件下为 `idempotency_key` 创建索引。
 
 ## 库存预留明细
@@ -521,6 +525,9 @@ idempotency_key       TEXT NOT NULL
 source_type           TEXT NULL
 source_id             TEXT NULL
 source_line_id        TEXT NULL
+actor_type            TEXT NULL
+actor_id              BIGINT NULL
+actor_label           TEXT NULL
 created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 deleted_at            TIMESTAMPTZ NULL
@@ -549,6 +556,7 @@ deleted_at            TIMESTAMPTZ NULL
 - 为 `stock_layer_id` 创建索引。
 - 为 `reservation_id` 创建索引。
 - 为 `(source_type, source_id, source_line_id)` 创建索引。
+- 为 `(actor_type, actor_id, created_at)` 创建索引。
 - 为 `(operation_type, idempotency_key)` 创建索引。
 
 ## 库存幂等键
