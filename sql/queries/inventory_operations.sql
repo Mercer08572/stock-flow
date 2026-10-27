@@ -204,6 +204,54 @@ WHERE id = sqlc.arg('id')::bigint
   AND deleted_at IS NULL
 FOR UPDATE;
 
+-- name: ListInventoryReservations :many
+SELECT id,
+       warehouse_id,
+       sku_id,
+       total_qty,
+       released_qty,
+       consumed_qty,
+       status,
+       close_reason,
+       idempotency_key,
+       source_type,
+       source_id,
+       source_line_id,
+       actor_type,
+       actor_id,
+       actor_label,
+       created_at,
+       updated_at
+FROM inventory_reservations
+WHERE deleted_at IS NULL
+  AND (sqlc.narg('warehouse_id')::bigint IS NULL OR warehouse_id = sqlc.narg('warehouse_id')::bigint)
+  AND (sqlc.narg('sku_id')::bigint IS NULL OR sku_id = sqlc.narg('sku_id')::bigint)
+  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
+ORDER BY created_at DESC, id DESC
+LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+
+-- name: GetInventoryReservation :one
+SELECT id,
+       warehouse_id,
+       sku_id,
+       total_qty,
+       released_qty,
+       consumed_qty,
+       status,
+       close_reason,
+       idempotency_key,
+       source_type,
+       source_id,
+       source_line_id,
+       actor_type,
+       actor_id,
+       actor_label,
+       created_at,
+       updated_at
+FROM inventory_reservations
+WHERE id = sqlc.arg('id')::bigint
+  AND deleted_at IS NULL;
+
 -- name: AddInventoryReservationReleased :one
 UPDATE inventory_reservations
 SET released_qty = released_qty + sqlc.arg('qty')::numeric,
@@ -301,6 +349,24 @@ WHERE i.reservation_id = sqlc.arg('reservation_id')::bigint
   AND i.deleted_at IS NULL
 ORDER BY i.id
 FOR UPDATE OF i;
+
+-- name: ListInventoryReservationItems :many
+SELECT i.id,
+       i.reservation_id,
+       i.stock_layer_id,
+       l.batch_id,
+       l.received_at,
+       i.reserved_qty,
+       i.released_qty,
+       i.consumed_qty,
+       i.created_at,
+       i.updated_at
+FROM inventory_reservation_items i
+LEFT JOIN inventory_stock_layers l
+  ON l.id = i.stock_layer_id
+WHERE i.reservation_id = sqlc.arg('reservation_id')::bigint
+  AND i.deleted_at IS NULL
+ORDER BY i.id;
 
 -- name: AddInventoryReservationItemReleased :execrows
 UPDATE inventory_reservation_items

@@ -200,16 +200,37 @@ func TestServiceListLayersRejectsInvalidBatchForSKU(t *testing.T) {
 }
 
 type fakeRepository struct {
-	stocks  map[[2]int64]inventory.StockBalance
-	layers  []inventory.StockLayer
-	batches map[[2]int64]bool
+	stocks           map[[2]int64]inventory.StockBalance
+	layers           []inventory.StockLayer
+	batches          map[[2]int64]bool
+	reservations     map[int64]inventory.Reservation
+	reservationItems map[int64][]inventory.ReservationItem
 }
 
 func newFakeRepository() *fakeRepository {
 	return &fakeRepository{
-		stocks:  make(map[[2]int64]inventory.StockBalance),
-		batches: make(map[[2]int64]bool),
+		stocks:           make(map[[2]int64]inventory.StockBalance),
+		batches:          make(map[[2]int64]bool),
+		reservations:     make(map[int64]inventory.Reservation),
+		reservationItems: make(map[int64][]inventory.ReservationItem),
 	}
+}
+
+func (r *fakeRepository) ListReservations(_ context.Context, filter inventory.ListReservationsFilter) ([]inventory.Reservation, error) {
+	items := make([]inventory.Reservation, 0)
+	for _, item := range r.reservations {
+		if filter.WarehouseID != nil && item.WarehouseID != *filter.WarehouseID {
+			continue
+		}
+		if filter.SKUID != nil && item.SKUID != *filter.SKUID {
+			continue
+		}
+		if filter.Status != nil && item.Status != *filter.Status {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
 
 func (r *fakeRepository) ListStocks(_ context.Context, filter inventory.ListStocksFilter) ([]inventory.StockBalance, error) {

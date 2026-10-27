@@ -352,6 +352,54 @@ definitions:
       stock_layer_id:
         type: integer
     type: object
+  inventory.Reservation:
+    properties:
+      actor_id:
+        type: integer
+      actor_label:
+        type: string
+      actor_type:
+        type: string
+      close_reason:
+        type: string
+      consumed_qty:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      idempotency_key:
+        type: string
+      items:
+        description: Items 只在详情接口返回，列表接口不携带分配明细。
+        items:
+          $ref: '#/definitions/inventory.ReservationItem'
+        type: array
+      released_qty:
+        type: string
+      remaining_qty:
+        type: string
+      sku:
+        $ref: '#/definitions/sku.Reference'
+      sku_id:
+        type: integer
+      source_id:
+        type: string
+      source_line_id:
+        type: string
+      source_type:
+        type: string
+      status:
+        type: string
+      total_qty:
+        type: string
+      updated_at:
+        type: string
+      warehouse:
+        $ref: '#/definitions/warehouse.Reference'
+      warehouse_id:
+        type: integer
+    type: object
   inventory.ReservationAllocation:
     properties:
       batch_id:
@@ -361,6 +409,42 @@ definitions:
       reservation_item_id:
         type: integer
       stock_layer_id:
+        type: integer
+    type: object
+  inventory.ReservationItem:
+    properties:
+      batch_id:
+        type: integer
+      consumed_qty:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      received_at:
+        type: string
+      released_qty:
+        type: string
+      remaining_qty:
+        type: string
+      reservation_id:
+        type: integer
+      reserved_qty:
+        type: string
+      stock_layer_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  inventory.ReservationListResult:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/inventory.Reservation'
+        type: array
+      limit:
+        type: integer
+      offset:
         type: integer
     type: object
   inventory.ReservationSnapshot:
@@ -1619,6 +1703,87 @@ paths:
           schema:
             $ref: '#/definitions/response.Body'
       summary: Release reserved stock
+      tags:
+      - Inventory
+  /inventory/reservations:
+    get:
+      parameters:
+      - description: Warehouse ID
+        in: query
+        name: warehouse_id
+        type: integer
+      - description: SKU ID
+        in: query
+        name: sku_id
+        type: integer
+      - description: Reservation status (active or closed)
+        in: query
+        name: status
+        type: string
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Page offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.ReservationListResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: List inventory reservations
+      tags:
+      - Inventory
+  /inventory/reservations/{id}:
+    get:
+      parameters:
+      - description: Reservation ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.Reservation'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Get an inventory reservation
       tags:
       - Inventory
   /inventory/reserve:

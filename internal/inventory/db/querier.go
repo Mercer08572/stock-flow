@@ -24,6 +24,7 @@ type Querier interface {
 	EnsureInventoryStockRow(ctx context.Context, arg EnsureInventoryStockRowParams) error
 	GetInventoryBatchForSKU(ctx context.Context, arg GetInventoryBatchForSKUParams) (GetInventoryBatchForSKURow, error)
 	GetInventoryIdempotencyKey(ctx context.Context, arg GetInventoryIdempotencyKeyParams) (GetInventoryIdempotencyKeyRow, error)
+	GetInventoryReservation(ctx context.Context, id int64) (GetInventoryReservationRow, error)
 	GetInventoryStock(ctx context.Context, arg GetInventoryStockParams) (GetInventoryStockRow, error)
 	HasSKUInventoryReferences(ctx context.Context, skuID int64) (bool, error)
 	HasWarehouseInventoryReferences(ctx context.Context, warehouseID int64) (bool, error)
@@ -33,7 +34,9 @@ type Querier interface {
 	InsertInventoryStockLayer(ctx context.Context, arg InsertInventoryStockLayerParams) (InsertInventoryStockLayerRow, error)
 	InventoryBatchExistsForSKU(ctx context.Context, arg InventoryBatchExistsForSKUParams) (bool, error)
 	ListInventoryMovements(ctx context.Context, arg ListInventoryMovementsParams) ([]ListInventoryMovementsRow, error)
+	ListInventoryReservationItems(ctx context.Context, reservationID int64) ([]ListInventoryReservationItemsRow, error)
 	ListInventoryReservationItemsForUpdate(ctx context.Context, reservationID int64) ([]ListInventoryReservationItemsForUpdateRow, error)
+	ListInventoryReservations(ctx context.Context, arg ListInventoryReservationsParams) ([]ListInventoryReservationsRow, error)
 	// 分配顺序：先按批次 dispatch_priority（0-9 提升、10 默认、11+ 延后；非批次层视为 10），
 	// 再按 received_at, id 即 FIFO。
 	// 注意：左侧不过滤批次 deleted_at，否则批次被软删除时其库存层会从结果中消失。

@@ -31,11 +31,15 @@ func (h *handler) RegisterRoutes(router gin.IRouter) {
 	stocks.GET("/:warehouse_id/:sku_id/layers", h.ListLayers)
 	stocks.GET("/:warehouse_id/:sku_id", h.GetStock)
 
-	inventory.POST("/increase", h.IncreaseStock)
-	inventory.POST("/decrease", h.DecreaseStock)
-	inventory.POST("/reserve", h.ReserveStock)
-	inventory.POST("/release", h.ReleaseStock)
-	inventory.GET("/movements", h.ListMovements)
+	reservations := inventory.Group("/reservations")
+	reservations.GET("", h.ListReservations)
+	reservations.GET("/:id", h.GetReservation)
+
+	inventory.POST("/increase", h.IncreaseStock) // 增
+	inventory.POST("/decrease", h.DecreaseStock) // 减
+	inventory.POST("/reserve", h.ReserveStock)   // 预留
+	inventory.POST("/release", h.ReleaseStock)   // 释放
+	inventory.GET("/movements", h.ListMovements) // 挪
 }
 
 // ListStocks godoc

@@ -412,6 +412,7 @@ func (s *service) DecreaseStock(ctx context.Context, req DecreaseStockRequest) (
 	normalizedQty := formatQuantity(qty)
 	canonicalQty := canonicalQuantity(qty)
 
+	// 传 ReservationID ， 值不能为0， 适用于，先占用，后减少库存
 	if req.ReservationID != nil {
 		if *req.ReservationID <= 0 {
 			return nil, apperr.NewValidationError("reservation_id must be greater than zero")
@@ -436,6 +437,7 @@ func (s *service) DecreaseStock(ctx context.Context, req DecreaseStockRequest) (
 		})
 	}
 
+	// 不传 ReservationID , 直接扣减 available stock, 不走占用逻辑，直接减少库存
 	if err := s.validateMutationReferences(ctx, req.WarehouseID, req.SKUID, req.BatchID); err != nil {
 		return nil, err
 	}

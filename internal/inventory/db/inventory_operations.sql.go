@@ -547,6 +547,74 @@ func (q *Queries) GetInventoryIdempotencyKey(ctx context.Context, arg GetInvento
 	return i, err
 }
 
+const getInventoryReservation = `-- name: GetInventoryReservation :one
+SELECT id,
+       warehouse_id,
+       sku_id,
+       total_qty,
+       released_qty,
+       consumed_qty,
+       status,
+       close_reason,
+       idempotency_key,
+       source_type,
+       source_id,
+       source_line_id,
+       actor_type,
+       actor_id,
+       actor_label,
+       created_at,
+       updated_at
+FROM inventory_reservations
+WHERE id = $1::bigint
+  AND deleted_at IS NULL
+`
+
+type GetInventoryReservationRow struct {
+	ID             int64              `db:"id" json:"id"`
+	WarehouseID    int64              `db:"warehouse_id" json:"warehouse_id"`
+	SkuID          int64              `db:"sku_id" json:"sku_id"`
+	TotalQty       pgtype.Numeric     `db:"total_qty" json:"total_qty"`
+	ReleasedQty    pgtype.Numeric     `db:"released_qty" json:"released_qty"`
+	ConsumedQty    pgtype.Numeric     `db:"consumed_qty" json:"consumed_qty"`
+	Status         string             `db:"status" json:"status"`
+	CloseReason    *string            `db:"close_reason" json:"close_reason"`
+	IdempotencyKey string             `db:"idempotency_key" json:"idempotency_key"`
+	SourceType     *string            `db:"source_type" json:"source_type"`
+	SourceID       *string            `db:"source_id" json:"source_id"`
+	SourceLineID   *string            `db:"source_line_id" json:"source_line_id"`
+	ActorType      *string            `db:"actor_type" json:"actor_type"`
+	ActorID        *int64             `db:"actor_id" json:"actor_id"`
+	ActorLabel     *string            `db:"actor_label" json:"actor_label"`
+	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+func (q *Queries) GetInventoryReservation(ctx context.Context, id int64) (GetInventoryReservationRow, error) {
+	row := q.db.QueryRow(ctx, getInventoryReservation, id)
+	var i GetInventoryReservationRow
+	err := row.Scan(
+		&i.ID,
+		&i.WarehouseID,
+		&i.SkuID,
+		&i.TotalQty,
+		&i.ReleasedQty,
+		&i.ConsumedQty,
+		&i.Status,
+		&i.CloseReason,
+		&i.IdempotencyKey,
+		&i.SourceType,
+		&i.SourceID,
+		&i.SourceLineID,
+		&i.ActorType,
+		&i.ActorID,
+		&i.ActorLabel,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const insertInventoryMovement = `-- name: InsertInventoryMovement :one
 INSERT INTO inventory_movements (operation_type,
                                  warehouse_id,
@@ -998,6 +1066,69 @@ func (q *Queries) ListInventoryMovements(ctx context.Context, arg ListInventoryM
 	return items, nil
 }
 
+const listInventoryReservationItems = `-- name: ListInventoryReservationItems :many
+SELECT i.id,
+       i.reservation_id,
+       i.stock_layer_id,
+       l.batch_id,
+       l.received_at,
+       i.reserved_qty,
+       i.released_qty,
+       i.consumed_qty,
+       i.created_at,
+       i.updated_at
+FROM inventory_reservation_items i
+LEFT JOIN inventory_stock_layers l
+  ON l.id = i.stock_layer_id
+WHERE i.reservation_id = $1::bigint
+  AND i.deleted_at IS NULL
+ORDER BY i.id
+`
+
+type ListInventoryReservationItemsRow struct {
+	ID            int64              `db:"id" json:"id"`
+	ReservationID int64              `db:"reservation_id" json:"reservation_id"`
+	StockLayerID  int64              `db:"stock_layer_id" json:"stock_layer_id"`
+	BatchID       *int64             `db:"batch_id" json:"batch_id"`
+	ReceivedAt    pgtype.Timestamptz `db:"received_at" json:"received_at"`
+	ReservedQty   pgtype.Numeric     `db:"reserved_qty" json:"reserved_qty"`
+	ReleasedQty   pgtype.Numeric     `db:"released_qty" json:"released_qty"`
+	ConsumedQty   pgtype.Numeric     `db:"consumed_qty" json:"consumed_qty"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+func (q *Queries) ListInventoryReservationItems(ctx context.Context, reservationID int64) ([]ListInventoryReservationItemsRow, error) {
+	rows, err := q.db.Query(ctx, listInventoryReservationItems, reservationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListInventoryReservationItemsRow
+	for rows.Next() {
+		var i ListInventoryReservationItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ReservationID,
+			&i.StockLayerID,
+			&i.BatchID,
+			&i.ReceivedAt,
+			&i.ReservedQty,
+			&i.ReleasedQty,
+			&i.ConsumedQty,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listInventoryReservationItemsForUpdate = `-- name: ListInventoryReservationItemsForUpdate :many
 SELECT i.id,
        i.reservation_id,
@@ -1042,6 +1173,105 @@ func (q *Queries) ListInventoryReservationItemsForUpdate(ctx context.Context, re
 			&i.ReleasedQty,
 			&i.ConsumedQty,
 			&i.BatchID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInventoryReservations = `-- name: ListInventoryReservations :many
+SELECT id,
+       warehouse_id,
+       sku_id,
+       total_qty,
+       released_qty,
+       consumed_qty,
+       status,
+       close_reason,
+       idempotency_key,
+       source_type,
+       source_id,
+       source_line_id,
+       actor_type,
+       actor_id,
+       actor_label,
+       created_at,
+       updated_at
+FROM inventory_reservations
+WHERE deleted_at IS NULL
+  AND ($1::bigint IS NULL OR warehouse_id = $1::bigint)
+  AND ($2::bigint IS NULL OR sku_id = $2::bigint)
+  AND ($3::text IS NULL OR status = $3::text)
+ORDER BY created_at DESC, id DESC
+LIMIT $5 OFFSET $4
+`
+
+type ListInventoryReservationsParams struct {
+	WarehouseID *int64  `db:"warehouse_id" json:"warehouse_id"`
+	SkuID       *int64  `db:"sku_id" json:"sku_id"`
+	Status      *string `db:"status" json:"status"`
+	Offset      int32   `db:"offset" json:"offset"`
+	Limit       int32   `db:"limit" json:"limit"`
+}
+
+type ListInventoryReservationsRow struct {
+	ID             int64              `db:"id" json:"id"`
+	WarehouseID    int64              `db:"warehouse_id" json:"warehouse_id"`
+	SkuID          int64              `db:"sku_id" json:"sku_id"`
+	TotalQty       pgtype.Numeric     `db:"total_qty" json:"total_qty"`
+	ReleasedQty    pgtype.Numeric     `db:"released_qty" json:"released_qty"`
+	ConsumedQty    pgtype.Numeric     `db:"consumed_qty" json:"consumed_qty"`
+	Status         string             `db:"status" json:"status"`
+	CloseReason    *string            `db:"close_reason" json:"close_reason"`
+	IdempotencyKey string             `db:"idempotency_key" json:"idempotency_key"`
+	SourceType     *string            `db:"source_type" json:"source_type"`
+	SourceID       *string            `db:"source_id" json:"source_id"`
+	SourceLineID   *string            `db:"source_line_id" json:"source_line_id"`
+	ActorType      *string            `db:"actor_type" json:"actor_type"`
+	ActorID        *int64             `db:"actor_id" json:"actor_id"`
+	ActorLabel     *string            `db:"actor_label" json:"actor_label"`
+	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+func (q *Queries) ListInventoryReservations(ctx context.Context, arg ListInventoryReservationsParams) ([]ListInventoryReservationsRow, error) {
+	rows, err := q.db.Query(ctx, listInventoryReservations,
+		arg.WarehouseID,
+		arg.SkuID,
+		arg.Status,
+		arg.Offset,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListInventoryReservationsRow
+	for rows.Next() {
+		var i ListInventoryReservationsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WarehouseID,
+			&i.SkuID,
+			&i.TotalQty,
+			&i.ReleasedQty,
+			&i.ConsumedQty,
+			&i.Status,
+			&i.CloseReason,
+			&i.IdempotencyKey,
+			&i.SourceType,
+			&i.SourceID,
+			&i.SourceLineID,
+			&i.ActorType,
+			&i.ActorID,
+			&i.ActorLabel,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

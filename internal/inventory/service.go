@@ -15,6 +15,8 @@ type Service interface {
 	ListStocks(ctx context.Context, filter ListStocksFilter) (StockListResult, error)
 	GetStock(ctx context.Context, query GetStockQuery) (*StockBalance, error)
 	ListLayers(ctx context.Context, filter ListLayersFilter) (LayerListResult, error)
+	ListReservations(ctx context.Context, filter ListReservationsFilter) (ReservationListResult, error)
+	GetReservation(ctx context.Context, reservationID int64) (*Reservation, error)
 
 	IncreaseStock(ctx context.Context, req IncreaseStockRequest) (*StockOperationResult, error)
 	ReserveStock(ctx context.Context, req ReserveStockRequest) (*StockOperationResult, error)
@@ -27,6 +29,9 @@ type Repository interface {
 	ListStocks(ctx context.Context, filter ListStocksFilter) ([]StockBalance, error)
 	GetStock(ctx context.Context, warehouseID int64, skuID int64) (*StockBalance, error)
 	ListLayers(ctx context.Context, filter ListLayersFilter) ([]StockLayer, error)
+	ListReservations(ctx context.Context, filter ListReservationsFilter) ([]Reservation, error)
+	GetReservation(ctx context.Context, reservationID int64) (*Reservation, error)
+	ListReservationItems(ctx context.Context, reservationID int64) ([]ReservationItem, error)
 	BatchExistsForSKU(ctx context.Context, batchID int64, skuID int64) (bool, error)
 	HasWarehouseReferences(ctx context.Context, warehouseID int64) (bool, error)
 	HasSKUReferences(ctx context.Context, skuID int64) (bool, error)

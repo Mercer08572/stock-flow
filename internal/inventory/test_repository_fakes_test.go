@@ -73,8 +73,16 @@ func (r *fakeRepository) LockReservation(context.Context, int64) (*inventory.Res
 	return nil, errFakeRepositoryNotImplemented
 }
 
-func (r *fakeRepository) GetReservation(context.Context, int64) (*inventory.ReservationRecord, error) {
-	return nil, errFakeRepositoryNotImplemented
+func (r *fakeRepository) GetReservation(_ context.Context, reservationID int64) (*inventory.Reservation, error) {
+	item, ok := r.reservations[reservationID]
+	if !ok {
+		return nil, inventory.ErrNotFound
+	}
+	return &item, nil
+}
+
+func (r *fakeRepository) ListReservationItems(_ context.Context, reservationID int64) ([]inventory.ReservationItem, error) {
+	return r.reservationItems[reservationID], nil
 }
 
 func (r *fakeRepository) AddReservationReleased(context.Context, int64, string) (*inventory.ReservationRecord, error) {

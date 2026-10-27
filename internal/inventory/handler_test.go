@@ -113,14 +113,30 @@ func newInventoryRouter(service inventory.Service) *gin.Engine {
 }
 
 type fakeService struct {
-	listStocksFunc    func(context.Context, inventory.ListStocksFilter) (inventory.StockListResult, error)
-	getStockFunc      func(context.Context, inventory.GetStockQuery) (*inventory.StockBalance, error)
-	listLayersFunc    func(context.Context, inventory.ListLayersFilter) (inventory.LayerListResult, error)
-	increaseStockFunc func(context.Context, inventory.IncreaseStockRequest) (*inventory.StockOperationResult, error)
-	reserveStockFunc  func(context.Context, inventory.ReserveStockRequest) (*inventory.StockOperationResult, error)
-	releaseStockFunc  func(context.Context, inventory.ReleaseStockRequest) (*inventory.StockOperationResult, error)
-	decreaseStockFunc func(context.Context, inventory.DecreaseStockRequest) (*inventory.StockOperationResult, error)
-	listMovementsFunc func(context.Context, inventory.ListMovementsFilter) (inventory.MovementListResult, error)
+	listStocksFunc       func(context.Context, inventory.ListStocksFilter) (inventory.StockListResult, error)
+	getStockFunc         func(context.Context, inventory.GetStockQuery) (*inventory.StockBalance, error)
+	listLayersFunc       func(context.Context, inventory.ListLayersFilter) (inventory.LayerListResult, error)
+	listReservationsFunc func(context.Context, inventory.ListReservationsFilter) (inventory.ReservationListResult, error)
+	getReservationFunc   func(context.Context, int64) (*inventory.Reservation, error)
+	increaseStockFunc    func(context.Context, inventory.IncreaseStockRequest) (*inventory.StockOperationResult, error)
+	reserveStockFunc     func(context.Context, inventory.ReserveStockRequest) (*inventory.StockOperationResult, error)
+	releaseStockFunc     func(context.Context, inventory.ReleaseStockRequest) (*inventory.StockOperationResult, error)
+	decreaseStockFunc    func(context.Context, inventory.DecreaseStockRequest) (*inventory.StockOperationResult, error)
+	listMovementsFunc    func(context.Context, inventory.ListMovementsFilter) (inventory.MovementListResult, error)
+}
+
+func (s *fakeService) ListReservations(ctx context.Context, filter inventory.ListReservationsFilter) (inventory.ReservationListResult, error) {
+	if s.listReservationsFunc != nil {
+		return s.listReservationsFunc(ctx, filter)
+	}
+	return inventory.ReservationListResult{}, nil
+}
+
+func (s *fakeService) GetReservation(ctx context.Context, reservationID int64) (*inventory.Reservation, error) {
+	if s.getReservationFunc != nil {
+		return s.getReservationFunc(ctx, reservationID)
+	}
+	return nil, inventory.ErrReservationNotFound
 }
 
 func (s *fakeService) ListStocks(ctx context.Context, filter inventory.ListStocksFilter) (inventory.StockListResult, error) {
