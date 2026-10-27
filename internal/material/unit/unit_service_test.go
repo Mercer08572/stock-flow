@@ -77,6 +77,26 @@ func TestUnitServiceCreateValidatesUnitFields(t *testing.T) {
 	}
 }
 
+func TestUnitServiceListReturnsTotal(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeUnitRepository()
+	repo.units[1] = unit.Unit{ID: 1, Code: "PCS", Status: unit.StatusActive}
+	repo.units[2] = unit.Unit{ID: 2, Code: "BOX", Status: unit.StatusInactive}
+
+	service := unit.NewUnitService(repo)
+	result, err := service.List(ctx, unit.UnitListFilter{})
+	if err != nil {
+		t.Fatalf("list units: %v", err)
+	}
+
+	if result.Total != 2 {
+		t.Fatalf("expected total 2, got %d", result.Total)
+	}
+	if len(result.Items) != 2 {
+		t.Fatalf("expected 2 units, got %d", len(result.Items))
+	}
+}
+
 type fakeUnitRepository struct {
 	units  map[int64]unit.Unit
 	nextID int64
@@ -102,6 +122,11 @@ func (r *fakeUnitRepository) ListUnits(_ context.Context, filter unit.UnitListFi
 	}
 
 	return items, nil
+}
+
+func (r *fakeUnitRepository) CountUnits(ctx context.Context, filter unit.UnitListFilter) (int64, error) {
+	items, err := r.ListUnits(ctx, filter)
+	return int64(len(items)), err
 }
 
 func (r *fakeUnitRepository) GetUnitByID(_ context.Context, id int64) (*unit.Unit, error) {

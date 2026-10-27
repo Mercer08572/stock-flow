@@ -3585,6 +3585,9 @@ const docTemplate = `{
                 },
                 "offset": {
                     "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -3836,6 +3839,9 @@ const docTemplate = `{
                 },
                 "offset": {
                     "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -3919,6 +3925,9 @@ const docTemplate = `{
                 },
                 "offset": {
                     "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -3987,6 +3996,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "offset": {
+                    "type": "integer"
+                },
+                "total": {
                     "type": "integer"
                 }
             }
@@ -4060,6 +4072,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "offset": {
+                    "type": "integer"
+                },
+                "total": {
                     "type": "integer"
                 }
             }
@@ -4219,6 +4234,9 @@ const docTemplate = `{
                 },
                 "offset": {
                     "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -4343,6 +4361,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "offset": {
+                    "type": "integer"
+                },
+                "total": {
                     "type": "integer"
                 }
             }
@@ -4549,6 +4570,9 @@ const docTemplate = `{
                 },
                 "offset": {
                     "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -4676,6 +4700,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "offset": {
+                    "type": "integer"
+                },
+                "total": {
                     "type": "integer"
                 }
             }
@@ -4843,6 +4870,9 @@ const docTemplate = `{
                 },
                 "offset": {
                     "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -4934,6 +4964,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "offset": {
+                    "type": "integer"
+                },
+                "total": {
                     "type": "integer"
                 }
             }

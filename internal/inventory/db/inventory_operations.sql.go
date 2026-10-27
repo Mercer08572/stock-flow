@@ -403,6 +403,62 @@ func (q *Queries) ConsumeInventoryStockReserved(ctx context.Context, arg Consume
 	return result.RowsAffected(), nil
 }
 
+const countInventoryMovements = `-- name: CountInventoryMovements :one
+SELECT COUNT(*)
+FROM inventory_movements
+WHERE deleted_at IS NULL
+  AND ($1::bigint IS NULL OR warehouse_id = $1::bigint)
+  AND ($2::bigint IS NULL OR sku_id = $2::bigint)
+  AND ($3::text IS NULL OR operation_type = $3::text)
+  AND ($4::timestamptz IS NULL OR created_at >= $4::timestamptz)
+  AND ($5::timestamptz IS NULL OR created_at < $5::timestamptz)
+`
+
+type CountInventoryMovementsParams struct {
+	WarehouseID   *int64             `db:"warehouse_id" json:"warehouse_id"`
+	SkuID         *int64             `db:"sku_id" json:"sku_id"`
+	OperationType *string            `db:"operation_type" json:"operation_type"`
+	CreatedFrom   pgtype.Timestamptz `db:"created_from" json:"created_from"`
+	CreatedTo     pgtype.Timestamptz `db:"created_to" json:"created_to"`
+}
+
+// 必须与 ListInventoryMovements 的过滤条件保持一致。
+func (q *Queries) CountInventoryMovements(ctx context.Context, arg CountInventoryMovementsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countInventoryMovements,
+		arg.WarehouseID,
+		arg.SkuID,
+		arg.OperationType,
+		arg.CreatedFrom,
+		arg.CreatedTo,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countInventoryReservations = `-- name: CountInventoryReservations :one
+SELECT COUNT(*)
+FROM inventory_reservations
+WHERE deleted_at IS NULL
+  AND ($1::bigint IS NULL OR warehouse_id = $1::bigint)
+  AND ($2::bigint IS NULL OR sku_id = $2::bigint)
+  AND ($3::text IS NULL OR status = $3::text)
+`
+
+type CountInventoryReservationsParams struct {
+	WarehouseID *int64  `db:"warehouse_id" json:"warehouse_id"`
+	SkuID       *int64  `db:"sku_id" json:"sku_id"`
+	Status      *string `db:"status" json:"status"`
+}
+
+// 必须与 ListInventoryReservations 的过滤条件保持一致。
+func (q *Queries) CountInventoryReservations(ctx context.Context, arg CountInventoryReservationsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countInventoryReservations, arg.WarehouseID, arg.SkuID, arg.Status)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const decreaseInventoryStockAvailable = `-- name: DecreaseInventoryStockAvailable :execrows
 UPDATE inventory_stocks
 SET on_hand_qty = on_hand_qty - $1::numeric,

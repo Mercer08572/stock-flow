@@ -52,6 +52,13 @@ ORDER BY id
 LIMIT sqlc.arg(page_limit)
 OFFSET sqlc.arg(page_offset);
 
+-- name: CountAPIApps :one
+-- 必须与 ListAPIApps 的过滤条件保持一致。
+SELECT COUNT(*)
+FROM api_apps
+WHERE deleted_at IS NULL
+  AND (sqlc.narg(status)::text IS NULL OR status = sqlc.narg(status)::text);
+
 -- name: GetAPIAppByID :one
 SELECT id, app_id, name, description, status, metadata, created_at, updated_at
 FROM api_apps

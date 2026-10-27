@@ -11,6 +11,8 @@ import (
 type Querier interface {
 	BlockAPISecret(ctx context.Context, arg BlockAPISecretParams) (BlockAPISecretRow, error)
 	ChangeAdminPassword(ctx context.Context, arg ChangeAdminPasswordParams) (int64, error)
+	// 必须与 ListAPIApps 的过滤条件保持一致。
+	CountAPIApps(ctx context.Context, status *string) (int64, error)
 	CreateAPIApp(ctx context.Context, arg CreateAPIAppParams) (CreateAPIAppRow, error)
 	CreateAPISecret(ctx context.Context, arg CreateAPISecretParams) (CreateAPISecretRow, error)
 	GetAPIAppByID(ctx context.Context, id int64) (GetAPIAppByIDRow, error)

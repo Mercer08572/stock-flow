@@ -259,6 +259,26 @@ func (r *sequenceRandom) Generate(prefix string, _ int) (string, error) {
 	return value, nil
 }
 
+func TestServiceListAPIAppsReturnsTotal(t *testing.T) {
+	repo := &fakeRepository{apps: []APIApp{
+		{ID: 1, AppID: "app-1", Status: StatusActive},
+		{ID: 2, AppID: "app-2", Status: StatusInactive},
+	}}
+	service := NewService(repo, NewInMemorySessionStore(), testPasswordHasher(), ServiceOptions{})
+
+	result, err := service.ListAPIApps(context.Background(), ListFilter{})
+	if err != nil {
+		t.Fatalf("list api apps: %v", err)
+	}
+
+	if result.Total != 2 {
+		t.Fatalf("expected total 2, got %d", result.Total)
+	}
+	if len(result.Items) != 2 {
+		t.Fatalf("expected 2 api apps, got %d", len(result.Items))
+	}
+}
+
 type fakeRepository struct {
 	admin             *AdminUser
 	app               *APIApp
@@ -309,6 +329,10 @@ func (r *fakeRepository) GetAdminByUsername(_ context.Context, username string) 
 
 func (r *fakeRepository) ListAPIApps(context.Context, ListFilter) ([]APIApp, error) {
 	return append([]APIApp(nil), r.apps...), nil
+}
+
+func (r *fakeRepository) CountAPIApps(context.Context, ListFilter) (int64, error) {
+	return int64(len(r.apps)), nil
 }
 
 func (r *fakeRepository) GetAPIAppByID(_ context.Context, id int64) (*APIApp, error) {

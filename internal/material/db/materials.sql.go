@@ -11,6 +11,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countMaterials = `-- name: CountMaterials :one
+SELECT COUNT(*)
+FROM materials
+WHERE deleted_at IS NULL
+  AND ($1::text IS NULL OR status = $1::text)
+  AND ($2::bigint IS NULL OR category_id = $2::bigint)
+`
+
+type CountMaterialsParams struct {
+	Status     *string `db:"status" json:"status"`
+	CategoryID *int64  `db:"category_id" json:"category_id"`
+}
+
+// 必须与 ListMaterials 的过滤条件保持一致。
+func (q *Queries) CountMaterials(ctx context.Context, arg CountMaterialsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countMaterials, arg.Status, arg.CategoryID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createMaterial = `-- name: CreateMaterial :one
 INSERT INTO materials (code, name, category_id, base_unit_id, status, remark)
 VALUES ($1, $2, $3, $4, $5, $6)

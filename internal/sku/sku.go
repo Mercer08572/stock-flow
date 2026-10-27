@@ -62,6 +62,7 @@ type ListFilter struct {
 
 type ListResult struct {
 	Items  []SKU `json:"items"`
+	Total  int64 `json:"total"`
 	Limit  int32 `json:"limit"`
 	Offset int32 `json:"offset"`
 }

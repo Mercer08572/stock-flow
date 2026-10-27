@@ -19,6 +19,14 @@ type Querier interface {
 	CompleteInventoryIdempotencyKey(ctx context.Context, arg CompleteInventoryIdempotencyKeyParams) (int64, error)
 	ConsumeInventoryStockLayerReserved(ctx context.Context, arg ConsumeInventoryStockLayerReservedParams) (int64, error)
 	ConsumeInventoryStockReserved(ctx context.Context, arg ConsumeInventoryStockReservedParams) (int64, error)
+	// 必须与 ListInventoryMovements 的过滤条件保持一致。
+	CountInventoryMovements(ctx context.Context, arg CountInventoryMovementsParams) (int64, error)
+	// 必须与 ListInventoryReservations 的过滤条件保持一致。
+	CountInventoryReservations(ctx context.Context, arg CountInventoryReservationsParams) (int64, error)
+	// 必须与 ListInventoryStockLayers 的过滤条件保持一致（排序不需要 join 批次表）。
+	CountInventoryStockLayers(ctx context.Context, arg CountInventoryStockLayersParams) (int64, error)
+	// 必须与 ListInventoryStocks 的过滤条件保持一致。
+	CountInventoryStocks(ctx context.Context, arg CountInventoryStocksParams) (int64, error)
 	DecreaseInventoryStockAvailable(ctx context.Context, arg DecreaseInventoryStockAvailableParams) (int64, error)
 	DecreaseInventoryStockLayerAvailable(ctx context.Context, arg DecreaseInventoryStockLayerAvailableParams) (int64, error)
 	EnsureInventoryStockRow(ctx context.Context, arg EnsureInventoryStockRowParams) error

@@ -61,6 +61,7 @@ type ListReservationsFilter struct {
 
 type ReservationListResult struct {
 	Items  []Reservation `json:"items"`
+	Total  int64         `json:"total"`
 	Limit  int32         `json:"limit"`
 	Offset int32         `json:"offset"`
 }
@@ -82,6 +83,11 @@ func (s *service) ListReservations(ctx context.Context, filter ListReservationsF
 		}
 	}
 
+	total, err := s.repo.CountReservations(ctx, normalized)
+	if err != nil {
+		return ReservationListResult{}, err
+	}
+
 	items, err := s.repo.ListReservations(ctx, normalized)
 	if err != nil {
 		return ReservationListResult{}, err
@@ -97,6 +103,7 @@ func (s *service) ListReservations(ctx context.Context, filter ListReservationsF
 
 	return ReservationListResult{
 		Items:  items,
+		Total:  total,
 		Limit:  normalized.Limit,
 		Offset: normalized.Offset,
 	}, nil

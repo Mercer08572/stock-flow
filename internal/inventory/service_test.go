@@ -133,6 +133,9 @@ func TestServiceListStocksNormalizesFilter(t *testing.T) {
 	if result.Offset != 0 {
 		t.Fatalf("expected normalized offset 0, got %d", result.Offset)
 	}
+	if result.Total != 1 {
+		t.Fatalf("expected total 1, got %d", result.Total)
+	}
 	if len(result.Items) != 1 || result.Items[0].AvailableQty != "4" {
 		t.Fatalf("expected filtered stock with available 4, got %#v", result.Items)
 	}
@@ -178,6 +181,9 @@ func TestServiceListLayersFiltersByBatch(t *testing.T) {
 		t.Fatalf("list layers: %v", err)
 	}
 
+	if result.Total != 1 {
+		t.Fatalf("expected total 1, got %d", result.Total)
+	}
 	if len(result.Items) != 1 || result.Items[0].AvailableQty != "4" {
 		t.Fatalf("expected filtered layer with available 4, got %#v", result.Items)
 	}
@@ -233,6 +239,11 @@ func (r *fakeRepository) ListReservations(_ context.Context, filter inventory.Li
 	return items, nil
 }
 
+func (r *fakeRepository) CountReservations(ctx context.Context, filter inventory.ListReservationsFilter) (int64, error) {
+	items, err := r.ListReservations(ctx, filter)
+	return int64(len(items)), err
+}
+
 func (r *fakeRepository) ListStocks(_ context.Context, filter inventory.ListStocksFilter) ([]inventory.StockBalance, error) {
 	items := make([]inventory.StockBalance, 0)
 	for _, item := range r.stocks {
@@ -245,6 +256,11 @@ func (r *fakeRepository) ListStocks(_ context.Context, filter inventory.ListStoc
 		items = append(items, item)
 	}
 	return items, nil
+}
+
+func (r *fakeRepository) CountStocks(ctx context.Context, filter inventory.ListStocksFilter) (int64, error) {
+	items, err := r.ListStocks(ctx, filter)
+	return int64(len(items)), err
 }
 
 func (r *fakeRepository) GetStock(_ context.Context, warehouseID int64, skuID int64) (*inventory.StockBalance, error) {
@@ -269,6 +285,11 @@ func (r *fakeRepository) ListLayers(_ context.Context, filter inventory.ListLaye
 		items = append(items, item)
 	}
 	return items, nil
+}
+
+func (r *fakeRepository) CountLayers(ctx context.Context, filter inventory.ListLayersFilter) (int64, error) {
+	items, err := r.ListLayers(ctx, filter)
+	return int64(len(items)), err
 }
 
 func (r *fakeRepository) BatchExistsForSKU(_ context.Context, batchID int64, skuID int64) (bool, error) {

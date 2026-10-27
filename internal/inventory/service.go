@@ -27,9 +27,12 @@ type Service interface {
 
 type Repository interface {
 	ListStocks(ctx context.Context, filter ListStocksFilter) ([]StockBalance, error)
+	CountStocks(ctx context.Context, filter ListStocksFilter) (int64, error)
 	GetStock(ctx context.Context, warehouseID int64, skuID int64) (*StockBalance, error)
 	ListLayers(ctx context.Context, filter ListLayersFilter) ([]StockLayer, error)
+	CountLayers(ctx context.Context, filter ListLayersFilter) (int64, error)
 	ListReservations(ctx context.Context, filter ListReservationsFilter) ([]Reservation, error)
+	CountReservations(ctx context.Context, filter ListReservationsFilter) (int64, error)
 	GetReservation(ctx context.Context, reservationID int64) (*Reservation, error)
 	ListReservationItems(ctx context.Context, reservationID int64) ([]ReservationItem, error)
 	BatchExistsForSKU(ctx context.Context, batchID int64, skuID int64) (bool, error)
@@ -64,6 +67,7 @@ type Repository interface {
 
 	InsertMovement(ctx context.Context, input MovementInput) (*Movement, error)
 	ListMovements(ctx context.Context, filter ListMovementsFilter) ([]Movement, error)
+	CountMovements(ctx context.Context, filter ListMovementsFilter) (int64, error)
 
 	ClaimIdempotencyKey(ctx context.Context, input IdempotencyClaim) (*IdempotencyRecord, bool, error)
 	GetIdempotencyKey(ctx context.Context, operationType string, key string) (*IdempotencyRecord, error)
@@ -113,6 +117,11 @@ func (s *service) ListStocks(ctx context.Context, filter ListStocksFilter) (Stoc
 		}
 	}
 
+	total, err := s.repo.CountStocks(ctx, normalized)
+	if err != nil {
+		return StockListResult{}, err
+	}
+
 	items, err := s.repo.ListStocks(ctx, normalized)
 	if err != nil {
 		return StockListResult{}, err
@@ -128,6 +137,7 @@ func (s *service) ListStocks(ctx context.Context, filter ListStocksFilter) (Stoc
 
 	return StockListResult{
 		Items:  items,
+		Total:  total,
 		Limit:  normalized.Limit,
 		Offset: normalized.Offset,
 	}, nil
@@ -206,6 +216,11 @@ func (s *service) ListLayers(ctx context.Context, filter ListLayersFilter) (Laye
 		}
 	}
 
+	total, err := s.repo.CountLayers(ctx, normalized)
+	if err != nil {
+		return LayerListResult{}, err
+	}
+
 	items, err := s.repo.ListLayers(ctx, normalized)
 	if err != nil {
 		return LayerListResult{}, err
@@ -220,6 +235,7 @@ func (s *service) ListLayers(ctx context.Context, filter ListLayersFilter) (Laye
 
 	return LayerListResult{
 		Items:  items,
+		Total:  total,
 		Limit:  normalized.Limit,
 		Offset: normalized.Offset,
 	}, nil

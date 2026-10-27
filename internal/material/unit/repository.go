@@ -39,6 +39,17 @@ func (r *postgresRepository) ListUnits(ctx context.Context, filter UnitListFilte
 	return units, nil
 }
 
+func (r *postgresRepository) CountUnits(ctx context.Context, filter UnitListFilter) (int64, error) {
+	count, err := r.queries.CountUnits(ctx, materialdb.CountUnitsParams{
+		Status:   nullableStatus(filter.Status),
+		UnitType: nullableUnitType(filter.UnitType),
+	})
+	if err != nil {
+		return 0, mapPostgresError(err)
+	}
+	return count, nil
+}
+
 func (r *postgresRepository) GetUnitByID(ctx context.Context, id int64) (*Unit, error) {
 	row, err := r.queries.GetUnitByID(ctx, id)
 	if err != nil {

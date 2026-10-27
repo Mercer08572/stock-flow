@@ -39,6 +39,18 @@ func (r *postgresRepository) List(ctx context.Context, filter ListFilter) ([]SKU
 	return skus, nil
 }
 
+func (r *postgresRepository) Count(ctx context.Context, filter ListFilter) (int64, error) {
+	count, err := r.queries.CountSKUs(ctx, skudb.CountSKUsParams{
+		Status:     nullableStatus(filter.Status),
+		MaterialID: filter.MaterialID,
+		UnitID:     filter.UnitID,
+	})
+	if err != nil {
+		return 0, mapPostgresError(err)
+	}
+	return count, nil
+}
+
 func (r *postgresRepository) GetByID(ctx context.Context, id int64) (*SKU, error) {
 	row, err := r.queries.GetSKUByID(ctx, id)
 	if err != nil {

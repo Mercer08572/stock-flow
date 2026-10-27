@@ -230,6 +230,15 @@ WHERE deleted_at IS NULL
 ORDER BY created_at DESC, id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
+-- name: CountInventoryReservations :one
+-- 必须与 ListInventoryReservations 的过滤条件保持一致。
+SELECT COUNT(*)
+FROM inventory_reservations
+WHERE deleted_at IS NULL
+  AND (sqlc.narg('warehouse_id')::bigint IS NULL OR warehouse_id = sqlc.narg('warehouse_id')::bigint)
+  AND (sqlc.narg('sku_id')::bigint IS NULL OR sku_id = sqlc.narg('sku_id')::bigint)
+  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text);
+
 -- name: GetInventoryReservation :one
 SELECT id,
        warehouse_id,
@@ -508,3 +517,14 @@ WHERE deleted_at IS NULL
   AND (sqlc.narg('created_to')::timestamptz IS NULL OR created_at < sqlc.narg('created_to')::timestamptz)
 ORDER BY created_at DESC, id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+
+-- name: CountInventoryMovements :one
+-- 必须与 ListInventoryMovements 的过滤条件保持一致。
+SELECT COUNT(*)
+FROM inventory_movements
+WHERE deleted_at IS NULL
+  AND (sqlc.narg('warehouse_id')::bigint IS NULL OR warehouse_id = sqlc.narg('warehouse_id')::bigint)
+  AND (sqlc.narg('sku_id')::bigint IS NULL OR sku_id = sqlc.narg('sku_id')::bigint)
+  AND (sqlc.narg('operation_type')::text IS NULL OR operation_type = sqlc.narg('operation_type')::text)
+  AND (sqlc.narg('created_from')::timestamptz IS NULL OR created_at >= sqlc.narg('created_from')::timestamptz)
+  AND (sqlc.narg('created_to')::timestamptz IS NULL OR created_at < sqlc.narg('created_to')::timestamptz);

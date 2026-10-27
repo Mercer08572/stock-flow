@@ -14,6 +14,14 @@ WHERE deleted_at IS NULL
 ORDER BY id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
+-- name: CountMaterialCategories :one
+-- 必须与 ListMaterialCategories 的过滤条件保持一致。
+SELECT COUNT(*)
+FROM material_categories
+WHERE deleted_at IS NULL
+  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
+  AND (sqlc.narg('parent_id')::bigint IS NULL OR parent_id = sqlc.narg('parent_id')::bigint);
+
 -- name: GetMaterialCategoryByID :one
 SELECT id,
        code,

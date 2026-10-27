@@ -12,6 +12,14 @@ WHERE deleted_at IS NULL
 ORDER BY warehouse_id, sku_id
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
+-- name: CountInventoryStocks :one
+-- 必须与 ListInventoryStocks 的过滤条件保持一致。
+SELECT COUNT(*)
+FROM inventory_stocks
+WHERE deleted_at IS NULL
+  AND (sqlc.narg('warehouse_id')::bigint IS NULL OR warehouse_id = sqlc.narg('warehouse_id')::bigint)
+  AND (sqlc.narg('sku_id')::bigint IS NULL OR sku_id = sqlc.narg('sku_id')::bigint);
+
 -- name: GetInventoryStock :one
 SELECT warehouse_id,
        sku_id,
@@ -46,6 +54,15 @@ WHERE l.warehouse_id = sqlc.arg('warehouse_id')::bigint
   AND (sqlc.narg('batch_id')::bigint IS NULL OR l.batch_id = sqlc.narg('batch_id')::bigint)
 ORDER BY COALESCE(b.dispatch_priority, 10), l.received_at, l.id
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+
+-- name: CountInventoryStockLayers :one
+-- 必须与 ListInventoryStockLayers 的过滤条件保持一致（排序不需要 join 批次表）。
+SELECT COUNT(*)
+FROM inventory_stock_layers AS l
+WHERE l.warehouse_id = sqlc.arg('warehouse_id')::bigint
+  AND l.sku_id = sqlc.arg('sku_id')::bigint
+  AND l.deleted_at IS NULL
+  AND (sqlc.narg('batch_id')::bigint IS NULL OR l.batch_id = sqlc.narg('batch_id')::bigint);
 
 -- name: InventoryBatchExistsForSKU :one
 SELECT EXISTS (

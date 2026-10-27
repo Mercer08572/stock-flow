@@ -166,6 +166,9 @@ func TestServiceListNormalizesFilter(t *testing.T) {
 	if result.Offset != 0 {
 		t.Fatalf("expected normalized offset 0, got %d", result.Offset)
 	}
+	if result.Total != 1 {
+		t.Fatalf("expected total 1, got %d", result.Total)
+	}
 	if len(result.Items) != 1 || result.Items[0].Code != "SKU-001" {
 		t.Fatalf("expected active sku only, got %#v", result.Items)
 	}
@@ -245,6 +248,11 @@ func (r *fakeRepository) List(_ context.Context, filter sku.ListFilter) ([]sku.S
 	}
 
 	return items, nil
+}
+
+func (r *fakeRepository) Count(ctx context.Context, filter sku.ListFilter) (int64, error) {
+	items, err := r.List(ctx, filter)
+	return int64(len(items)), err
 }
 
 func (r *fakeRepository) GetByID(_ context.Context, id int64) (*sku.SKU, error) {

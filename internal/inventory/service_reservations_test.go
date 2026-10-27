@@ -43,6 +43,9 @@ func TestServiceListReservationsNormalizesQuantitiesAndReferences(t *testing.T) 
 	if len(result.Items) != 1 {
 		t.Fatalf("expected 1 reservation, got %d", len(result.Items))
 	}
+	if result.Total != 1 {
+		t.Fatalf("expected total 1, got %d", result.Total)
+	}
 	item := result.Items[0]
 	if item.TotalQty != "5" || item.ReleasedQty != "1" || item.ConsumedQty != "0.5" {
 		t.Fatalf("expected normalized quantities, got total=%q released=%q consumed=%q", item.TotalQty, item.ReleasedQty, item.ConsumedQty)

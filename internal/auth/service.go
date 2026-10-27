@@ -45,6 +45,7 @@ type Repository interface {
 	InitializeAdminPassword(ctx context.Context, username string, passwordHash string) error
 	ChangeAdminPassword(ctx context.Context, id int64, passwordHash string, changedAt time.Time) error
 	ListAPIApps(ctx context.Context, filter ListFilter) ([]APIApp, error)
+	CountAPIApps(ctx context.Context, filter ListFilter) (int64, error)
 	GetAPIAppByID(ctx context.Context, id int64) (*APIApp, error)
 	GetAPIAppByIdentifier(ctx context.Context, appID string) (*APIApp, error)
 	CreateAPIApp(ctx context.Context, appID string, input CreateAPIAppInput) (*APIApp, error)
@@ -365,11 +366,21 @@ func (s *service) ListAPIApps(ctx context.Context, filter ListFilter) (APIAppLis
 		return APIAppListResult{}, err
 	}
 
+	total, err := s.repo.CountAPIApps(ctx, normalized)
+	if err != nil {
+		return APIAppListResult{}, err
+	}
+
 	items, err := s.repo.ListAPIApps(ctx, normalized)
 	if err != nil {
 		return APIAppListResult{}, err
 	}
-	return APIAppListResult{Items: items, Limit: normalized.Limit, Offset: normalized.Offset}, nil
+	return APIAppListResult{
+		Items:  items,
+		Total:  total,
+		Limit:  normalized.Limit,
+		Offset: normalized.Offset,
+	}, nil
 }
 
 func (s *service) GetAPIApp(ctx context.Context, id int64) (*APIApp, error) {

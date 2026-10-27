@@ -9,6 +9,8 @@ import (
 )
 
 type Querier interface {
+	// 必须与 ListSKUs 的过滤条件保持一致。
+	CountSKUs(ctx context.Context, arg CountSKUsParams) (int64, error)
 	CreateSKU(ctx context.Context, arg CreateSKUParams) (CreateSKURow, error)
 	GetSKUByID(ctx context.Context, id int64) (GetSKUByIDRow, error)
 	GetSKUReference(ctx context.Context, id int64) (GetSKUReferenceRow, error)

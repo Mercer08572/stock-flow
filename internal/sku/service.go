@@ -20,6 +20,7 @@ type Service interface {
 
 type Repository interface {
 	List(ctx context.Context, filter ListFilter) ([]SKU, error)
+	Count(ctx context.Context, filter ListFilter) (int64, error)
 	GetByID(ctx context.Context, id int64) (*SKU, error)
 	GetReference(ctx context.Context, id int64) (*Reference, error)
 	Create(ctx context.Context, input CreateInput) (*SKU, error)
@@ -61,6 +62,11 @@ func (s *service) List(ctx context.Context, filter ListFilter) (ListResult, erro
 		return ListResult{}, err
 	}
 
+	total, err := s.repo.Count(ctx, normalized)
+	if err != nil {
+		return ListResult{}, err
+	}
+
 	items, err := s.repo.List(ctx, normalized)
 	if err != nil {
 		return ListResult{}, err
@@ -68,6 +74,7 @@ func (s *service) List(ctx context.Context, filter ListFilter) (ListResult, erro
 
 	return ListResult{
 		Items:  items,
+		Total:  total,
 		Limit:  normalized.Limit,
 		Offset: normalized.Offset,
 	}, nil

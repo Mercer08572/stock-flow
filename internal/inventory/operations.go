@@ -645,12 +645,22 @@ func (s *service) ListMovements(ctx context.Context, filter ListMovementsFilter)
 		}
 	}
 
+	total, err := s.repo.CountMovements(ctx, normalized)
+	if err != nil {
+		return MovementListResult{}, err
+	}
+
 	items, err := s.repo.ListMovements(ctx, normalized)
 	if err != nil {
 		return MovementListResult{}, err
 	}
 
-	return MovementListResult{Items: items, Limit: normalized.Limit, Offset: normalized.Offset}, nil
+	return MovementListResult{
+		Items:  items,
+		Total:  total,
+		Limit:  normalized.Limit,
+		Offset: normalized.Offset,
+	}, nil
 }
 
 func (s *service) validateMutationReferences(ctx context.Context, warehouseID int64, skuID int64, batchID *int64) error {

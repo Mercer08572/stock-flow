@@ -62,12 +62,14 @@ type ListLayersFilter struct {
 
 type StockListResult struct {
 	Items  []StockBalance `json:"items"`
+	Total  int64          `json:"total"`
 	Limit  int32          `json:"limit"`
 	Offset int32          `json:"offset"`
 }
 
 type LayerListResult struct {
 	Items  []StockLayer `json:"items"`
+	Total  int64        `json:"total"`
 	Limit  int32        `json:"limit"`
 	Offset int32        `json:"offset"`
 }
@@ -197,6 +199,7 @@ type ListMovementsFilter struct {
 
 type MovementListResult struct {
 	Items  []Movement `json:"items"`
+	Total  int64      `json:"total"`
 	Limit  int32      `json:"limit"`
 	Offset int32      `json:"offset"`
 }

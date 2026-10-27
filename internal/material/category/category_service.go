@@ -17,6 +17,7 @@ type CategoryService interface {
 
 type CategoryRepository interface {
 	ListCategories(ctx context.Context, filter CategoryListFilter) ([]Category, error)
+	CountCategories(ctx context.Context, filter CategoryListFilter) (int64, error)
 	GetCategoryByID(ctx context.Context, id int64) (*Category, error)
 	CreateCategory(ctx context.Context, input CreateCategoryInput) (*Category, error)
 	UpdateCategory(ctx context.Context, input UpdateCategoryInput) (*Category, error)
@@ -39,6 +40,11 @@ func (s *categoryService) List(ctx context.Context, filter CategoryListFilter) (
 		return CategoryListResult{}, err
 	}
 
+	total, err := s.repo.CountCategories(ctx, normalized)
+	if err != nil {
+		return CategoryListResult{}, err
+	}
+
 	items, err := s.repo.ListCategories(ctx, normalized)
 	if err != nil {
 		return CategoryListResult{}, err
@@ -46,6 +52,7 @@ func (s *categoryService) List(ctx context.Context, filter CategoryListFilter) (
 
 	return CategoryListResult{
 		Items:  items,
+		Total:  total,
 		Limit:  normalized.Limit,
 		Offset: normalized.Offset,
 	}, nil

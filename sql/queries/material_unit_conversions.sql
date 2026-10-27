@@ -14,6 +14,15 @@ WHERE material_id = sqlc.arg('material_id')::bigint
 ORDER BY id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
+-- name: CountMaterialUnitConversions :one
+-- 必须与 ListMaterialUnitConversions 的过滤条件保持一致。
+SELECT COUNT(*)
+FROM material_unit_conversions
+WHERE material_id = sqlc.arg('material_id')::bigint
+  AND deleted_at IS NULL
+  AND (sqlc.narg('from_unit_id')::bigint IS NULL OR from_unit_id = sqlc.narg('from_unit_id')::bigint)
+  AND (sqlc.narg('to_unit_id')::bigint IS NULL OR to_unit_id = sqlc.narg('to_unit_id')::bigint);
+
 -- name: GetMaterialUnitConversionByID :one
 SELECT id,
        material_id,

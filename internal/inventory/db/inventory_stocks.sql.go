@@ -11,6 +11,50 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countInventoryStockLayers = `-- name: CountInventoryStockLayers :one
+SELECT COUNT(*)
+FROM inventory_stock_layers AS l
+WHERE l.warehouse_id = $1::bigint
+  AND l.sku_id = $2::bigint
+  AND l.deleted_at IS NULL
+  AND ($3::bigint IS NULL OR l.batch_id = $3::bigint)
+`
+
+type CountInventoryStockLayersParams struct {
+	WarehouseID int64  `db:"warehouse_id" json:"warehouse_id"`
+	SkuID       int64  `db:"sku_id" json:"sku_id"`
+	BatchID     *int64 `db:"batch_id" json:"batch_id"`
+}
+
+// 必须与 ListInventoryStockLayers 的过滤条件保持一致（排序不需要 join 批次表）。
+func (q *Queries) CountInventoryStockLayers(ctx context.Context, arg CountInventoryStockLayersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countInventoryStockLayers, arg.WarehouseID, arg.SkuID, arg.BatchID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countInventoryStocks = `-- name: CountInventoryStocks :one
+SELECT COUNT(*)
+FROM inventory_stocks
+WHERE deleted_at IS NULL
+  AND ($1::bigint IS NULL OR warehouse_id = $1::bigint)
+  AND ($2::bigint IS NULL OR sku_id = $2::bigint)
+`
+
+type CountInventoryStocksParams struct {
+	WarehouseID *int64 `db:"warehouse_id" json:"warehouse_id"`
+	SkuID       *int64 `db:"sku_id" json:"sku_id"`
+}
+
+// 必须与 ListInventoryStocks 的过滤条件保持一致。
+func (q *Queries) CountInventoryStocks(ctx context.Context, arg CountInventoryStocksParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countInventoryStocks, arg.WarehouseID, arg.SkuID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getInventoryStock = `-- name: GetInventoryStock :one
 SELECT warehouse_id,
        sku_id,

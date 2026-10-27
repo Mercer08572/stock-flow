@@ -39,6 +39,17 @@ func (r *postgresRepository) List(ctx context.Context, filter ListFilter) ([]War
 	return warehouses, nil
 }
 
+func (r *postgresRepository) Count(ctx context.Context, filter ListFilter) (int64, error) {
+	count, err := r.queries.CountWarehouses(ctx, warehousedb.CountWarehousesParams{
+		Status: nullableStatus(filter.Status),
+		Type:   nullableType(filter.Type),
+	})
+	if err != nil {
+		return 0, mapPostgresError(err)
+	}
+	return count, nil
+}
+
 func (r *postgresRepository) GetByID(ctx context.Context, id int64) (*Warehouse, error) {
 	row, err := r.queries.GetWarehouseByID(ctx, id)
 	if err != nil {

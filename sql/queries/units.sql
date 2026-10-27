@@ -15,6 +15,14 @@ WHERE deleted_at IS NULL
 ORDER BY id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
+-- name: CountUnits :one
+-- 必须与 ListUnits 的过滤条件保持一致。
+SELECT COUNT(*)
+FROM units
+WHERE deleted_at IS NULL
+  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
+  AND (sqlc.narg('unit_type')::text IS NULL OR unit_type = sqlc.narg('unit_type')::text);
+
 -- name: GetUnitByID :one
 SELECT id,
        code,

@@ -11,6 +11,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countSKUs = `-- name: CountSKUs :one
+SELECT COUNT(*)
+FROM skus
+WHERE deleted_at IS NULL
+  AND ($1::text IS NULL OR status = $1::text)
+  AND ($2::bigint IS NULL OR material_id = $2::bigint)
+  AND ($3::bigint IS NULL OR unit_id = $3::bigint)
+`
+
+type CountSKUsParams struct {
+	Status     *string `db:"status" json:"status"`
+	MaterialID *int64  `db:"material_id" json:"material_id"`
+	UnitID     *int64  `db:"unit_id" json:"unit_id"`
+}
+
+// 必须与 ListSKUs 的过滤条件保持一致。
+func (q *Queries) CountSKUs(ctx context.Context, arg CountSKUsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSKUs, arg.Status, arg.MaterialID, arg.UnitID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createSKU = `-- name: CreateSKU :one
 INSERT INTO skus (material_id, code, name, unit_id, status, remark)
 VALUES ($1, $2, $3, $4, $5, $6)

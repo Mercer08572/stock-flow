@@ -115,6 +115,14 @@ func (r *postgresRepository) ListAPIApps(ctx context.Context, filter ListFilter)
 	return apps, nil
 }
 
+func (r *postgresRepository) CountAPIApps(ctx context.Context, filter ListFilter) (int64, error) {
+	count, err := r.queries.CountAPIApps(ctx, nullableStatus(filter.Status))
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (r *postgresRepository) GetAPIAppByID(ctx context.Context, id int64) (*APIApp, error) {
 	row, err := r.queries.GetAPIAppByID(ctx, id)
 	if err != nil {

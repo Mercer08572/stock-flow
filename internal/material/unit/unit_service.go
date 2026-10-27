@@ -17,6 +17,7 @@ type UnitService interface {
 
 type UnitRepository interface {
 	ListUnits(ctx context.Context, filter UnitListFilter) ([]Unit, error)
+	CountUnits(ctx context.Context, filter UnitListFilter) (int64, error)
 	GetUnitByID(ctx context.Context, id int64) (*Unit, error)
 	CreateUnit(ctx context.Context, input CreateUnitInput) (*Unit, error)
 	UpdateUnit(ctx context.Context, input UpdateUnitInput) (*Unit, error)
@@ -38,6 +39,11 @@ func (s *unitService) List(ctx context.Context, filter UnitListFilter) (UnitList
 		return UnitListResult{}, err
 	}
 
+	total, err := s.repo.CountUnits(ctx, normalized)
+	if err != nil {
+		return UnitListResult{}, err
+	}
+
 	items, err := s.repo.ListUnits(ctx, normalized)
 	if err != nil {
 		return UnitListResult{}, err
@@ -45,6 +51,7 @@ func (s *unitService) List(ctx context.Context, filter UnitListFilter) (UnitList
 
 	return UnitListResult{
 		Items:  items,
+		Total:  total,
 		Limit:  normalized.Limit,
 		Offset: normalized.Offset,
 	}, nil

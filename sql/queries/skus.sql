@@ -16,6 +16,15 @@ WHERE deleted_at IS NULL
 ORDER BY id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
+-- name: CountSKUs :one
+-- 必须与 ListSKUs 的过滤条件保持一致。
+SELECT COUNT(*)
+FROM skus
+WHERE deleted_at IS NULL
+  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
+  AND (sqlc.narg('material_id')::bigint IS NULL OR material_id = sqlc.narg('material_id')::bigint)
+  AND (sqlc.narg('unit_id')::bigint IS NULL OR unit_id = sqlc.narg('unit_id')::bigint);
+
 -- name: GetSKUByID :one
 SELECT id,
        material_id,

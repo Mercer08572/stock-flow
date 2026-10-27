@@ -9,6 +9,8 @@ import (
 )
 
 type Querier interface {
+	// 必须与 ListWarehouses 的过滤条件保持一致。
+	CountWarehouses(ctx context.Context, arg CountWarehousesParams) (int64, error)
 	CreateWarehouse(ctx context.Context, arg CreateWarehouseParams) (CreateWarehouseRow, error)
 	DisableWarehouse(ctx context.Context, id int64) (DisableWarehouseRow, error)
 	GetWarehouseByID(ctx context.Context, id int64) (GetWarehouseByIDRow, error)

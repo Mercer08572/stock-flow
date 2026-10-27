@@ -11,6 +11,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countUnits = `-- name: CountUnits :one
+SELECT COUNT(*)
+FROM units
+WHERE deleted_at IS NULL
+  AND ($1::text IS NULL OR status = $1::text)
+  AND ($2::text IS NULL OR unit_type = $2::text)
+`
+
+type CountUnitsParams struct {
+	Status   *string `db:"status" json:"status"`
+	UnitType *string `db:"unit_type" json:"unit_type"`
+}
+
+// 必须与 ListUnits 的过滤条件保持一致。
+func (q *Queries) CountUnits(ctx context.Context, arg CountUnitsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countUnits, arg.Status, arg.UnitType)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createUnit = `-- name: CreateUnit :one
 INSERT INTO units (code, name, symbol, unit_type, precision, status)
 VALUES ($1, $2, $3, $4, $5, $6)

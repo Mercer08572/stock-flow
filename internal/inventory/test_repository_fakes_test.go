@@ -117,6 +117,10 @@ func (r *fakeRepository) ListMovements(context.Context, inventory.ListMovementsF
 	return nil, errFakeRepositoryNotImplemented
 }
 
+func (r *fakeRepository) CountMovements(context.Context, inventory.ListMovementsFilter) (int64, error) {
+	return 0, nil
+}
+
 func (r *fakeRepository) ClaimIdempotencyKey(context.Context, inventory.IdempotencyClaim) (*inventory.IdempotencyRecord, bool, error) {
 	return nil, false, errFakeRepositoryNotImplemented
 }

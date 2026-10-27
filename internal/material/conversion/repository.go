@@ -44,6 +44,18 @@ func (r *postgresRepository) List(ctx context.Context, filter ListFilter) ([]Mat
 	return conversions, nil
 }
 
+func (r *postgresRepository) Count(ctx context.Context, filter ListFilter) (int64, error) {
+	count, err := r.queries.CountMaterialUnitConversions(ctx, materialdb.CountMaterialUnitConversionsParams{
+		MaterialID: filter.MaterialID,
+		FromUnitID: filter.FromUnitID,
+		ToUnitID:   filter.ToUnitID,
+	})
+	if err != nil {
+		return 0, mapPostgresError(err)
+	}
+	return count, nil
+}
+
 func (r *postgresRepository) GetByID(ctx context.Context, materialID int64, id int64) (*MaterialUnitConversion, error) {
 	row, err := r.queries.GetMaterialUnitConversionByID(ctx, materialdb.GetMaterialUnitConversionByIDParams{
 		ID:         id,

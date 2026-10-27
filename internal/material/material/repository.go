@@ -14,6 +14,7 @@ import (
 
 type Repository interface {
 	List(ctx context.Context, filter ListFilter) ([]Material, error)
+	Count(ctx context.Context, filter ListFilter) (int64, error)
 	GetByID(ctx context.Context, id int64) (*Material, error)
 	Create(ctx context.Context, input CreateInput) (*Material, error)
 	Update(ctx context.Context, input UpdateInput) (*Material, error)
@@ -51,6 +52,17 @@ func (r *postgresRepository) List(ctx context.Context, filter ListFilter) ([]Mat
 	}
 
 	return materials, nil
+}
+
+func (r *postgresRepository) Count(ctx context.Context, filter ListFilter) (int64, error) {
+	count, err := r.queries.CountMaterials(ctx, materialdb.CountMaterialsParams{
+		Status:     nullableStatus(filter.Status),
+		CategoryID: filter.CategoryID,
+	})
+	if err != nil {
+		return 0, mapPostgresError(err)
+	}
+	return count, nil
 }
 
 func (r *postgresRepository) GetByID(ctx context.Context, id int64) (*Material, error) {

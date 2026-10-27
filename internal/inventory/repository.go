@@ -46,6 +46,17 @@ func (r *postgresRepository) ListStocks(ctx context.Context, filter ListStocksFi
 	return stocks, nil
 }
 
+func (r *postgresRepository) CountStocks(ctx context.Context, filter ListStocksFilter) (int64, error) {
+	count, err := r.queries.CountInventoryStocks(ctx, inventorydb.CountInventoryStocksParams{
+		WarehouseID: filter.WarehouseID,
+		SkuID:       filter.SKUID,
+	})
+	if err != nil {
+		return 0, mapPostgresError(err)
+	}
+	return count, nil
+}
+
 func (r *postgresRepository) GetStock(ctx context.Context, warehouseID int64, skuID int64) (*StockBalance, error) {
 	row, err := r.queries.GetInventoryStock(ctx, inventorydb.GetInventoryStockParams{
 		WarehouseID: warehouseID,
@@ -85,6 +96,18 @@ func (r *postgresRepository) ListLayers(ctx context.Context, filter ListLayersFi
 	}
 
 	return layers, nil
+}
+
+func (r *postgresRepository) CountLayers(ctx context.Context, filter ListLayersFilter) (int64, error) {
+	count, err := r.queries.CountInventoryStockLayers(ctx, inventorydb.CountInventoryStockLayersParams{
+		WarehouseID: filter.WarehouseID,
+		SkuID:       filter.SKUID,
+		BatchID:     filter.BatchID,
+	})
+	if err != nil {
+		return 0, mapPostgresError(err)
+	}
+	return count, nil
 }
 
 func (r *postgresRepository) BatchExistsForSKU(ctx context.Context, batchID int64, skuID int64) (bool, error) {

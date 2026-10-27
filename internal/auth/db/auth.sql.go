@@ -81,6 +81,21 @@ func (q *Queries) ChangeAdminPassword(ctx context.Context, arg ChangeAdminPasswo
 	return result.RowsAffected(), nil
 }
 
+const countAPIApps = `-- name: CountAPIApps :one
+SELECT COUNT(*)
+FROM api_apps
+WHERE deleted_at IS NULL
+  AND ($1::text IS NULL OR status = $1::text)
+`
+
+// 必须与 ListAPIApps 的过滤条件保持一致。
+func (q *Queries) CountAPIApps(ctx context.Context, status *string) (int64, error) {
+	row := q.db.QueryRow(ctx, countAPIApps, status)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createAPIApp = `-- name: CreateAPIApp :one
 INSERT INTO api_apps (app_id, name, description, status, metadata)
 VALUES ($1, $2, $3, $4, $5)

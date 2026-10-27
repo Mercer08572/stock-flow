@@ -42,6 +42,7 @@ type ListFilter struct {
 
 type ListResult struct {
 	Items  []MaterialUnitConversion `json:"items"`
+	Total  int64                    `json:"total"`
 	Limit  int32                    `json:"limit"`
 	Offset int32                    `json:"offset"`
 }

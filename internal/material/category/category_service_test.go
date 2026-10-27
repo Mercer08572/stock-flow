@@ -74,6 +74,26 @@ func TestCategoryServiceUpdateRejectsSelfParent(t *testing.T) {
 	}
 }
 
+func TestCategoryServiceListReturnsTotal(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeCategoryRepository()
+	repo.categories[1] = category.Category{ID: 1, Code: "RAW", Status: category.StatusActive}
+	repo.categories[2] = category.Category{ID: 2, Code: "OLD", Status: category.StatusInactive}
+
+	service := category.NewCategoryService(repo)
+	result, err := service.List(ctx, category.CategoryListFilter{})
+	if err != nil {
+		t.Fatalf("list categories: %v", err)
+	}
+
+	if result.Total != 2 {
+		t.Fatalf("expected total 2, got %d", result.Total)
+	}
+	if len(result.Items) != 2 {
+		t.Fatalf("expected 2 categories, got %d", len(result.Items))
+	}
+}
+
 type fakeCategoryRepository struct {
 	categories map[int64]category.Category
 	nextID     int64
@@ -101,6 +121,11 @@ func (r *fakeCategoryRepository) ListCategories(_ context.Context, filter catego
 	}
 
 	return items, nil
+}
+
+func (r *fakeCategoryRepository) CountCategories(ctx context.Context, filter category.CategoryListFilter) (int64, error) {
+	items, err := r.ListCategories(ctx, filter)
+	return int64(len(items)), err
 }
 
 func (r *fakeCategoryRepository) GetCategoryByID(_ context.Context, id int64) (*category.Category, error) {

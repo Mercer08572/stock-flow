@@ -241,6 +241,9 @@ GOCACHE=/private/tmp/stock-flow-go-build-cache make test
 | inventory | `/api/v1/inventory/release` | 释放预留库存 |
 | inventory | `/api/v1/inventory/movements` | 库存流水查询 |
 
+所有列表接口的 `data` 统一为 `{ items, total, limit, offset }`；`total` 使用与 `items` 相同的
+过滤条件，不受 `limit` / `offset` 影响。
+
 除 `health` 与 `auth/admin/login` 外，其余接口都需要认证：管理员使用 HttpOnly 会话 Cookie，
 外部系统使用请求头 `X-Stock-Flow-App-ID` + `X-Stock-Flow-Secret`（见 `.env.example` 与
 `internal/auth/middleware.go`）。

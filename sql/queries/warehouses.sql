@@ -17,6 +17,14 @@ WHERE deleted_at IS NULL
 ORDER BY id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
+-- name: CountWarehouses :one
+-- 必须与 ListWarehouses 的过滤条件保持一致。
+SELECT COUNT(*)
+FROM warehouses
+WHERE deleted_at IS NULL
+  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
+  AND (sqlc.narg('type')::text IS NULL OR type = sqlc.narg('type')::text);
+
 -- name: GetWarehouseByID :one
 SELECT id,
        code,

@@ -31,6 +31,18 @@ func (r *postgresRepository) ListReservations(ctx context.Context, filter ListRe
 	return reservations, nil
 }
 
+func (r *postgresRepository) CountReservations(ctx context.Context, filter ListReservationsFilter) (int64, error) {
+	count, err := r.queries.CountInventoryReservations(ctx, inventorydb.CountInventoryReservationsParams{
+		WarehouseID: filter.WarehouseID,
+		SkuID:       filter.SKUID,
+		Status:      filter.Status,
+	})
+	if err != nil {
+		return 0, mapPostgresError(err)
+	}
+	return count, nil
+}
+
 func (r *postgresRepository) GetReservation(ctx context.Context, reservationID int64) (*Reservation, error) {
 	row, err := r.queries.GetInventoryReservation(ctx, reservationID)
 	if err != nil {

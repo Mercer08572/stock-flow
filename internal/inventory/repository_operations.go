@@ -635,6 +635,20 @@ func (r *postgresRepository) ListMovements(ctx context.Context, filter ListMovem
 	return movements, nil
 }
 
+func (r *postgresRepository) CountMovements(ctx context.Context, filter ListMovementsFilter) (int64, error) {
+	count, err := r.queries.CountInventoryMovements(ctx, inventorydb.CountInventoryMovementsParams{
+		WarehouseID:   filter.WarehouseID,
+		SkuID:         filter.SKUID,
+		OperationType: filter.OperationType,
+		CreatedFrom:   timestamptzValue(filter.CreatedFrom),
+		CreatedTo:     timestamptzValue(filter.CreatedTo),
+	})
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (r *postgresRepository) ClaimIdempotencyKey(ctx context.Context, input IdempotencyClaim) (*IdempotencyRecord, bool, error) {
 	row, err := r.queries.ClaimInventoryIdempotencyKey(ctx, inventorydb.ClaimInventoryIdempotencyKeyParams{
 		OperationType:  input.OperationType,

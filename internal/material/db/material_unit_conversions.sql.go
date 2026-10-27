@@ -11,6 +11,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countMaterialUnitConversions = `-- name: CountMaterialUnitConversions :one
+SELECT COUNT(*)
+FROM material_unit_conversions
+WHERE material_id = $1::bigint
+  AND deleted_at IS NULL
+  AND ($2::bigint IS NULL OR from_unit_id = $2::bigint)
+  AND ($3::bigint IS NULL OR to_unit_id = $3::bigint)
+`
+
+type CountMaterialUnitConversionsParams struct {
+	MaterialID int64  `db:"material_id" json:"material_id"`
+	FromUnitID *int64 `db:"from_unit_id" json:"from_unit_id"`
+	ToUnitID   *int64 `db:"to_unit_id" json:"to_unit_id"`
+}
+
+// 必须与 ListMaterialUnitConversions 的过滤条件保持一致。
+func (q *Queries) CountMaterialUnitConversions(ctx context.Context, arg CountMaterialUnitConversionsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countMaterialUnitConversions, arg.MaterialID, arg.FromUnitID, arg.ToUnitID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createMaterialUnitConversion = `-- name: CreateMaterialUnitConversion :one
 INSERT INTO material_unit_conversions (material_id, from_unit_id, to_unit_id, factor)
 VALUES ($1, $2, $3, $4)

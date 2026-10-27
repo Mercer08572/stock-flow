@@ -9,6 +9,14 @@ import (
 )
 
 type Querier interface {
+	// 必须与 ListMaterialCategories 的过滤条件保持一致。
+	CountMaterialCategories(ctx context.Context, arg CountMaterialCategoriesParams) (int64, error)
+	// 必须与 ListMaterialUnitConversions 的过滤条件保持一致。
+	CountMaterialUnitConversions(ctx context.Context, arg CountMaterialUnitConversionsParams) (int64, error)
+	// 必须与 ListMaterials 的过滤条件保持一致。
+	CountMaterials(ctx context.Context, arg CountMaterialsParams) (int64, error)
+	// 必须与 ListUnits 的过滤条件保持一致。
+	CountUnits(ctx context.Context, arg CountUnitsParams) (int64, error)
 	CreateMaterial(ctx context.Context, arg CreateMaterialParams) (CreateMaterialRow, error)
 	CreateMaterialCategory(ctx context.Context, arg CreateMaterialCategoryParams) (CreateMaterialCategoryRow, error)
 	CreateMaterialUnitConversion(ctx context.Context, arg CreateMaterialUnitConversionParams) (CreateMaterialUnitConversionRow, error)

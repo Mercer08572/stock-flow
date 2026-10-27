@@ -36,6 +36,7 @@ func TestHandlerListReservations(t *testing.T) {
 					CreatedAt:      now,
 					UpdatedAt:      now,
 				}},
+				Total:  1,
 				Limit:  50,
 				Offset: 100,
 			}, nil
@@ -68,6 +69,7 @@ func TestHandlerListReservations(t *testing.T) {
 		Code int `json:"code"`
 		Data struct {
 			Items  []inventory.Reservation `json:"items"`
+			Total  int64                   `json:"total"`
 			Limit  int32                   `json:"limit"`
 			Offset int32                   `json:"offset"`
 		} `json:"data"`
@@ -84,6 +86,9 @@ func TestHandlerListReservations(t *testing.T) {
 	}
 	if body.Data.Limit != 50 || body.Data.Offset != 100 {
 		t.Fatalf("unexpected pagination: %d/%d", body.Data.Limit, body.Data.Offset)
+	}
+	if body.Data.Total != 1 {
+		t.Fatalf("expected total 1, got %d", body.Data.Total)
 	}
 	if body.TraceID != "req_reservations" {
 		t.Fatalf("expected trace id req_reservations, got %q", body.TraceID)

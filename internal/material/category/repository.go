@@ -39,6 +39,17 @@ func (r *postgresRepository) ListCategories(ctx context.Context, filter Category
 	return categories, nil
 }
 
+func (r *postgresRepository) CountCategories(ctx context.Context, filter CategoryListFilter) (int64, error) {
+	count, err := r.queries.CountMaterialCategories(ctx, materialdb.CountMaterialCategoriesParams{
+		Status:   nullableStatus(filter.Status),
+		ParentID: filter.ParentID,
+	})
+	if err != nil {
+		return 0, mapPostgresError(err)
+	}
+	return count, nil
+}
+
 func (r *postgresRepository) GetCategoryByID(ctx context.Context, id int64) (*Category, error) {
 	row, err := r.queries.GetMaterialCategoryByID(ctx, id)
 	if err != nil {

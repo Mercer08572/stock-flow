@@ -11,6 +11,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countWarehouses = `-- name: CountWarehouses :one
+SELECT COUNT(*)
+FROM warehouses
+WHERE deleted_at IS NULL
+  AND ($1::text IS NULL OR status = $1::text)
+  AND ($2::text IS NULL OR type = $2::text)
+`
+
+type CountWarehousesParams struct {
+	Status *string `db:"status" json:"status"`
+	Type   *string `db:"type" json:"type"`
+}
+
+// 必须与 ListWarehouses 的过滤条件保持一致。
+func (q *Queries) CountWarehouses(ctx context.Context, arg CountWarehousesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countWarehouses, arg.Status, arg.Type)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createWarehouse = `-- name: CreateWarehouse :one
 INSERT INTO warehouses (code, name, type, status, location, contact_name, contact_phone, remark)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
