@@ -194,12 +194,6 @@ make migrate-version   # 查看当前迁移版本
 make schema-dump       # 导出当前数据库 schema 给 sqlc 使用
 ```
 
-如果当前环境无法写入 Go 默认构建缓存，可以指定本地缓存目录：
-
-```bash
-GOCACHE=/private/tmp/stock-flow-go-build-cache make test
-```
-
 ## API 约定
 
 所有 API 都以 `/api/v1` 为基础路径，资源名使用复数名词。常规资源遵循：

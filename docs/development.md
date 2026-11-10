@@ -223,12 +223,6 @@ sql/queries/materials.sql -> internal/material/db
 make test
 ```
 
-在 Go 无法写入默认构建缓存的沙盒环境中，使用本地缓存路径：
-
-```bash
-GOCACHE=/private/tmp/stock-flow-go-build-cache make test
-```
-
 ### 数据库集成测试
 
 集成测试由 `//go:build integration` 隔离，默认不会编译进 `go test ./...`。
