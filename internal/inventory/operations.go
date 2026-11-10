@@ -908,6 +908,9 @@ func normalizeListMovementsFilter(filter ListMovementsFilter) (ListMovementsFilt
 	if filter.SKUID != nil && *filter.SKUID <= 0 {
 		return ListMovementsFilter{}, apperr.NewValidationError("sku_id must be greater than zero")
 	}
+	if filter.ReservationID != nil && *filter.ReservationID <= 0 {
+		return ListMovementsFilter{}, apperr.NewValidationError("reservation_id must be greater than zero")
+	}
 	if filter.OperationType != nil {
 		operationType := *filter.OperationType
 		switch operationType {

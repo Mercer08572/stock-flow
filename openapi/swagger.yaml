@@ -1636,6 +1636,10 @@ paths:
         in: query
         name: sku_id
         type: integer
+      - description: Reservation ID
+        in: query
+        name: reservation_id
+        type: integer
       - description: Operation type
         enum:
         - increase

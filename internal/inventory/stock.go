@@ -190,6 +190,7 @@ type Movement struct {
 type ListMovementsFilter struct {
 	WarehouseID   *int64
 	SKUID         *int64
+	ReservationID *int64
 	OperationType *string
 	CreatedFrom   *time.Time
 	CreatedTo     *time.Time

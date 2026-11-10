@@ -512,6 +512,7 @@ FROM inventory_movements
 WHERE deleted_at IS NULL
   AND (sqlc.narg('warehouse_id')::bigint IS NULL OR warehouse_id = sqlc.narg('warehouse_id')::bigint)
   AND (sqlc.narg('sku_id')::bigint IS NULL OR sku_id = sqlc.narg('sku_id')::bigint)
+  AND (sqlc.narg('reservation_id')::bigint IS NULL OR reservation_id = sqlc.narg('reservation_id')::bigint)
   AND (sqlc.narg('operation_type')::text IS NULL OR operation_type = sqlc.narg('operation_type')::text)
   AND (sqlc.narg('created_from')::timestamptz IS NULL OR created_at >= sqlc.narg('created_from')::timestamptz)
   AND (sqlc.narg('created_to')::timestamptz IS NULL OR created_at < sqlc.narg('created_to')::timestamptz)
@@ -525,6 +526,7 @@ FROM inventory_movements
 WHERE deleted_at IS NULL
   AND (sqlc.narg('warehouse_id')::bigint IS NULL OR warehouse_id = sqlc.narg('warehouse_id')::bigint)
   AND (sqlc.narg('sku_id')::bigint IS NULL OR sku_id = sqlc.narg('sku_id')::bigint)
+  AND (sqlc.narg('reservation_id')::bigint IS NULL OR reservation_id = sqlc.narg('reservation_id')::bigint)
   AND (sqlc.narg('operation_type')::text IS NULL OR operation_type = sqlc.narg('operation_type')::text)
   AND (sqlc.narg('created_from')::timestamptz IS NULL OR created_at >= sqlc.narg('created_from')::timestamptz)
   AND (sqlc.narg('created_to')::timestamptz IS NULL OR created_at < sqlc.narg('created_to')::timestamptz);

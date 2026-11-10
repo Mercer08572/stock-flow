@@ -197,6 +197,7 @@ func (h *handler) ReleaseStock(c *gin.Context) {
 // @Produce json
 // @Param warehouse_id query int false "Warehouse ID"
 // @Param sku_id query int false "SKU ID"
+// @Param reservation_id query int false "Reservation ID"
 // @Param operation_type query string false "Operation type" Enums(increase,reserve,release_reserved,decrease_available,decrease_reserved)
 // @Param created_from query string false "Created from (RFC3339)"
 // @Param created_to query string false "Created to (RFC3339, exclusive)"
@@ -271,6 +272,13 @@ func parseListMovementsFilter(c *gin.Context) (ListMovementsFilter, error) {
 			return ListMovementsFilter{}, apperr.NewValidationError("sku_id must be an integer greater than zero")
 		}
 		filter.SKUID = &value
+	}
+	if raw := c.Query("reservation_id"); raw != "" {
+		value, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || value <= 0 {
+			return ListMovementsFilter{}, apperr.NewValidationError("reservation_id must be an integer greater than zero")
+		}
+		filter.ReservationID = &value
 	}
 	if raw := c.Query("operation_type"); raw != "" {
 		filter.OperationType = &raw

@@ -135,7 +135,7 @@ func TestHandlerListMovementsParsesFilters(t *testing.T) {
 	router := newInventoryRouterWithActor(service, auth.Caller{})
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/api/v1/inventory/movements?warehouse_id=1&sku_id=2&operation_type=increase&created_from=2026-01-01T00:00:00Z&limit=5&offset=10",
+		"/api/v1/inventory/movements?warehouse_id=1&sku_id=2&reservation_id=3&operation_type=increase&created_from=2026-01-01T00:00:00Z&limit=5&offset=10",
 		nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -149,10 +149,26 @@ func TestHandlerListMovementsParsesFilters(t *testing.T) {
 	if captured.SKUID == nil || *captured.SKUID != 2 {
 		t.Fatalf("unexpected sku filter: %#v", captured.SKUID)
 	}
+	if captured.ReservationID == nil || *captured.ReservationID != 3 {
+		t.Fatalf("unexpected reservation filter: %#v", captured.ReservationID)
+	}
 	if captured.OperationType == nil || *captured.OperationType != "increase" {
 		t.Fatalf("unexpected operation filter: %#v", captured.OperationType)
 	}
 	if captured.Limit != 5 || captured.Offset != 10 || captured.CreatedFrom == nil {
 		t.Fatalf("unexpected pagination/time filter: %#v", captured)
+	}
+}
+
+func TestHandlerListMovementsRejectsInvalidReservationID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := newInventoryRouterWithActor(&fakeService{}, auth.Caller{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/inventory/movements?reservation_id=0", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
 	}
 }

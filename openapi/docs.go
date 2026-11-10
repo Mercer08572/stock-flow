@@ -1006,6 +1006,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "integer",
+                        "description": "Reservation ID",
+                        "name": "reservation_id",
+                        "in": "query"
+                    },
+                    {
                         "enum": [
                             "increase",
                             "reserve",

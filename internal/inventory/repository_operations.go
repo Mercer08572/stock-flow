@@ -595,6 +595,7 @@ func (r *postgresRepository) ListMovements(ctx context.Context, filter ListMovem
 	rows, err := r.queries.ListInventoryMovements(ctx, inventorydb.ListInventoryMovementsParams{
 		WarehouseID:   filter.WarehouseID,
 		SkuID:         filter.SKUID,
+		ReservationID: filter.ReservationID,
 		OperationType: filter.OperationType,
 		CreatedFrom:   timestamptzValue(filter.CreatedFrom),
 		CreatedTo:     timestamptzValue(filter.CreatedTo),
@@ -639,6 +640,7 @@ func (r *postgresRepository) CountMovements(ctx context.Context, filter ListMove
 	count, err := r.queries.CountInventoryMovements(ctx, inventorydb.CountInventoryMovementsParams{
 		WarehouseID:   filter.WarehouseID,
 		SkuID:         filter.SKUID,
+		ReservationID: filter.ReservationID,
 		OperationType: filter.OperationType,
 		CreatedFrom:   timestamptzValue(filter.CreatedFrom),
 		CreatedTo:     timestamptzValue(filter.CreatedTo),

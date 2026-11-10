@@ -500,6 +500,48 @@ func TestListMovementsFiltersAndPagination(t *testing.T) {
 	}
 }
 
+func TestListMovementsFiltersByReservation(t *testing.T) {
+	fixture := newInventoryFixture(t)
+	ctx := context.Background()
+
+	if _, err := fixture.service.IncreaseStock(ctx, inventory.IncreaseStockRequest{
+		OperationContext: fixture.operationContext("movement-reservation-increase"),
+		WarehouseID:      fixture.warehouseID,
+		SKUID:            fixture.skuID,
+		Qty:              "10",
+	}); err != nil {
+		t.Fatalf("increase stock: %v", err)
+	}
+
+	reserved, err := fixture.service.ReserveStock(ctx, inventory.ReserveStockRequest{
+		OperationContext: fixture.operationContext("movement-reservation-reserve"),
+		WarehouseID:      fixture.warehouseID,
+		SKUID:            fixture.skuID,
+		Qty:              "4",
+	})
+	if err != nil {
+		t.Fatalf("reserve stock: %v", err)
+	}
+
+	reservationID := reserved.Reservation.ID
+	result, err := fixture.service.ListMovements(ctx, inventory.ListMovementsFilter{
+		ReservationID: &reservationID,
+		Limit:         10,
+	})
+	if err != nil {
+		t.Fatalf("list movements: %v", err)
+	}
+	if len(result.Items) != 1 || result.Items[0].OperationType != "reserve" {
+		t.Fatalf("unexpected movements: %#v", result.Items)
+	}
+	if result.Items[0].ReservationID == nil || *result.Items[0].ReservationID != reservationID {
+		t.Fatalf("unexpected movement reservation: %#v", result.Items[0].ReservationID)
+	}
+	if result.Total != 1 {
+		t.Fatalf("expected total 1, got %d", result.Total)
+	}
+}
+
 func stringPointer(value string) *string {
 	return &value
 }

@@ -409,14 +409,16 @@ FROM inventory_movements
 WHERE deleted_at IS NULL
   AND ($1::bigint IS NULL OR warehouse_id = $1::bigint)
   AND ($2::bigint IS NULL OR sku_id = $2::bigint)
-  AND ($3::text IS NULL OR operation_type = $3::text)
-  AND ($4::timestamptz IS NULL OR created_at >= $4::timestamptz)
-  AND ($5::timestamptz IS NULL OR created_at < $5::timestamptz)
+  AND ($3::bigint IS NULL OR reservation_id = $3::bigint)
+  AND ($4::text IS NULL OR operation_type = $4::text)
+  AND ($5::timestamptz IS NULL OR created_at >= $5::timestamptz)
+  AND ($6::timestamptz IS NULL OR created_at < $6::timestamptz)
 `
 
 type CountInventoryMovementsParams struct {
 	WarehouseID   *int64             `db:"warehouse_id" json:"warehouse_id"`
 	SkuID         *int64             `db:"sku_id" json:"sku_id"`
+	ReservationID *int64             `db:"reservation_id" json:"reservation_id"`
 	OperationType *string            `db:"operation_type" json:"operation_type"`
 	CreatedFrom   pgtype.Timestamptz `db:"created_from" json:"created_from"`
 	CreatedTo     pgtype.Timestamptz `db:"created_to" json:"created_to"`
@@ -427,6 +429,7 @@ func (q *Queries) CountInventoryMovements(ctx context.Context, arg CountInventor
 	row := q.db.QueryRow(ctx, countInventoryMovements,
 		arg.WarehouseID,
 		arg.SkuID,
+		arg.ReservationID,
 		arg.OperationType,
 		arg.CreatedFrom,
 		arg.CreatedTo,
@@ -1039,16 +1042,18 @@ FROM inventory_movements
 WHERE deleted_at IS NULL
   AND ($1::bigint IS NULL OR warehouse_id = $1::bigint)
   AND ($2::bigint IS NULL OR sku_id = $2::bigint)
-  AND ($3::text IS NULL OR operation_type = $3::text)
-  AND ($4::timestamptz IS NULL OR created_at >= $4::timestamptz)
-  AND ($5::timestamptz IS NULL OR created_at < $5::timestamptz)
+  AND ($3::bigint IS NULL OR reservation_id = $3::bigint)
+  AND ($4::text IS NULL OR operation_type = $4::text)
+  AND ($5::timestamptz IS NULL OR created_at >= $5::timestamptz)
+  AND ($6::timestamptz IS NULL OR created_at < $6::timestamptz)
 ORDER BY created_at DESC, id DESC
-LIMIT $7 OFFSET $6
+LIMIT $8 OFFSET $7
 `
 
 type ListInventoryMovementsParams struct {
 	WarehouseID   *int64             `db:"warehouse_id" json:"warehouse_id"`
 	SkuID         *int64             `db:"sku_id" json:"sku_id"`
+	ReservationID *int64             `db:"reservation_id" json:"reservation_id"`
 	OperationType *string            `db:"operation_type" json:"operation_type"`
 	CreatedFrom   pgtype.Timestamptz `db:"created_from" json:"created_from"`
 	CreatedTo     pgtype.Timestamptz `db:"created_to" json:"created_to"`
@@ -1080,6 +1085,7 @@ func (q *Queries) ListInventoryMovements(ctx context.Context, arg ListInventoryM
 	rows, err := q.db.Query(ctx, listInventoryMovements,
 		arg.WarehouseID,
 		arg.SkuID,
+		arg.ReservationID,
 		arg.OperationType,
 		arg.CreatedFrom,
 		arg.CreatedTo,

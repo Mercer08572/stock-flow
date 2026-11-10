@@ -14,7 +14,7 @@ Related:
 
 ## Goal
 
-`GET /api/v1/inventory/movements` 支持按仓库、SKU、操作类型、时间范围过滤与分页。
+`GET /api/v1/inventory/movements` 支持按仓库、SKU、预留单、操作类型、时间范围过滤与分页。
 
 ## Non-Goals
 
@@ -27,11 +27,13 @@ Related:
 - `operation_type` 仅允许 `increase`、`reserve`、`release_reserved`、`decrease_available`、`decrease_reserved`。
 - `created_from` / `created_to` 使用 RFC3339；`created_to` 为开区间。
 - 默认 `limit=20`，最大 100。
+- `reservation_id` 为可选正整数；提供时只返回关联该预留单的流水。
 - 返回 actor 字段以支持审计。
 
 ## Acceptance Criteria
 
-- [x] 支持仓库、SKU、操作类型、时间范围过滤。
+- [x] 支持仓库、SKU、预留单、操作类型、时间范围过滤。
 - [x] 分页参数归一化。
 - [x] 集成测试 `TestListMovementsFiltersAndPagination` 通过。
+- [x] 集成测试 `TestListMovementsFiltersByReservation` 通过。
 - [x] OpenAPI 已重新生成。
