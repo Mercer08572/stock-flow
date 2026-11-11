@@ -3,6 +3,7 @@ package auth
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -64,6 +65,16 @@ type IssueAPISecretRequest struct {
 	ExpiresAt     *time.Time `json:"expires_at"`
 }
 
+type UpdateAPISecretRequest struct {
+	Name      string     `json:"name"`
+	ExpiresAt *time.Time `json:"expires_at"`
+}
+
+type ReissueAPISecretRequest struct {
+	Name      string     `json:"name"`
+	ExpiresAt *time.Time `json:"expires_at"`
+}
+
 type APISecretListResponse struct {
 	Items []APISecret `json:"items"`
 }
@@ -100,7 +111,11 @@ func (h *handler) RegisterRoutes(router gin.IRouter, adminSessionMiddleware gin.
 	admin.DELETE("/apps/:id", h.DeleteAPIApp)
 	admin.POST("/apps/:id/secrets", h.IssueAPISecret)
 	admin.GET("/apps/:id/secrets", h.ListAPISecrets)
+	admin.PUT("/apps/:id/secrets/:secret_id", h.UpdateAPISecret)
+	admin.DELETE("/apps/:id/secrets/:secret_id", h.DeleteAPISecret)
 	admin.POST("/apps/:id/secrets/:secret_id/block", h.BlockAPISecret)
+	admin.POST("/apps/:id/secrets/:secret_id/unblock", h.UnblockAPISecret)
+	admin.POST("/apps/:id/secrets/:secret_id/reissue", h.ReissueAPISecret)
 }
 
 // Login logs in an administrator and sets the admin session cookie.
@@ -442,6 +457,153 @@ func (h *handler) BlockAPISecret(c *gin.Context) {
 	response.Success(c, secret)
 }
 
+// UpdateAPISecret updates a secret's display name and expiry without changing its status.
+// @Summary Update an API application secret
+// @Tags API Applications
+// @Accept json
+// @Produce json
+// @Param id path int true "API application ID"
+// @Param secret_id path string true "API secret identifier"
+// @Param body body UpdateAPISecretRequest true "API secret payload"
+// @Success 200 {object} response.Body{data=APISecret}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 403 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/apps/{id}/secrets/{secret_id} [put]
+func (h *handler) UpdateAPISecret(c *gin.Context) {
+	id, err := parseAPIAppID(c)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	secretID, err := parseAPISecretID(c)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	var req UpdateAPISecretRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httperr.Write(c, apperr.NewValidationError("request body must be valid JSON"))
+		return
+	}
+	secret, err := h.service.UpdateAPISecret(c.Request.Context(), UpdateSecretInput{
+		APIAppID: id, SecretID: secretID, Name: req.Name, ExpiresAt: req.ExpiresAt,
+	})
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	response.Success(c, secret)
+}
+
+// DeleteAPISecret soft deletes a secret so it can no longer authenticate.
+// @Summary Delete an API application secret
+// @Tags API Applications
+// @Produce json
+// @Param id path int true "API application ID"
+// @Param secret_id path string true "API secret identifier"
+// @Success 200 {object} response.Body
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 403 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/apps/{id}/secrets/{secret_id} [delete]
+func (h *handler) DeleteAPISecret(c *gin.Context) {
+	id, err := parseAPIAppID(c)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	secretID, err := parseAPISecretID(c)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	if err := h.service.DeleteAPISecret(c.Request.Context(), id, secretID); err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	response.NoContent(c)
+}
+
+// UnblockAPISecret re-enables a blocked API secret.
+// @Summary Enable an API application secret
+// @Tags API Applications
+// @Produce json
+// @Param id path int true "API application ID"
+// @Param secret_id path string true "API secret identifier"
+// @Success 200 {object} response.Body{data=APISecret}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 403 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/apps/{id}/secrets/{secret_id}/unblock [post]
+func (h *handler) UnblockAPISecret(c *gin.Context) {
+	id, err := parseAPIAppID(c)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	secretID, err := parseAPISecretID(c)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	secret, err := h.service.UnblockAPISecret(c.Request.Context(), id, secretID)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	response.Success(c, secret)
+}
+
+// ReissueAPISecret replaces an active secret with a new one and blocks the old one.
+// @Summary Reissue an API application secret
+// @Description The old secret is blocked in the same transaction. The new plaintext secret is returned only in this response.
+// @Tags API Applications
+// @Accept json
+// @Produce json
+// @Param id path int true "API application ID"
+// @Param secret_id path string true "API secret identifier"
+// @Param body body ReissueAPISecretRequest true "Replacement secret payload"
+// @Success 201 {object} response.Body{data=IssuedSecret}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 403 {object} response.Body
+// @Failure 404 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /auth/apps/{id}/secrets/{secret_id}/reissue [post]
+func (h *handler) ReissueAPISecret(c *gin.Context) {
+	id, err := parseAPIAppID(c)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	secretID, err := parseAPISecretID(c)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	var req ReissueAPISecretRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httperr.Write(c, apperr.NewValidationError("request body must be valid JSON"))
+		return
+	}
+	secret, err := h.service.ReissueAPISecret(c.Request.Context(), ReissueSecretInput{
+		APIAppID: id, SecretID: secretID, Name: req.Name, ExpiresAt: req.ExpiresAt,
+	})
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	response.Created(c, secret)
+}
+
 func (h *handler) setSessionCookie(c *gin.Context, token string, expiresAt time.Time) {
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     h.cookie.Name,
@@ -466,6 +628,14 @@ func (h *handler) clearSessionCookie(c *gin.Context) {
 		Secure:   h.cookie.Secure,
 		SameSite: h.cookie.SameSite,
 	})
+}
+
+func parseAPISecretID(c *gin.Context) (string, error) {
+	secretID := strings.TrimSpace(c.Param("secret_id"))
+	if secretID == "" {
+		return "", apperr.NewValidationError("secret id is required")
+	}
+	return secretID, nil
 }
 
 func parseAPIAppID(c *gin.Context) (int64, error) {

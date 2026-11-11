@@ -159,4 +159,18 @@ func (s *fakeAdminService) BlockAPISecret(context.Context, int64, string) (*auth
 	return nil, errors.New("not implemented")
 }
 
+func (s *fakeAdminService) UpdateAPISecret(context.Context, auth.UpdateSecretInput) (*auth.APISecret, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (s *fakeAdminService) DeleteAPISecret(context.Context, int64, string) error { return nil }
+
+func (s *fakeAdminService) UnblockAPISecret(context.Context, int64, string) (*auth.APISecret, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (s *fakeAdminService) ReissueAPISecret(context.Context, auth.ReissueSecretInput) (*auth.IssuedSecret, error) {
+	return nil, errors.New("not implemented")
+}
+
 var _ auth.Service = (*fakeAdminService)(nil)

@@ -272,6 +272,33 @@ func (q *Queries) GetAPIAppByIdentifier(ctx context.Context, appID string) (GetA
 	return i, err
 }
 
+const getAPISecretForReissue = `-- name: GetAPISecretForReissue :one
+SELECT status, bound_metadata
+FROM api_secrets
+WHERE api_app_id = $1
+  AND secret_id = $2
+  AND deleted_at IS NULL
+FOR UPDATE
+`
+
+type GetAPISecretForReissueParams struct {
+	ApiAppID int64  `db:"api_app_id" json:"api_app_id"`
+	SecretID string `db:"secret_id" json:"secret_id"`
+}
+
+type GetAPISecretForReissueRow struct {
+	Status        string `db:"status" json:"status"`
+	BoundMetadata []byte `db:"bound_metadata" json:"bound_metadata"`
+}
+
+// 只取重新签发所需的两列：状态用于判断是否仍可轮换，元数据用于让新密钥继承旧密钥的绑定信息。
+func (q *Queries) GetAPISecretForReissue(ctx context.Context, arg GetAPISecretForReissueParams) (GetAPISecretForReissueRow, error) {
+	row := q.db.QueryRow(ctx, getAPISecretForReissue, arg.ApiAppID, arg.SecretID)
+	var i GetAPISecretForReissueRow
+	err := row.Scan(&i.Status, &i.BoundMetadata)
+	return i, err
+}
+
 const getAdminByID = `-- name: GetAdminByID :one
 SELECT id, username, password_hash, password_initialized, must_change_password, password_changed_at, status, created_at, updated_at
 FROM admin_users
@@ -565,6 +592,29 @@ func (q *Queries) SoftDeleteAPIApp(ctx context.Context, id int64) (int64, error)
 	return result.RowsAffected(), nil
 }
 
+const softDeleteAPISecret = `-- name: SoftDeleteAPISecret :execrows
+UPDATE api_secrets
+SET deleted_at = NOW(),
+    status = 'blocked',
+    updated_at = NOW()
+WHERE api_app_id = $1
+  AND secret_id = $2
+  AND deleted_at IS NULL
+`
+
+type SoftDeleteAPISecretParams struct {
+	ApiAppID int64  `db:"api_app_id" json:"api_app_id"`
+	SecretID string `db:"secret_id" json:"secret_id"`
+}
+
+func (q *Queries) SoftDeleteAPISecret(ctx context.Context, arg SoftDeleteAPISecretParams) (int64, error) {
+	result, err := q.db.Exec(ctx, softDeleteAPISecret, arg.ApiAppID, arg.SecretID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const touchAPISecretLastUsed = `-- name: TouchAPISecretLastUsed :execrows
 UPDATE api_secrets
 SET last_used_at = $2,
@@ -585,6 +635,52 @@ func (q *Queries) TouchAPISecretLastUsed(ctx context.Context, arg TouchAPISecret
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const unblockAPISecret = `-- name: UnblockAPISecret :one
+UPDATE api_secrets
+SET status = 'active',
+    updated_at = NOW()
+WHERE api_app_id = $1
+  AND secret_id = $2
+  AND deleted_at IS NULL
+RETURNING id, api_app_id, secret_id, name, status, bound_metadata, expires_at, last_used_at, created_at, updated_at
+`
+
+type UnblockAPISecretParams struct {
+	ApiAppID int64  `db:"api_app_id" json:"api_app_id"`
+	SecretID string `db:"secret_id" json:"secret_id"`
+}
+
+type UnblockAPISecretRow struct {
+	ID            int64              `db:"id" json:"id"`
+	ApiAppID      int64              `db:"api_app_id" json:"api_app_id"`
+	SecretID      string             `db:"secret_id" json:"secret_id"`
+	Name          string             `db:"name" json:"name"`
+	Status        string             `db:"status" json:"status"`
+	BoundMetadata []byte             `db:"bound_metadata" json:"bound_metadata"`
+	ExpiresAt     pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
+	LastUsedAt    pgtype.Timestamptz `db:"last_used_at" json:"last_used_at"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+func (q *Queries) UnblockAPISecret(ctx context.Context, arg UnblockAPISecretParams) (UnblockAPISecretRow, error) {
+	row := q.db.QueryRow(ctx, unblockAPISecret, arg.ApiAppID, arg.SecretID)
+	var i UnblockAPISecretRow
+	err := row.Scan(
+		&i.ID,
+		&i.ApiAppID,
+		&i.SecretID,
+		&i.Name,
+		&i.Status,
+		&i.BoundMetadata,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateAPIApp = `-- name: UpdateAPIApp :one
@@ -634,6 +730,60 @@ func (q *Queries) UpdateAPIApp(ctx context.Context, arg UpdateAPIAppParams) (Upd
 		&i.Description,
 		&i.Status,
 		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateAPISecret = `-- name: UpdateAPISecret :one
+UPDATE api_secrets
+SET name = $3,
+    expires_at = $4,
+    updated_at = NOW()
+WHERE api_app_id = $1
+  AND secret_id = $2
+  AND deleted_at IS NULL
+RETURNING id, api_app_id, secret_id, name, status, bound_metadata, expires_at, last_used_at, created_at, updated_at
+`
+
+type UpdateAPISecretParams struct {
+	ApiAppID  int64              `db:"api_app_id" json:"api_app_id"`
+	SecretID  string             `db:"secret_id" json:"secret_id"`
+	Name      string             `db:"name" json:"name"`
+	ExpiresAt pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
+}
+
+type UpdateAPISecretRow struct {
+	ID            int64              `db:"id" json:"id"`
+	ApiAppID      int64              `db:"api_app_id" json:"api_app_id"`
+	SecretID      string             `db:"secret_id" json:"secret_id"`
+	Name          string             `db:"name" json:"name"`
+	Status        string             `db:"status" json:"status"`
+	BoundMetadata []byte             `db:"bound_metadata" json:"bound_metadata"`
+	ExpiresAt     pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
+	LastUsedAt    pgtype.Timestamptz `db:"last_used_at" json:"last_used_at"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+func (q *Queries) UpdateAPISecret(ctx context.Context, arg UpdateAPISecretParams) (UpdateAPISecretRow, error) {
+	row := q.db.QueryRow(ctx, updateAPISecret,
+		arg.ApiAppID,
+		arg.SecretID,
+		arg.Name,
+		arg.ExpiresAt,
+	)
+	var i UpdateAPISecretRow
+	err := row.Scan(
+		&i.ID,
+		&i.ApiAppID,
+		&i.SecretID,
+		&i.Name,
+		&i.Status,
+		&i.BoundMetadata,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

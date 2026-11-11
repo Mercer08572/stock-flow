@@ -227,6 +227,67 @@ DATABASE_URL=postgres://file:pass@localhost:5432/app?sslmode=disable
 	}
 }
 
+func TestLoadAppliesAuditDefaults(t *testing.T) {
+	clearConfigEnv(t)
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.AuditEnabled {
+		t.Fatal("expected audit to be enabled by default")
+	}
+	if cfg.AuditRetentionDays != 180 {
+		t.Fatalf("expected default audit retention 180 days, got %d", cfg.AuditRetentionDays)
+	}
+	if len(cfg.HTTPTrustedProxies) != 0 {
+		t.Fatalf("expected no trusted proxies by default, got %v", cfg.HTTPTrustedProxies)
+	}
+}
+
+func TestLoadParsesAuditAndTrustedProxyEnv(t *testing.T) {
+	clearConfigEnv(t)
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+	t.Setenv("AUDIT_ENABLED", "false")
+	t.Setenv("AUDIT_RETENTION_DAYS", "365")
+	t.Setenv("HTTP_TRUSTED_PROXIES", "127.0.0.1, 10.0.0.0/8 , ,")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.AuditEnabled {
+		t.Fatal("expected audit to be disabled")
+	}
+	if cfg.AuditRetentionDays != 365 {
+		t.Fatalf("expected 365 retention days, got %d", cfg.AuditRetentionDays)
+	}
+	if len(cfg.HTTPTrustedProxies) != 2 || cfg.HTTPTrustedProxies[0] != "127.0.0.1" || cfg.HTTPTrustedProxies[1] != "10.0.0.0/8" {
+		t.Fatalf("unexpected trusted proxies: %v", cfg.HTTPTrustedProxies)
+	}
+}
+
+func TestLoadRejectsInvalidAuditRetention(t *testing.T) {
+	clearConfigEnv(t)
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+	t.Setenv("AUDIT_RETENTION_DAYS", "7")
+
+	if _, err := config.Load(); err == nil {
+		t.Fatal("expected invalid audit retention to fail")
+	}
+}
+
+func TestLoadRejectsInvalidTrustedProxy(t *testing.T) {
+	clearConfigEnv(t)
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+	t.Setenv("HTTP_TRUSTED_PROXIES", "not-an-ip")
+
+	if _, err := config.Load(); err == nil {
+		t.Fatal("expected invalid trusted proxy to fail")
+	}
+}
+
 func TestLoadWithoutEnvFileSucceeds(t *testing.T) {
 	clearConfigEnv(t)
 
@@ -329,6 +390,9 @@ func clearConfigEnv(t *testing.T) {
 		"AUTH_LOGIN_FAILURE_WINDOW",
 		"AUTH_LOGIN_LOCKOUT",
 		"AUTH_LOGIN_IP_MAX_ATTEMPTS",
+		"AUDIT_ENABLED",
+		"AUDIT_RETENTION_DAYS",
+		"HTTP_TRUSTED_PROXIES",
 	}
 
 	for _, key := range keys {

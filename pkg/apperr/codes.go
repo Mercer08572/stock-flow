@@ -21,6 +21,7 @@ const (
 	CodeAuthAPISecretNotFound      Code = "AUTH_API_SECRET_NOT_FOUND"
 	CodeAuthAPIAppDuplicate        Code = "AUTH_API_APP_DUPLICATE"
 	CodeAuthAPISecretDuplicate     Code = "AUTH_API_SECRET_DUPLICATE"
+	CodeAuthAPISecretNotActive     Code = "AUTH_API_SECRET_NOT_ACTIVE"
 
 	// 仓库
 	CodeWarehouseNotFound              Code = "WAREHOUSE_NOT_FOUND"

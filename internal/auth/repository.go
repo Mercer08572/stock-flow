@@ -16,11 +16,12 @@ import (
 )
 
 type postgresRepository struct {
+	pool    *pgxpool.Pool
 	queries authdb.Querier
 }
 
 func NewPostgresRepository(db *pgxpool.Pool) Repository {
-	return &postgresRepository{queries: authdb.New(db)}
+	return &postgresRepository{pool: db, queries: authdb.New(db)}
 }
 
 func (r *postgresRepository) GetAdminByUsername(ctx context.Context, username string) (*AdminUser, error) {
@@ -350,6 +351,97 @@ func (r *postgresRepository) BlockAPISecret(ctx context.Context, apiAppID int64,
 	}, nil
 }
 
+func (r *postgresRepository) UpdateAPISecret(ctx context.Context, input UpdateSecretInput) (*APISecret, error) {
+	row, err := r.queries.UpdateAPISecret(ctx, authdb.UpdateAPISecretParams{
+		ApiAppID:  input.APIAppID,
+		SecretID:  input.SecretID,
+		Name:      input.Name,
+		ExpiresAt: nullableTime(input.ExpiresAt),
+	})
+	if err != nil {
+		return nil, mapAPISecretError(err)
+	}
+	return newAPISecret(
+		row.ID, row.ApiAppID, row.SecretID, row.Name, row.Status, row.BoundMetadata,
+		row.ExpiresAt, row.LastUsedAt, row.CreatedAt, row.UpdatedAt,
+	)
+}
+
+func (r *postgresRepository) SoftDeleteAPISecret(ctx context.Context, apiAppID int64, secretID string) error {
+	rows, err := r.queries.SoftDeleteAPISecret(ctx, authdb.SoftDeleteAPISecretParams{ApiAppID: apiAppID, SecretID: secretID})
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrAPISecretNotFound
+	}
+	return nil
+}
+
+func (r *postgresRepository) UnblockAPISecret(ctx context.Context, apiAppID int64, secretID string) (*APISecret, error) {
+	row, err := r.queries.UnblockAPISecret(ctx, authdb.UnblockAPISecretParams{ApiAppID: apiAppID, SecretID: secretID})
+	if err != nil {
+		return nil, mapAPISecretError(err)
+	}
+	return newAPISecret(
+		row.ID, row.ApiAppID, row.SecretID, row.Name, row.Status, row.BoundMetadata,
+		row.ExpiresAt, row.LastUsedAt, row.CreatedAt, row.UpdatedAt,
+	)
+}
+
+// ReissueAPISecret creates a replacement and blocks the old secret in one transaction.
+// The old row is locked first so two concurrent reissues cannot both succeed.
+func (r *postgresRepository) ReissueAPISecret(ctx context.Context, newSecretID string, newSecretHash string, input ReissueSecretInput) (*APISecret, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	queries := authdb.New(tx)
+	current, err := queries.GetAPISecretForReissue(ctx, authdb.GetAPISecretForReissueParams{
+		ApiAppID: input.APIAppID,
+		SecretID: input.SecretID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrAPISecretNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if SecretStatus(current.Status) != SecretStatusActive {
+		return nil, ErrAPISecretNotActive
+	}
+
+	row, err := queries.CreateAPISecret(ctx, authdb.CreateAPISecretParams{
+		ApiAppID:      input.APIAppID,
+		SecretID:      newSecretID,
+		SecretHash:    newSecretHash,
+		Name:          input.Name,
+		BoundMetadata: current.BoundMetadata,
+		ExpiresAt:     nullableTime(input.ExpiresAt),
+	})
+	if err != nil {
+		return nil, mapAPISecretError(err)
+	}
+
+	if _, err := queries.BlockAPISecret(ctx, authdb.BlockAPISecretParams{
+		ApiAppID: input.APIAppID,
+		SecretID: input.SecretID,
+	}); err != nil {
+		return nil, mapAPISecretError(err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	return newAPISecret(
+		row.ID, row.ApiAppID, row.SecretID, row.Name, row.Status, row.BoundMetadata,
+		row.ExpiresAt, row.LastUsedAt, row.CreatedAt, row.UpdatedAt,
+	)
+}
+
 func (r *postgresRepository) TouchAPISecretLastUsed(ctx context.Context, id int64, usedAt time.Time) error {
 	rows, err := r.queries.TouchAPISecretLastUsed(ctx, authdb.TouchAPISecretLastUsedParams{
 		ID: id,
@@ -376,6 +468,36 @@ func mapAPIAppError(err error) error {
 		return ErrDuplicateAppID
 	}
 	return err
+}
+
+func newAPISecret(
+	id int64,
+	apiAppID int64,
+	secretID string,
+	name string,
+	status string,
+	encodedMetadata []byte,
+	expiresAt pgtype.Timestamptz,
+	lastUsedAt pgtype.Timestamptz,
+	createdAt pgtype.Timestamptz,
+	updatedAt pgtype.Timestamptz,
+) (*APISecret, error) {
+	metadata, err := decodeMetadata(encodedMetadata)
+	if err != nil {
+		return nil, err
+	}
+	return &APISecret{
+		ID:            id,
+		APIAppID:      apiAppID,
+		SecretID:      secretID,
+		Name:          name,
+		Status:        SecretStatus(status),
+		BoundMetadata: metadata,
+		ExpiresAt:     timePointer(expiresAt),
+		LastUsedAt:    timePointer(lastUsedAt),
+		CreatedAt:     createdAt.Time,
+		UpdatedAt:     updatedAt.Time,
+	}, nil
 }
 
 func mapAPISecretError(err error) error {

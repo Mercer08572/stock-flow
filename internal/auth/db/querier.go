@@ -17,6 +17,8 @@ type Querier interface {
 	CreateAPISecret(ctx context.Context, arg CreateAPISecretParams) (CreateAPISecretRow, error)
 	GetAPIAppByID(ctx context.Context, id int64) (GetAPIAppByIDRow, error)
 	GetAPIAppByIdentifier(ctx context.Context, appID string) (GetAPIAppByIdentifierRow, error)
+	// 只取重新签发所需的两列：状态用于判断是否仍可轮换，元数据用于让新密钥继承旧密钥的绑定信息。
+	GetAPISecretForReissue(ctx context.Context, arg GetAPISecretForReissueParams) (GetAPISecretForReissueRow, error)
 	GetAdminByID(ctx context.Context, id int64) (GetAdminByIDRow, error)
 	GetAdminByUsername(ctx context.Context, username string) (GetAdminByUsernameRow, error)
 	// 返回 updated 表示"本次是否真的写入口令"（不能用 password_initialized：写入成功与已初始化时它都是 TRUE）。
@@ -25,8 +27,11 @@ type Querier interface {
 	ListAPISecrets(ctx context.Context, apiAppID int64) ([]ListAPISecretsRow, error)
 	ListAPISecretsForAuthentication(ctx context.Context, apiAppID int64) ([]ListAPISecretsForAuthenticationRow, error)
 	SoftDeleteAPIApp(ctx context.Context, id int64) (int64, error)
+	SoftDeleteAPISecret(ctx context.Context, arg SoftDeleteAPISecretParams) (int64, error)
 	TouchAPISecretLastUsed(ctx context.Context, arg TouchAPISecretLastUsedParams) (int64, error)
+	UnblockAPISecret(ctx context.Context, arg UnblockAPISecretParams) (UnblockAPISecretRow, error)
 	UpdateAPIApp(ctx context.Context, arg UpdateAPIAppParams) (UpdateAPIAppRow, error)
+	UpdateAPISecret(ctx context.Context, arg UpdateAPISecretParams) (UpdateAPISecretRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

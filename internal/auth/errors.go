@@ -26,4 +26,5 @@ var (
 	ErrAPISecretNotFound      = apperr.NotFound(apperr.CodeAuthAPISecretNotFound, "api secret not found")
 	ErrDuplicateAppID         = apperr.Conflict(apperr.CodeAuthAPIAppDuplicate, "api app identifier already exists")
 	ErrDuplicateSecretID      = apperr.Conflict(apperr.CodeAuthAPISecretDuplicate, "api secret identifier already exists")
+	ErrAPISecretNotActive     = apperr.Conflict(apperr.CodeAuthAPISecretNotActive, "api secret is not active")
 )

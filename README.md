@@ -99,6 +99,9 @@ AUTH_LOGIN_FAILURE_MAX_ATTEMPTS
 AUTH_LOGIN_FAILURE_WINDOW
 AUTH_LOGIN_LOCKOUT
 AUTH_LOGIN_IP_MAX_ATTEMPTS
+AUDIT_ENABLED             # 默认 true；关闭后不再写审计日志
+AUDIT_RETENTION_DAYS      # 默认 180，允许 30–3650
+HTTP_TRUSTED_PROXIES      # 反向代理 IP/CIDR；不配置则只信任直连 IP
 ```
 
 > `HTTP_ADDR` 优先于 `PORT`：只要 `HTTP_ADDR` 有值（无论来自 `.env` 还是导出），
@@ -240,7 +243,13 @@ make schema-dump       # 导出当前数据库 schema 给 sqlc 使用
 
 除 `health` 与 `auth/admin/login` 外，其余接口都需要认证：管理员使用 HttpOnly 会话 Cookie，
 外部系统使用请求头 `X-Stock-Flow-App-ID` + `X-Stock-Flow-Secret`（见 `.env.example` 与
-`internal/auth/middleware.go`）。
+`internal/auth/middleware.go`）。审计日志查询 `GET /api/v1/audit/logs` 仅允许管理员会话，
+API 密钥不能读取审计数据。
+
+每次 API 调用都会异步写入 `audit_logs`（认证方式、调用方、IP、状态码、耗时、trace_id），
+写入使用独立连接池和批量 `CopyFrom`，不阻塞业务请求。审计表按月分区，启动时会创建当前及
+未来两个月分区，并按 `AUDIT_RETENTION_DAYS` 删除整月旧分区。应用审计功能前必须执行
+`make migrate-up` 创建 `audit_logs`；否则启动会失败并提示先跑迁移。
 
 所有响应都通过 `pkg/response` 返回统一结构：
 

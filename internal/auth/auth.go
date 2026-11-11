@@ -150,6 +150,24 @@ type IssueSecretInput struct {
 	ExpiresAt     *time.Time
 }
 
+// UpdateSecretInput changes a secret's display name and expiry only.
+// Status is controlled by block / unblock, and bound metadata is immutable after issuance.
+type UpdateSecretInput struct {
+	APIAppID  int64
+	SecretID  string
+	Name      string
+	ExpiresAt *time.Time
+}
+
+// ReissueSecretInput replaces an active secret with a newly generated one.
+// The replacement inherits the old secret's bound metadata.
+type ReissueSecretInput struct {
+	APIAppID  int64
+	SecretID  string
+	Name      string
+	ExpiresAt *time.Time
+}
+
 type IssuedSecret struct {
 	APISecret
 	Secret string `json:"secret"`

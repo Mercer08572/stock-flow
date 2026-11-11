@@ -39,6 +39,15 @@ type Config struct {
 	AuthLoginFailureWindow      time.Duration
 	AuthLoginLockout            time.Duration
 	AuthLoginIPMaxAttempts      int
+
+	// AuditEnabled controls whether every API request is written to the audit log.
+	AuditEnabled bool
+	// AuditRetentionDays is how long audit rows are kept before whole partitions are dropped.
+	AuditRetentionDays int
+	// HTTPTrustedProxies lists reverse-proxy IPs/CIDRs trusted for X-Forwarded-For.
+	// Empty means no proxy is trusted and c.ClientIP() is the direct peer address.
+	HTTPTrustedProxies []string
+
 	// EnvFile is the dotenv file that was loaded, or empty when none was found.
 	EnvFile string
 }
@@ -85,6 +94,8 @@ func defaultConfig() Config {
 		AuthLoginFailureWindow:      15 * time.Minute,
 		AuthLoginLockout:            15 * time.Minute,
 		AuthLoginIPMaxAttempts:      30,
+		AuditEnabled:                true,
+		AuditRetentionDays:          180,
 	}
 }
 
@@ -136,8 +147,43 @@ func applyEnv(cfg *Config) error {
 	if err := applyAuthEnv(cfg); err != nil {
 		return err
 	}
+	if err := applyAuditEnv(cfg); err != nil {
+		return err
+	}
 
 	return nil
+}
+
+func applyAuditEnv(cfg *Config) error {
+	if value, ok := lookupEnv("AUDIT_ENABLED"); ok {
+		parsed, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("parse AUDIT_ENABLED: %w", err)
+		}
+		cfg.AuditEnabled = parsed
+	}
+	if value, ok := lookupEnv("AUDIT_RETENTION_DAYS"); ok {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("parse AUDIT_RETENTION_DAYS: %w", err)
+		}
+		cfg.AuditRetentionDays = parsed
+	}
+	if value, ok := lookupEnv("HTTP_TRUSTED_PROXIES"); ok {
+		cfg.HTTPTrustedProxies = splitCSV(value)
+	}
+	return nil
+}
+
+func splitCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			values = append(values, trimmed)
+		}
+	}
+	return values
 }
 
 func applyAuthEnv(cfg *Config) error {
@@ -243,6 +289,17 @@ func validate(cfg Config) error {
 	}
 	if cfg.AuthLoginLockout < time.Minute || cfg.AuthLoginLockout > time.Hour {
 		return errors.New("AUTH_LOGIN_LOCKOUT must be between 1m and 1h")
+	}
+	if cfg.AuditRetentionDays < 30 || cfg.AuditRetentionDays > 3650 {
+		return errors.New("AUDIT_RETENTION_DAYS must be between 30 and 3650")
+	}
+	for _, proxy := range cfg.HTTPTrustedProxies {
+		if net.ParseIP(proxy) != nil {
+			continue
+		}
+		if _, _, err := net.ParseCIDR(proxy); err != nil {
+			return fmt.Errorf("HTTP_TRUSTED_PROXIES contains an invalid IP or CIDR: %q", proxy)
+		}
 	}
 
 	return nil

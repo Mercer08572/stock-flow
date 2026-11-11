@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	audit "github.com/Mercer08572/stock-flow/internal/audit"
 	auth "github.com/Mercer08572/stock-flow/internal/auth"
 	"github.com/Mercer08572/stock-flow/internal/material/conversion"
 	material "github.com/Mercer08572/stock-flow/internal/material/material"
@@ -88,6 +89,38 @@ func TestMaterialConversionRouteRegistration(t *testing.T) {
 	if body.Data.MaterialID != 10 {
 		t.Fatalf("expected material id 10, got %d", body.Data.MaterialID)
 	}
+}
+
+func TestAuditLogRouteRequiresAdminSession(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := httpserver.NewRouter(httpserver.Dependencies{
+		Authenticator: &fakeAuthenticator{},
+		AuditService:  &fakeAuditService{},
+	})
+
+	apiReq := httptest.NewRequest(http.MethodGet, "/api/v1/audit/logs", nil)
+	apiReq.Header.Set(auth.AppIDHeader, "app_test")
+	apiReq.Header.Set(auth.SecretHeader, "sfsec_test")
+	apiRec := httptest.NewRecorder()
+	router.ServeHTTP(apiRec, apiReq)
+	if apiRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected API app credentials to be rejected, got %d: %s", apiRec.Code, apiRec.Body.String())
+	}
+
+	adminReq := httptest.NewRequest(http.MethodGet, "/api/v1/audit/logs", nil)
+	adminReq.AddCookie(&http.Cookie{Name: auth.DefaultSessionCookieName, Value: "router-test-session"})
+	adminRec := httptest.NewRecorder()
+	router.ServeHTTP(adminRec, adminReq)
+	if adminRec.Code != http.StatusOK {
+		t.Fatalf("expected admin session to read audit logs, got %d: %s", adminRec.Code, adminRec.Body.String())
+	}
+}
+
+type fakeAuditService struct{}
+
+func (s *fakeAuditService) List(context.Context, audit.ListFilter) (audit.ListResult, error) {
+	return audit.ListResult{Items: []audit.Log{}}, nil
 }
 
 type fakeAuthenticator struct{}

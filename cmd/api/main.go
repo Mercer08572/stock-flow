@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os/signal"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	audit "github.com/Mercer08572/stock-flow/internal/audit"
 	"github.com/Mercer08572/stock-flow/internal/auth"
 	"github.com/Mercer08572/stock-flow/internal/shared/config"
 	"github.com/Mercer08572/stock-flow/internal/shared/database"
@@ -60,6 +62,37 @@ func run() error {
 	}
 	defer db.Close()
 
+	var auditSink audit.EntrySink
+	if cfg.AuditEnabled {
+		// Dedicated small pool: audit flushes must not compete with business
+		// queries for the main pool's connections.
+		auditPool, err := database.NewPostgresPoolWithOptions(ctx, cfg.DatabaseURL, database.PoolOptions{
+			ApplicationName: "stock-flow-audit",
+			MaxConns:        4,
+			MinConns:        1,
+		})
+		if err != nil {
+			return fmt.Errorf("create audit pool: %w", err)
+		}
+		defer auditPool.Close()
+
+		partitions := audit.NewPartitionManager(auditPool, cfg.AuditRetentionDays)
+		if err := partitions.Ensure(ctx, time.Now().UTC()); err != nil {
+			return fmt.Errorf("ensure audit partitions (run migrations first): %w", err)
+		}
+		go partitions.Run(ctx)
+
+		writer := audit.NewWriter(audit.NewPostgresRepository(auditPool), audit.WriterOptions{})
+		auditSink = writer
+		defer func() {
+			closeCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := writer.Close(closeCtx); err != nil {
+				log.Printf("close audit writer: %v", err)
+			}
+		}()
+	}
+
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpserver.NewRouter(httpserver.Dependencies{
@@ -69,6 +102,8 @@ func run() error {
 			AuthCookieSameSite:     sameSiteMode(cfg.AuthAdminCookieSameSite),
 			AuthLoginFailurePolicy: auth.RateLimitPolicy{MaxAttempts: cfg.AuthLoginFailureMaxAttempts, Window: cfg.AuthLoginFailureWindow, Lockout: cfg.AuthLoginLockout},
 			AuthLoginIPPolicy:      auth.RateLimitPolicy{MaxAttempts: cfg.AuthLoginIPMaxAttempts, Window: cfg.AuthLoginFailureWindow, Lockout: cfg.AuthLoginLockout},
+			HTTPTrustedProxies:     cfg.HTTPTrustedProxies,
+			AuditSink:              auditSink,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

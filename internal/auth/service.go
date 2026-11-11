@@ -36,7 +36,11 @@ type Service interface {
 	DeleteAPIApp(ctx context.Context, id int64) error
 	IssueAPISecret(ctx context.Context, input IssueSecretInput) (*IssuedSecret, error)
 	ListAPISecrets(ctx context.Context, apiAppID int64) ([]APISecret, error)
+	UpdateAPISecret(ctx context.Context, input UpdateSecretInput) (*APISecret, error)
+	DeleteAPISecret(ctx context.Context, apiAppID int64, secretID string) error
 	BlockAPISecret(ctx context.Context, apiAppID int64, secretID string) (*APISecret, error)
+	UnblockAPISecret(ctx context.Context, apiAppID int64, secretID string) (*APISecret, error)
+	ReissueAPISecret(ctx context.Context, input ReissueSecretInput) (*IssuedSecret, error)
 }
 
 type Repository interface {
@@ -54,7 +58,11 @@ type Repository interface {
 	CreateAPISecret(ctx context.Context, secretID string, secretHash string, input IssueSecretInput) (*APISecret, error)
 	ListAPISecrets(ctx context.Context, apiAppID int64) ([]APISecret, error)
 	ListAPISecretsForAuthentication(ctx context.Context, apiAppID int64) ([]APISecret, error)
+	UpdateAPISecret(ctx context.Context, input UpdateSecretInput) (*APISecret, error)
+	SoftDeleteAPISecret(ctx context.Context, apiAppID int64, secretID string) error
 	BlockAPISecret(ctx context.Context, apiAppID int64, secretID string) (*APISecret, error)
+	UnblockAPISecret(ctx context.Context, apiAppID int64, secretID string) (*APISecret, error)
+	ReissueAPISecret(ctx context.Context, newSecretID string, newSecretHash string, input ReissueSecretInput) (*APISecret, error)
 	TouchAPISecretLastUsed(ctx context.Context, id int64, usedAt time.Time) error
 }
 
@@ -478,6 +486,61 @@ func (s *service) BlockAPISecret(ctx context.Context, apiAppID int64, secretID s
 	return s.repo.BlockAPISecret(ctx, apiAppID, secretID)
 }
 
+func (s *service) UpdateAPISecret(ctx context.Context, input UpdateSecretInput) (*APISecret, error) {
+	normalized, err := normalizeUpdateSecretInput(input, s.now())
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.UpdateAPISecret(ctx, normalized)
+}
+
+func (s *service) DeleteAPISecret(ctx context.Context, apiAppID int64, secretID string) error {
+	secretID, err := normalizeSecretIdentity(apiAppID, secretID)
+	if err != nil {
+		return err
+	}
+	return s.repo.SoftDeleteAPISecret(ctx, apiAppID, secretID)
+}
+
+func (s *service) UnblockAPISecret(ctx context.Context, apiAppID int64, secretID string) (*APISecret, error) {
+	secretID, err := normalizeSecretIdentity(apiAppID, secretID)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.UnblockAPISecret(ctx, apiAppID, secretID)
+}
+
+func (s *service) ReissueAPISecret(ctx context.Context, input ReissueSecretInput) (*IssuedSecret, error) {
+	normalized, err := normalizeReissueSecretInput(input, s.now())
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.repo.GetAPIAppByID(ctx, normalized.APIAppID); err != nil {
+		return nil, err
+	}
+
+	for attempt := 0; attempt < 3; attempt++ {
+		newSecretID, err := s.random.Generate("key_", 12)
+		if err != nil {
+			return nil, fmt.Errorf("generate api secret identifier: %w", err)
+		}
+		plainSecret, err := s.random.Generate("sfsec_", 32)
+		if err != nil {
+			return nil, fmt.Errorf("generate api secret: %w", err)
+		}
+
+		secret, err := s.repo.ReissueAPISecret(ctx, newSecretID, hashAPISecret(plainSecret), normalized)
+		if errors.Is(err, ErrDuplicateSecretID) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &IssuedSecret{APISecret: *secret, Secret: plainSecret}, nil
+	}
+	return nil, ErrDuplicateSecretID
+}
+
 type cryptoRandomGenerator struct{}
 
 func (cryptoRandomGenerator) Generate(prefix string, byteLength int) (string, error) {
@@ -562,6 +625,58 @@ func normalizeIssueSecretInput(input IssueSecretInput, now time.Time) (IssueSecr
 	if input.ExpiresAt != nil && !input.ExpiresAt.After(now) {
 		return IssueSecretInput{}, apperr.NewValidationError("expires_at must be in the future")
 	}
+	return input, nil
+}
+
+func normalizeSecretIdentity(apiAppID int64, secretID string) (string, error) {
+	if apiAppID <= 0 {
+		return "", apperr.NewValidationError("api app id must be greater than zero")
+	}
+	secretID = strings.TrimSpace(secretID)
+	if secretID == "" {
+		return "", apperr.NewValidationError("secret id is required")
+	}
+	return secretID, nil
+}
+
+func normalizeSecretDetails(name string, expiresAt *time.Time, now time.Time) (string, *time.Time, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", nil, apperr.NewValidationError("name is required")
+	}
+	if expiresAt != nil && !expiresAt.After(now) {
+		return "", nil, apperr.NewValidationError("expires_at must be in the future")
+	}
+	return name, expiresAt, nil
+}
+
+func normalizeUpdateSecretInput(input UpdateSecretInput, now time.Time) (UpdateSecretInput, error) {
+	secretID, err := normalizeSecretIdentity(input.APIAppID, input.SecretID)
+	if err != nil {
+		return UpdateSecretInput{}, err
+	}
+	name, expiresAt, err := normalizeSecretDetails(input.Name, input.ExpiresAt, now)
+	if err != nil {
+		return UpdateSecretInput{}, err
+	}
+	input.SecretID = secretID
+	input.Name = name
+	input.ExpiresAt = expiresAt
+	return input, nil
+}
+
+func normalizeReissueSecretInput(input ReissueSecretInput, now time.Time) (ReissueSecretInput, error) {
+	secretID, err := normalizeSecretIdentity(input.APIAppID, input.SecretID)
+	if err != nil {
+		return ReissueSecretInput{}, err
+	}
+	name, expiresAt, err := normalizeSecretDetails(input.Name, input.ExpiresAt, now)
+	if err != nil {
+		return ReissueSecretInput{}, err
+	}
+	input.SecretID = secretID
+	input.Name = name
+	input.ExpiresAt = expiresAt
 	return input, nil
 }
 

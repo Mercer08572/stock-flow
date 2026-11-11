@@ -111,6 +111,78 @@ func TestAdminBootstrapAgainstMigratedDatabase(t *testing.T) {
 	verifyMigrationMetadataIsApplied(t)
 }
 
+func TestAPISecretReissueRotatesAgainstMigratedDatabase(t *testing.T) {
+	db := testdb.Require(t)
+	service := auth.NewService(
+		auth.NewPostgresRepository(db.Pool),
+		auth.NewInMemorySessionStore(),
+		auth.NewArgon2idPasswordHasher(auth.Argon2idParams{Memory: 64, Iterations: 1, Parallelism: 1}),
+		auth.ServiceOptions{},
+	)
+	ctx := context.Background()
+
+	app, err := service.CreateAPIApp(ctx, auth.CreateAPIAppInput{
+		Name: "Integration WMS", Status: auth.StatusActive, Metadata: auth.Metadata{"system": "wms"},
+	})
+	if err != nil {
+		t.Fatalf("create api app: %v", err)
+	}
+	issued, err := service.IssueAPISecret(ctx, auth.IssueSecretInput{
+		APIAppID: app.ID, Name: "primary", BoundMetadata: auth.Metadata{"owner": "team-a"},
+	})
+	if err != nil {
+		t.Fatalf("issue api secret: %v", err)
+	}
+	if _, err := service.AuthenticateAPIApp(ctx, app.AppID, issued.Secret); err != nil {
+		t.Fatalf("authenticate issued secret: %v", err)
+	}
+
+	reissued, err := service.ReissueAPISecret(ctx, auth.ReissueSecretInput{
+		APIAppID: app.ID, SecretID: issued.SecretID, Name: "rotated",
+	})
+	if err != nil {
+		t.Fatalf("reissue api secret: %v", err)
+	}
+	if reissued.SecretID == issued.SecretID || reissued.Secret == "" {
+		t.Fatalf("expected a distinct replacement secret, got %+v", reissued)
+	}
+	if reissued.BoundMetadata["owner"] != "team-a" {
+		t.Fatalf("replacement must inherit bound metadata, got %+v", reissued.BoundMetadata)
+	}
+	if _, err := service.AuthenticateAPIApp(ctx, app.AppID, issued.Secret); !errors.Is(err, auth.ErrInvalidCredentials) {
+		t.Fatalf("expected the old secret to be rejected, got %v", err)
+	}
+	if _, err := service.AuthenticateAPIApp(ctx, app.AppID, reissued.Secret); err != nil {
+		t.Fatalf("expected the replacement to authenticate: %v", err)
+	}
+
+	secrets, err := service.ListAPISecrets(ctx, app.ID)
+	if err != nil {
+		t.Fatalf("list api secrets: %v", err)
+	}
+	statuses := make(map[string]auth.SecretStatus, len(secrets))
+	for _, secret := range secrets {
+		statuses[secret.SecretID] = secret.Status
+	}
+	if statuses[issued.SecretID] != auth.SecretStatusBlocked || statuses[reissued.SecretID] != auth.SecretStatusActive {
+		t.Fatalf("unexpected secret statuses: %+v", statuses)
+	}
+
+	// The old row is locked and blocked, so a second rotation must not create another key.
+	if _, err := service.ReissueAPISecret(ctx, auth.ReissueSecretInput{
+		APIAppID: app.ID, SecretID: issued.SecretID, Name: "again",
+	}); !errors.Is(err, auth.ErrAPISecretNotActive) {
+		t.Fatalf("expected ErrAPISecretNotActive, got %v", err)
+	}
+
+	if err := service.DeleteAPISecret(ctx, app.ID, reissued.SecretID); err != nil {
+		t.Fatalf("delete api secret: %v", err)
+	}
+	if _, err := service.AuthenticateAPIApp(ctx, app.AppID, reissued.Secret); !errors.Is(err, auth.ErrInvalidCredentials) {
+		t.Fatalf("expected the deleted secret to be rejected, got %v", err)
+	}
+}
+
 func readAdminState(t *testing.T, pool *pgxpool.Pool) (passwordHash string, initialized bool, mustChange bool) {
 	t.Helper()
 	err := pool.QueryRow(context.Background(),

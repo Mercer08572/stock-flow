@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
 func TestServiceLoginVerifiesArgon2idPassword(t *testing.T) {
@@ -224,6 +226,162 @@ func TestServiceBlockedSecretCannotAuthenticate(t *testing.T) {
 	}
 }
 
+func TestServiceUpdateAPISecretKeepsMetadataAndStatus(t *testing.T) {
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	expiresAt := now.Add(24 * time.Hour)
+	repo := &fakeRepository{
+		app: &APIApp{ID: 5, AppID: "app_external", Status: StatusActive, Metadata: Metadata{}},
+		secrets: []APISecret{{
+			ID: 9, APIAppID: 5, SecretID: "key_primary", Name: "old-name",
+			Status: SecretStatusActive, BoundMetadata: Metadata{"owner": "team-a"},
+		}},
+	}
+	service := NewService(repo, NewInMemorySessionStore(), testPasswordHasher(), ServiceOptions{
+		Now: func() time.Time { return now },
+	})
+
+	updated, err := service.UpdateAPISecret(context.Background(), UpdateSecretInput{
+		APIAppID: 5, SecretID: "key_primary", Name: " new-name ", ExpiresAt: &expiresAt,
+	})
+	if err != nil {
+		t.Fatalf("update secret: %v", err)
+	}
+	if updated.Name != "new-name" {
+		t.Fatalf("unexpected name %q", updated.Name)
+	}
+	if updated.ExpiresAt == nil || !updated.ExpiresAt.Equal(expiresAt) {
+		t.Fatalf("unexpected expiry: %v", updated.ExpiresAt)
+	}
+	if updated.Status != SecretStatusActive {
+		t.Fatalf("update must not change status, got %q", updated.Status)
+	}
+	if updated.BoundMetadata["owner"] != "team-a" {
+		t.Fatalf("update must preserve bound metadata, got %+v", updated.BoundMetadata)
+	}
+
+	past := now.Add(-time.Hour)
+	if _, err := service.UpdateAPISecret(context.Background(), UpdateSecretInput{
+		APIAppID: 5, SecretID: "key_primary", Name: "new-name", ExpiresAt: &past,
+	}); !apperr.IsValidationError(err) {
+		t.Fatalf("expected validation error for past expiry, got %v", err)
+	}
+}
+
+func TestServiceDeleteAPISecretInvalidatesIt(t *testing.T) {
+	repo := &fakeRepository{
+		app: &APIApp{ID: 5, AppID: "app_external", Status: StatusActive, Metadata: Metadata{}},
+		secrets: []APISecret{{
+			ID: 9, APIAppID: 5, SecretID: "key_primary", SecretHash: hashAPISecret("plain-secret"),
+			Name: "primary", Status: SecretStatusActive, BoundMetadata: Metadata{},
+		}},
+	}
+	service := NewService(repo, NewInMemorySessionStore(), testPasswordHasher(), ServiceOptions{})
+
+	if err := service.DeleteAPISecret(context.Background(), 5, "key_primary"); err != nil {
+		t.Fatalf("delete secret: %v", err)
+	}
+	if _, err := service.AuthenticateAPIApp(context.Background(), "app_external", "plain-secret"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("expected deleted secret to fail authentication, got %v", err)
+	}
+	if err := service.DeleteAPISecret(context.Background(), 5, "key_primary"); !errors.Is(err, ErrAPISecretNotFound) {
+		t.Fatalf("expected second delete to return not found, got %v", err)
+	}
+}
+
+func TestServiceUnblockAPISecretRestoresAuthentication(t *testing.T) {
+	repo := &fakeRepository{
+		app: &APIApp{ID: 5, AppID: "app_external", Status: StatusActive, Metadata: Metadata{}},
+		secrets: []APISecret{{
+			ID: 9, APIAppID: 5, SecretID: "key_primary", SecretHash: hashAPISecret("plain-secret"),
+			Name: "primary", Status: SecretStatusBlocked, BoundMetadata: Metadata{},
+		}},
+	}
+	service := NewService(repo, NewInMemorySessionStore(), testPasswordHasher(), ServiceOptions{})
+
+	if _, err := service.AuthenticateAPIApp(context.Background(), "app_external", "plain-secret"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("expected blocked secret to fail, got %v", err)
+	}
+	unblocked, err := service.UnblockAPISecret(context.Background(), 5, "key_primary")
+	if err != nil {
+		t.Fatalf("unblock secret: %v", err)
+	}
+	if unblocked.Status != SecretStatusActive {
+		t.Fatalf("expected active status, got %q", unblocked.Status)
+	}
+	if _, err := service.AuthenticateAPIApp(context.Background(), "app_external", "plain-secret"); err != nil {
+		t.Fatalf("expected unblocked secret to authenticate: %v", err)
+	}
+}
+
+func TestServiceReissueAPISecretRotatesAndBlocksOldSecret(t *testing.T) {
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	expiresAt := now.Add(24 * time.Hour)
+	repo := &fakeRepository{
+		app: &APIApp{ID: 5, AppID: "app_external", Status: StatusActive, Metadata: Metadata{}},
+		secrets: []APISecret{{
+			ID: 9, APIAppID: 5, SecretID: "key_old", SecretHash: hashAPISecret("old-secret"),
+			Name: "old", Status: SecretStatusActive, BoundMetadata: Metadata{"owner": "team-a"},
+		}},
+	}
+	service := NewService(repo, NewInMemorySessionStore(), testPasswordHasher(), ServiceOptions{
+		Now:    func() time.Time { return now },
+		Random: &sequenceRandom{values: []string{"new-id", "new-secret", "new-id-2", "new-secret-2"}},
+	})
+
+	issued, err := service.ReissueAPISecret(context.Background(), ReissueSecretInput{
+		APIAppID: 5, SecretID: "key_old", Name: "rotated", ExpiresAt: &expiresAt,
+	})
+	if err != nil {
+		t.Fatalf("reissue secret: %v", err)
+	}
+	if issued.Secret != "sfsec_new-secret" || issued.SecretID != "key_new-id" {
+		t.Fatalf("unexpected issued secret: %+v", issued)
+	}
+	if issued.SecretHash != "" {
+		t.Fatal("issued response must not expose the stored secret hash")
+	}
+	if issued.BoundMetadata["owner"] != "team-a" {
+		t.Fatalf("replacement must inherit bound metadata, got %+v", issued.BoundMetadata)
+	}
+
+	if _, err := service.AuthenticateAPIApp(context.Background(), "app_external", "old-secret"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("expected old secret to be blocked, got %v", err)
+	}
+	if _, err := service.AuthenticateAPIApp(context.Background(), "app_external", issued.Secret); err != nil {
+		t.Fatalf("expected new secret to authenticate: %v", err)
+	}
+
+	if _, err := service.ReissueAPISecret(context.Background(), ReissueSecretInput{
+		APIAppID: 5, SecretID: "key_old", Name: "rotated-again",
+	}); !errors.Is(err, ErrAPISecretNotActive) {
+		t.Fatalf("expected old secret to be not active, got %v", err)
+	}
+}
+
+func TestServiceReissueAPISecretValidatesInput(t *testing.T) {
+	repo := &fakeRepository{app: &APIApp{ID: 5, AppID: "app_external", Status: StatusActive, Metadata: Metadata{}}}
+	service := NewService(repo, NewInMemorySessionStore(), testPasswordHasher(), ServiceOptions{
+		Random: &sequenceRandom{values: []string{"new-id", "new-secret"}},
+	})
+
+	past := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	if _, err := service.ReissueAPISecret(context.Background(), ReissueSecretInput{
+		APIAppID: 5, SecretID: "key_old", Name: "rotated", ExpiresAt: &past,
+	}); !apperr.IsValidationError(err) {
+		t.Fatalf("expected validation error for past expiry, got %v", err)
+	}
+	if _, err := service.ReissueAPISecret(context.Background(), ReissueSecretInput{
+		APIAppID: 5, SecretID: "key_old", Name: " ",
+	}); !apperr.IsValidationError(err) {
+		t.Fatalf("expected validation error for blank name, got %v", err)
+	}
+	if _, err := service.ReissueAPISecret(context.Background(), ReissueSecretInput{
+		APIAppID: 6, SecretID: "key_old", Name: "rotated",
+	}); !errors.Is(err, ErrAPIAppNotFound) {
+		t.Fatalf("expected api app not found, got %v", err)
+	}
+}
+
 func TestServiceInactiveAppCannotAuthenticate(t *testing.T) {
 	repo := &fakeRepository{
 		app: &APIApp{ID: 5, AppID: "app_external", Status: StatusInactive, Metadata: Metadata{}},
@@ -408,6 +566,62 @@ func (r *fakeRepository) BlockAPISecret(_ context.Context, apiAppID int64, secre
 			copy := r.secrets[index]
 			return &copy, nil
 		}
+	}
+	return nil, ErrAPISecretNotFound
+}
+
+func (r *fakeRepository) UpdateAPISecret(_ context.Context, input UpdateSecretInput) (*APISecret, error) {
+	for index := range r.secrets {
+		if r.secrets[index].APIAppID == input.APIAppID && r.secrets[index].SecretID == input.SecretID {
+			r.secrets[index].Name = input.Name
+			r.secrets[index].ExpiresAt = input.ExpiresAt
+			copy := r.secrets[index]
+			return &copy, nil
+		}
+	}
+	return nil, ErrAPISecretNotFound
+}
+
+func (r *fakeRepository) SoftDeleteAPISecret(_ context.Context, apiAppID int64, secretID string) error {
+	for index := range r.secrets {
+		if r.secrets[index].APIAppID == apiAppID && r.secrets[index].SecretID == secretID {
+			r.secrets = append(r.secrets[:index], r.secrets[index+1:]...)
+			return nil
+		}
+	}
+	return ErrAPISecretNotFound
+}
+
+func (r *fakeRepository) UnblockAPISecret(_ context.Context, apiAppID int64, secretID string) (*APISecret, error) {
+	for index := range r.secrets {
+		if r.secrets[index].APIAppID == apiAppID && r.secrets[index].SecretID == secretID {
+			r.secrets[index].Status = SecretStatusActive
+			copy := r.secrets[index]
+			return &copy, nil
+		}
+	}
+	return nil, ErrAPISecretNotFound
+}
+
+func (r *fakeRepository) ReissueAPISecret(_ context.Context, newSecretID string, newSecretHash string, input ReissueSecretInput) (*APISecret, error) {
+	for index := range r.secrets {
+		if r.secrets[index].APIAppID != input.APIAppID || r.secrets[index].SecretID != input.SecretID {
+			continue
+		}
+		if r.secrets[index].Status != SecretStatusActive {
+			return nil, ErrAPISecretNotActive
+		}
+		r.secrets[index].Status = SecretStatusBlocked
+		r.createdSecretHash = newSecretHash
+		secret := APISecret{
+			ID: int64(len(r.secrets) + 10), APIAppID: input.APIAppID, SecretID: newSecretID,
+			SecretHash: newSecretHash, Name: input.Name, Status: SecretStatusActive,
+			BoundMetadata: r.secrets[index].BoundMetadata, ExpiresAt: input.ExpiresAt,
+		}
+		r.secrets = append(r.secrets, secret)
+		response := secret
+		response.SecretHash = ""
+		return &response, nil
 	}
 	return nil, ErrAPISecretNotFound
 }

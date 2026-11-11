@@ -9,6 +9,7 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
+	audit "github.com/Mercer08572/stock-flow/internal/audit"
 	auth "github.com/Mercer08572/stock-flow/internal/auth"
 	inventory "github.com/Mercer08572/stock-flow/internal/inventory"
 	category "github.com/Mercer08572/stock-flow/internal/material/category"
@@ -30,6 +31,9 @@ type Dependencies struct {
 	AuthCookieSameSite     http.SameSite
 	AuthLoginFailurePolicy auth.RateLimitPolicy
 	AuthLoginIPPolicy      auth.RateLimitPolicy
+	HTTPTrustedProxies     []string
+	AuditSink              audit.EntrySink
+	AuditService           audit.Service
 	MaterialService        material.Service
 	UnitService            unit.UnitService
 	CategoryService        category.CategoryService
@@ -41,8 +45,18 @@ type Dependencies struct {
 
 func NewRouter(deps Dependencies) *gin.Engine {
 	router := gin.New()
-	_ = router.SetTrustedProxies(nil)
-	router.Use(gin.Logger(), gin.Recovery(), middleware.TraceID())
+	if len(deps.HTTPTrustedProxies) > 0 {
+		_ = router.SetTrustedProxies(deps.HTTPTrustedProxies)
+	} else {
+		_ = router.SetTrustedProxies(nil)
+	}
+	// Audit must wrap Recovery so a panic still produces a 500 audit row, and it
+	// must wrap auth so 401/400 responses are recorded as well.
+	router.Use(middleware.TraceID())
+	if deps.AuditSink != nil {
+		router.Use(audit.NewMiddleware(deps.AuditSink, audit.MiddlewareOptions{}))
+	}
+	router.Use(gin.Logger(), gin.Recovery())
 	router.GET("/api-docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	api := router.Group("/api/v1")
@@ -68,6 +82,13 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	registerWarehouseRoutes(protected, deps)
 	registerInventoryRoutes(protected, deps)
 
+	// Audit logs expose every caller's IP and identity, so they are admin-only:
+	// API applications must not be able to read them through the shared
+	// Protected() middleware.
+	adminOnly := api.Group("")
+	adminOnly.Use(authMiddleware.AdminSession())
+	registerAuditRoutes(adminOnly, deps)
+
 	return router
 }
 
@@ -85,6 +106,17 @@ func resolveAuthService(deps Dependencies) auth.Service {
 		auth.NewArgon2idPasswordHasher(auth.Argon2idParams{}),
 		auth.ServiceOptions{SessionTTL: deps.AuthSessionTTL, LoginFailurePolicy: deps.AuthLoginFailurePolicy, LoginIPPolicy: deps.AuthLoginIPPolicy},
 	)
+}
+
+func registerAuditRoutes(router gin.IRouter, deps Dependencies) {
+	service := deps.AuditService
+	if service == nil && deps.DB != nil {
+		service = audit.NewService(audit.NewPostgresRepository(deps.DB), audit.ServiceOptions{})
+	}
+	if service == nil {
+		return
+	}
+	audit.NewHandler(service).RegisterRoutes(router)
 }
 
 func registerUnitRoutes(router gin.IRouter, deps Dependencies) {

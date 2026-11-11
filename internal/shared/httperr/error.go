@@ -14,6 +14,10 @@ import (
 	"github.com/Mercer08572/stock-flow/pkg/response"
 )
 
+// ErrorCodeKey is the gin context key that carries the business error code for
+// consumers that do not read the response body (the audit middleware).
+const ErrorCodeKey = "error_code"
+
 // Write 把领域错误写成统一响应格式。
 //
 // 无法识别的错误一律按 500 处理且不暴露内部细节；真实原因附加到 gin 的错误链上
@@ -27,6 +31,7 @@ func Write(c *gin.Context, err error) {
 
 	var appErr *apperr.Error
 	if errors.As(err, &appErr) {
+		c.Set(ErrorCodeKey, string(appErr.Code))
 		response.Fail(c, appErr.Status, response.CodeForStatus(appErr.Status), string(appErr.Code), appErr.Message)
 		return
 	}
@@ -34,11 +39,13 @@ func Write(c *gin.Context, err error) {
 	// 输入校验失败：没有业务码，具体原因只能靠文案表达。
 	var invalidInput *apperr.ValidationError
 	if errors.As(err, &invalidInput) {
+		c.Set(ErrorCodeKey, "VALIDATION_ERROR")
 		response.Fail(c, http.StatusBadRequest, response.CodeBadRequest, "", invalidInput.Error())
 		return
 	}
 
 	_ = c.Error(err)
+	c.Set(ErrorCodeKey, "INTERNAL_ERROR")
 	response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "internal server error")
 }
 
