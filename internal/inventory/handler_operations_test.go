@@ -54,6 +54,7 @@ func TestHandlerIncreaseStockMapsActorAndRequest(t *testing.T) {
 	body := `{"warehouse_id":1,"sku_id":2,"qty":"10","idempotency_key":"key-1","source_type":"sales_order","source_id":"SO-1","source_line_id":"1"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/inventory/increase", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Trace-ID", "req_inventory_test")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -65,6 +66,9 @@ func TestHandlerIncreaseStockMapsActorAndRequest(t *testing.T) {
 	}
 	if captured.IdempotencyKey != "key-1" || captured.SourceID == nil || *captured.SourceID != "SO-1" {
 		t.Fatalf("unexpected operation context: %#v", captured)
+	}
+	if captured.TraceID != "req_inventory_test" {
+		t.Fatalf("expected trace id to be captured, got %q", captured.TraceID)
 	}
 
 	var responseBody struct {

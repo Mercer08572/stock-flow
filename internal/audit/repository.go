@@ -182,6 +182,9 @@ func buildListQuery(filter QueryFilter) (string, []any) {
 	if filter.Path != nil {
 		add("path = $%d", *filter.Path)
 	}
+	if filter.TraceID != nil {
+		add("trace_id = $%d", *filter.TraceID)
+	}
 	if filter.Cursor != nil {
 		args = append(args, filter.Cursor.OccurredAt, filter.Cursor.ID)
 		conditions = append(conditions, fmt.Sprintf("(occurred_at, id) < ($%d, $%d)", len(args)-1, len(args)))

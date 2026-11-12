@@ -230,6 +230,7 @@ func operationContextFromGin(c *gin.Context, idempotencyKey string, sourceType *
 		SourceType:     sourceType,
 		SourceID:       sourceID,
 		SourceLineID:   sourceLineID,
+		TraceID:        c.GetString(response.TraceIDKey),
 	}
 }
 

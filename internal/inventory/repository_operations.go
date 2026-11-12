@@ -543,6 +543,10 @@ func (r *postgresRepository) InsertMovement(ctx context.Context, input MovementI
 		return nil, err
 	}
 	actorType, actorID, actorLabel := actorValues(input.Actor)
+	var traceID *string
+	if input.TraceID != "" {
+		traceID = &input.TraceID
+	}
 
 	row, err := r.queries.InsertInventoryMovement(ctx, inventorydb.InsertInventoryMovementParams{
 		OperationType:     input.OperationType,
@@ -560,6 +564,7 @@ func (r *postgresRepository) InsertMovement(ctx context.Context, input MovementI
 		ActorType:         actorType,
 		ActorID:           actorID,
 		ActorLabel:        actorLabel,
+		TraceID:           traceID,
 	})
 	if err != nil {
 		return nil, err
@@ -587,6 +592,7 @@ func (r *postgresRepository) InsertMovement(ctx context.Context, input MovementI
 		ActorType:         row.ActorType,
 		ActorID:           row.ActorID,
 		ActorLabel:        row.ActorLabel,
+		TraceID:           row.TraceID,
 		CreatedAt:         row.CreatedAt.Time,
 	}, nil
 }
@@ -629,6 +635,7 @@ func (r *postgresRepository) ListMovements(ctx context.Context, filter ListMovem
 			ActorType:         row.ActorType,
 			ActorID:           row.ActorID,
 			ActorLabel:        row.ActorLabel,
+			TraceID:           row.TraceID,
 			CreatedAt:         row.CreatedAt.Time,
 		})
 	}

@@ -106,6 +106,7 @@ type ListFilter struct {
 	ClientIP   string
 	StatusCode *int
 	Path       string
+	TraceID    string
 	Limit      int
 	Cursor     string
 }
@@ -121,6 +122,7 @@ type QueryFilter struct {
 	ClientIP   *netip.Addr
 	StatusCode *int
 	Path       *string
+	TraceID    *string
 	Limit      int
 	Cursor     *Cursor
 }

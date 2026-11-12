@@ -408,7 +408,8 @@ INSERT INTO inventory_movements (operation_type,
                                  source_line_id,
                                  actor_type,
                                  actor_id,
-                                 actor_label)
+                                 actor_label,
+                                 trace_id)
 VALUES (sqlc.arg('operation_type')::text,
         sqlc.arg('warehouse_id')::bigint,
         sqlc.arg('sku_id')::bigint,
@@ -423,7 +424,8 @@ VALUES (sqlc.arg('operation_type')::text,
         sqlc.narg('source_line_id')::text,
         sqlc.narg('actor_type')::text,
         sqlc.narg('actor_id')::bigint,
-        sqlc.narg('actor_label')::text)
+        sqlc.narg('actor_label')::text,
+        sqlc.narg('trace_id')::text)
 RETURNING id,
           operation_type,
           warehouse_id,
@@ -440,6 +442,7 @@ RETURNING id,
           actor_type,
           actor_id,
           actor_label,
+          trace_id,
           created_at;
 
 -- name: ClaimInventoryIdempotencyKey :one
@@ -507,6 +510,7 @@ SELECT id,
        actor_type,
        actor_id,
        actor_label,
+       trace_id,
        created_at
 FROM inventory_movements
 WHERE deleted_at IS NULL

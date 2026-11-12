@@ -72,6 +72,7 @@ func TestServiceListNormalizesFilters(t *testing.T) {
 		ClientIP:   "127.0.0.1",
 		StatusCode: &status,
 		Path:       " /api/v1/inventory/stocks ",
+		TraceID:    " req_trace_normalized ",
 		Limit:      500,
 	})
 	if err != nil {
@@ -106,6 +107,23 @@ func TestServiceListNormalizesFilters(t *testing.T) {
 	if filter.Path == nil || *filter.Path != "/api/v1/inventory/stocks" {
 		t.Fatalf("unexpected path: %+v", filter.Path)
 	}
+	if filter.TraceID == nil || *filter.TraceID != "req_trace_normalized" {
+		t.Fatalf("unexpected trace id: %+v", filter.TraceID)
+	}
+}
+
+func TestServiceListUsesFullRetentionForTraceLookupWithoutRange(t *testing.T) {
+	now := time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)
+	repo := &fakeRepository{}
+	service := NewService(repo, ServiceOptions{Now: func() time.Time { return now }})
+
+	if _, err := service.List(context.Background(), ListFilter{TraceID: "req_trace"}); err != nil {
+		t.Fatalf("list audit logs: %v", err)
+	}
+	filter := repo.filters[0]
+	if !filter.From.Equal(now.Add(-maxRange)) || !filter.To.Equal(now) {
+		t.Fatalf("expected the full retention range for a trace lookup, got %+v", filter)
+	}
 }
 
 func TestServiceListRejectsInvalidFilters(t *testing.T) {
@@ -118,6 +136,7 @@ func TestServiceListRejectsInvalidFilters(t *testing.T) {
 	badStatus := 99
 	longPath := string(make([]rune, maxPathLength+1))
 	longLabel := string(make([]rune, 257))
+	longTraceID := string(make([]rune, 129))
 	from := now.Add(time.Hour)
 
 	tests := []struct {
@@ -134,6 +153,7 @@ func TestServiceListRejectsInvalidFilters(t *testing.T) {
 		{name: "invalid cursor", filter: ListFilter{Cursor: "not-a-cursor"}},
 		{name: "path too long", filter: ListFilter{Path: longPath}},
 		{name: "actor label too long", filter: ListFilter{ActorLabel: longLabel}},
+		{name: "trace id too long", filter: ListFilter{TraceID: longTraceID}},
 	}
 
 	for _, test := range tests {

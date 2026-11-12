@@ -689,7 +689,8 @@ INSERT INTO inventory_movements (operation_type,
                                  source_line_id,
                                  actor_type,
                                  actor_id,
-                                 actor_label)
+                                 actor_label,
+                                 trace_id)
 VALUES ($1::text,
         $2::bigint,
         $3::bigint,
@@ -704,7 +705,8 @@ VALUES ($1::text,
         $12::text,
         $13::text,
         $14::bigint,
-        $15::text)
+        $15::text,
+        $16::text)
 RETURNING id,
           operation_type,
           warehouse_id,
@@ -721,6 +723,7 @@ RETURNING id,
           actor_type,
           actor_id,
           actor_label,
+          trace_id,
           created_at
 `
 
@@ -740,6 +743,7 @@ type InsertInventoryMovementParams struct {
 	ActorType         *string        `db:"actor_type" json:"actor_type"`
 	ActorID           *int64         `db:"actor_id" json:"actor_id"`
 	ActorLabel        *string        `db:"actor_label" json:"actor_label"`
+	TraceID           *string        `db:"trace_id" json:"trace_id"`
 }
 
 type InsertInventoryMovementRow struct {
@@ -759,6 +763,7 @@ type InsertInventoryMovementRow struct {
 	ActorType         *string            `db:"actor_type" json:"actor_type"`
 	ActorID           *int64             `db:"actor_id" json:"actor_id"`
 	ActorLabel        *string            `db:"actor_label" json:"actor_label"`
+	TraceID           *string            `db:"trace_id" json:"trace_id"`
 	CreatedAt         pgtype.Timestamptz `db:"created_at" json:"created_at"`
 }
 
@@ -779,6 +784,7 @@ func (q *Queries) InsertInventoryMovement(ctx context.Context, arg InsertInvento
 		arg.ActorType,
 		arg.ActorID,
 		arg.ActorLabel,
+		arg.TraceID,
 	)
 	var i InsertInventoryMovementRow
 	err := row.Scan(
@@ -798,6 +804,7 @@ func (q *Queries) InsertInventoryMovement(ctx context.Context, arg InsertInvento
 		&i.ActorType,
 		&i.ActorID,
 		&i.ActorLabel,
+		&i.TraceID,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -1037,6 +1044,7 @@ SELECT id,
        actor_type,
        actor_id,
        actor_label,
+       trace_id,
        created_at
 FROM inventory_movements
 WHERE deleted_at IS NULL
@@ -1078,6 +1086,7 @@ type ListInventoryMovementsRow struct {
 	ActorType         *string            `db:"actor_type" json:"actor_type"`
 	ActorID           *int64             `db:"actor_id" json:"actor_id"`
 	ActorLabel        *string            `db:"actor_label" json:"actor_label"`
+	TraceID           *string            `db:"trace_id" json:"trace_id"`
 	CreatedAt         pgtype.Timestamptz `db:"created_at" json:"created_at"`
 }
 
@@ -1116,6 +1125,7 @@ func (q *Queries) ListInventoryMovements(ctx context.Context, arg ListInventoryM
 			&i.ActorType,
 			&i.ActorID,
 			&i.ActorLabel,
+			&i.TraceID,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

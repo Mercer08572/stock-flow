@@ -518,6 +518,7 @@ CREATE TABLE inventory_movements (
     actor_type          TEXT          NULL,
     actor_id            BIGINT        NULL,
     actor_label         TEXT          NULL,
+    trace_id            TEXT          NULL,
     created_at          TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     deleted_at          TIMESTAMPTZ   NULL,
@@ -576,6 +577,11 @@ CREATE INDEX idx_inventory_movements_operation_idempotency
 CREATE INDEX idx_inventory_movements_actor
     ON inventory_movements (actor_type, actor_id, created_at)
     WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_inventory_movements_trace_id
+    ON inventory_movements (trace_id)
+    WHERE trace_id IS NOT NULL
+      AND deleted_at IS NULL;
 
 CREATE TABLE inventory_idempotency_keys (
     id                BIGSERIAL   PRIMARY KEY,

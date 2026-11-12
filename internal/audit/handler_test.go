@@ -40,7 +40,7 @@ func TestHandlerListParsesFilters(t *testing.T) {
 		"/api/v1/audit/logs?from=2026-11-10T00:00:00Z&to=2026-11-10T12:00:00Z"+
 			"&auth_method=api_app&actor_type=api_app&actor_id=9&actor_label=app_test"+
 			"&client_ip=127.0.0.1&status_code=200&path=/api/v1/inventory/stocks"+
-			"&limit=20&cursor=abc", nil)
+			"&trace_id=req_trace&limit=20&cursor=abc", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -68,6 +68,9 @@ func TestHandlerListParsesFilters(t *testing.T) {
 	}
 	if filter.Path != "/api/v1/inventory/stocks" || filter.Cursor != "abc" {
 		t.Fatalf("unexpected path/cursor: %+v", filter)
+	}
+	if filter.TraceID != "req_trace" {
+		t.Fatalf("unexpected trace id: %q", filter.TraceID)
 	}
 
 	var body struct {

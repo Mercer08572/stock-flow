@@ -71,9 +71,16 @@ func (s *service) normalizeFilter(filter ListFilter) (QueryFilter, int, error) {
 	if to.IsZero() {
 		to = now
 	}
+	traceID := strings.TrimSpace(filter.TraceID)
 	from := filter.From.UTC()
 	if from.IsZero() {
-		from = to.Add(-defaultRange)
+		if filter.From.IsZero() && filter.To.IsZero() && traceID != "" {
+			// A trace lookup should search the whole retention window, not just
+			// the last 24 hours; the trace_id index keeps this cheap.
+			from = to.Add(-maxRange)
+		} else {
+			from = to.Add(-defaultRange)
+		}
 	}
 	if !from.Before(to) {
 		return QueryFilter{}, 0, apperr.NewValidationError("from must be earlier than to")
@@ -136,6 +143,12 @@ func (s *service) normalizeFilter(filter ListFilter) (QueryFilter, int, error) {
 			return QueryFilter{}, 0, apperr.NewValidationError("path is too long")
 		}
 		normalized.Path = &path
+	}
+	if traceID != "" {
+		if len([]rune(traceID)) > 128 {
+			return QueryFilter{}, 0, apperr.NewValidationError("trace_id is too long")
+		}
+		normalized.TraceID = &traceID
 	}
 
 	cursor, err := DecodeCursor(filter.Cursor)

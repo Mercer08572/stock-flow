@@ -42,6 +42,7 @@ func (h *handler) RegisterRoutes(router gin.IRouter) {
 // @Param client_ip query string false "Caller IP address"
 // @Param status_code query int false "HTTP status code"
 // @Param path query string false "Exact request path"
+// @Param trace_id query string false "Exact trace id from a previous response"
 // @Param limit query int false "Page size, 1-200 (default 50)"
 // @Param cursor query string false "Opaque cursor from a previous response"
 // @Success 200 {object} response.Body{data=ListResult}
@@ -111,6 +112,9 @@ func parseListFilter(c *gin.Context) (ListFilter, error) {
 	}
 	if raw := strings.TrimSpace(c.Query("path")); raw != "" {
 		filter.Path = raw
+	}
+	if raw := strings.TrimSpace(c.Query("trace_id")); raw != "" {
+		filter.TraceID = raw
 	}
 	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
 		value, err := strconv.Atoi(raw)

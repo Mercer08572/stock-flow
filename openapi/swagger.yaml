@@ -419,6 +419,8 @@ definitions:
         type: string
       stock_layer_id:
         type: integer
+      trace_id:
+        type: string
       warehouse_id:
         type: integer
     type: object
@@ -1148,6 +1150,10 @@ paths:
       - description: Exact request path
         in: query
         name: path
+        type: string
+      - description: Exact trace id from a previous response
+        in: query
+        name: trace_id
         type: string
       - description: Page size, 1-200 (default 50)
         in: query

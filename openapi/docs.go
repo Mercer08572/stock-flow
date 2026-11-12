@@ -86,6 +86,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Exact trace id from a previous response",
+                        "name": "trace_id",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Page size, 1-200 (default 50)",
                         "name": "limit",
@@ -4633,6 +4639,9 @@ const docTemplate = `{
                 },
                 "stock_layer_id": {
                     "type": "integer"
+                },
+                "trace_id": {
+                    "type": "string"
                 },
                 "warehouse_id": {
                     "type": "integer"

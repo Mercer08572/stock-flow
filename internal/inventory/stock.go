@@ -88,6 +88,7 @@ type OperationContext struct {
 	SourceType     *string
 	SourceID       *string
 	SourceLineID   *string
+	TraceID        string
 }
 
 type IncreaseStockRequest struct {
@@ -184,6 +185,7 @@ type Movement struct {
 	ActorType         *string   `json:"actor_type"`
 	ActorID           *int64    `json:"actor_id"`
 	ActorLabel        *string   `json:"actor_label"`
+	TraceID           *string   `json:"trace_id"`
 	CreatedAt         time.Time `json:"created_at"`
 }
 
@@ -270,6 +272,7 @@ type MovementInput struct {
 	SourceID          *string
 	SourceLineID      *string
 	Actor             *Actor
+	TraceID           string
 }
 
 type IdempotencyClaim struct {

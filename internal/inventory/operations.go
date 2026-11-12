@@ -117,6 +117,7 @@ func (s *service) IncreaseStock(ctx context.Context, req IncreaseStockRequest) (
 				SourceID:       operationContext.SourceID,
 				SourceLineID:   operationContext.SourceLineID,
 				Actor:          operationContext.Actor,
+				TraceID:        operationContext.TraceID,
 			})
 			if err != nil {
 				return nil, err
@@ -219,6 +220,7 @@ func (s *service) ReserveStock(ctx context.Context, req ReserveStockRequest) (*S
 					SourceID:          operationContext.SourceID,
 					SourceLineID:      operationContext.SourceLineID,
 					Actor:             operationContext.Actor,
+					TraceID:           operationContext.TraceID,
 				})
 				if err != nil {
 					return nil, err
@@ -362,6 +364,7 @@ func (s *service) ReleaseStock(ctx context.Context, req ReleaseStockRequest) (*S
 					SourceID:          operationContext.SourceID,
 					SourceLineID:      operationContext.SourceLineID,
 					Actor:             operationContext.Actor,
+					TraceID:           operationContext.TraceID,
 				})
 				if err != nil {
 					return nil, err
@@ -503,6 +506,7 @@ func (s *service) decreaseAvailable(ctx context.Context, repo Repository, operat
 			SourceID:       operationContext.SourceID,
 			SourceLineID:   operationContext.SourceLineID,
 			Actor:          operationContext.Actor,
+			TraceID:        operationContext.TraceID,
 		})
 		if err != nil {
 			return nil, err
@@ -593,6 +597,7 @@ func (s *service) decreaseReserved(ctx context.Context, repo Repository, operati
 			SourceID:          operationContext.SourceID,
 			SourceLineID:      operationContext.SourceLineID,
 			Actor:             operationContext.Actor,
+			TraceID:           operationContext.TraceID,
 		})
 		if err != nil {
 			return nil, err

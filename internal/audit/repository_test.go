@@ -17,6 +17,7 @@ func TestBuildListQueryOnlyAddsSuppliedFilters(t *testing.T) {
 	clientIP := netip.MustParseAddr("127.0.0.1")
 	status := 401
 	path := "/api/v1/inventory/stocks"
+	traceID := "req_trace"
 	cursor := &Cursor{OccurredAt: to.Add(-time.Hour), ID: 77}
 
 	query, args := buildListQuery(QueryFilter{
@@ -29,6 +30,7 @@ func TestBuildListQueryOnlyAddsSuppliedFilters(t *testing.T) {
 		ClientIP:   &clientIP,
 		StatusCode: &status,
 		Path:       &path,
+		TraceID:    &traceID,
 		Limit:      51,
 		Cursor:     cursor,
 	})
@@ -43,21 +45,22 @@ func TestBuildListQueryOnlyAddsSuppliedFilters(t *testing.T) {
 		"client_ip = $7",
 		"status_code = $8",
 		"path = $9",
-		"(occurred_at, id) < ($10, $11)",
-		"LIMIT $12",
+		"trace_id = $10",
+		"(occurred_at, id) < ($11, $12)",
+		"LIMIT $13",
 	} {
 		if !strings.Contains(query, fragment) {
 			t.Fatalf("query is missing %q:\n%s", fragment, query)
 		}
 	}
-	if len(args) != 12 {
-		t.Fatalf("expected 12 args, got %d: %+v", len(args), args)
+	if len(args) != 13 {
+		t.Fatalf("expected 13 args, got %d: %+v", len(args), args)
 	}
 	if args[0] != from || args[1] != to {
 		t.Fatalf("unexpected time args: %+v", args[:2])
 	}
-	if args[9] != cursor.OccurredAt || args[10] != cursor.ID || args[11] != 51 {
-		t.Fatalf("unexpected cursor/limit args: %+v", args[9:])
+	if args[10] != cursor.OccurredAt || args[11] != cursor.ID || args[12] != 51 {
+		t.Fatalf("unexpected cursor/limit args: %+v", args[10:])
 	}
 }
 

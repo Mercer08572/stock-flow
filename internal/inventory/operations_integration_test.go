@@ -604,6 +604,36 @@ func TestReleaseRejectsOverRemainingAndClosesReservation(t *testing.T) {
 	}
 }
 
+func TestMovementsRecordTraceID(t *testing.T) {
+	fixture := newInventoryFixture(t)
+	ctx := context.Background()
+
+	operationContext := fixture.operationContext("trace-id")
+	operationContext.TraceID = "req_trace_integration"
+	result, err := fixture.service.IncreaseStock(ctx, inventory.IncreaseStockRequest{
+		OperationContext: operationContext,
+		WarehouseID:      fixture.warehouseID,
+		SKUID:            fixture.skuID,
+		Qty:              "1",
+	})
+	if err != nil {
+		t.Fatalf("increase stock: %v", err)
+	}
+	if len(result.Movements) != 1 {
+		t.Fatalf("expected one movement, got %d", len(result.Movements))
+	}
+
+	var traceID *string
+	if err := fixture.db.Pool.QueryRow(ctx,
+		`SELECT trace_id FROM inventory_movements WHERE id = $1`,
+		result.Movements[0].ID).Scan(&traceID); err != nil {
+		t.Fatalf("read movement trace id: %v", err)
+	}
+	if traceID == nil || *traceID != "req_trace_integration" {
+		t.Fatalf("unexpected trace id: %v", traceID)
+	}
+}
+
 func TestMutationRejectsInactiveWarehouse(t *testing.T) {
 	fixture := newInventoryFixture(t)
 	ctx := context.Background()
