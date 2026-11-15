@@ -23,6 +23,7 @@ type Service interface {
 	ReleaseStock(ctx context.Context, req ReleaseStockRequest) (*StockOperationResult, error)
 	DecreaseStock(ctx context.Context, req DecreaseStockRequest) (*StockOperationResult, error)
 	ListMovements(ctx context.Context, filter ListMovementsFilter) (MovementListResult, error)
+	GetMovementStats(ctx context.Context, filter MovementStatsFilter) (MovementStats, error)
 }
 
 type Repository interface {
@@ -68,6 +69,7 @@ type Repository interface {
 	InsertMovement(ctx context.Context, input MovementInput) (*Movement, error)
 	ListMovements(ctx context.Context, filter ListMovementsFilter) ([]Movement, error)
 	CountMovements(ctx context.Context, filter ListMovementsFilter) (int64, error)
+	AggregateMovements(ctx context.Context, filter MovementStatsFilter) ([]MovementStatsBucket, error)
 
 	ClaimIdempotencyKey(ctx context.Context, input IdempotencyClaim) (*IdempotencyRecord, bool, error)
 	GetIdempotencyKey(ctx context.Context, operationType string, key string) (*IdempotencyRecord, error)

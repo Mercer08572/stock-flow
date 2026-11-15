@@ -121,6 +121,10 @@ func (r *fakeRepository) CountMovements(context.Context, inventory.ListMovements
 	return 0, nil
 }
 
+func (r *fakeRepository) AggregateMovements(context.Context, inventory.MovementStatsFilter) ([]inventory.MovementStatsBucket, error) {
+	return nil, nil
+}
+
 func (r *fakeRepository) ClaimIdempotencyKey(context.Context, inventory.IdempotencyClaim) (*inventory.IdempotencyRecord, bool, error) {
 	return nil, false, errFakeRepositoryNotImplemented
 }

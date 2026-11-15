@@ -270,6 +270,120 @@ func (q *Queries) AddInventoryStockOnHand(ctx context.Context, arg AddInventoryS
 	return result.RowsAffected(), nil
 }
 
+const aggregateInventoryMovementsByDay = `-- name: AggregateInventoryMovementsByDay :many
+SELECT (date_trunc('day', m.created_at AT TIME ZONE $1::text)
+            AT TIME ZONE $1::text)::timestamptz AS bucket,
+       m.operation_type,
+       COUNT(DISTINCT m.idempotency_key)::bigint AS calls
+FROM inventory_movements m
+WHERE m.deleted_at IS NULL
+  AND m.created_at >= $2::timestamptz
+  AND m.created_at < $3::timestamptz
+  AND ($4::bigint IS NULL OR m.warehouse_id = $4::bigint)
+  AND ($5::bigint IS NULL OR m.sku_id = $5::bigint)
+GROUP BY 1, 2
+ORDER BY 1
+`
+
+type AggregateInventoryMovementsByDayParams struct {
+	Timezone    string             `db:"timezone" json:"timezone"`
+	CreatedFrom pgtype.Timestamptz `db:"created_from" json:"created_from"`
+	CreatedTo   pgtype.Timestamptz `db:"created_to" json:"created_to"`
+	WarehouseID *int64             `db:"warehouse_id" json:"warehouse_id"`
+	SkuID       *int64             `db:"sku_id" json:"sku_id"`
+}
+
+type AggregateInventoryMovementsByDayRow struct {
+	Bucket        pgtype.Timestamptz `db:"bucket" json:"bucket"`
+	OperationType string             `db:"operation_type" json:"operation_type"`
+	Calls         int64              `db:"calls" json:"calls"`
+}
+
+// 与 AggregateInventoryMovementsByHour 相同的口径，仅把时间桶换成按本地时区的自然日。
+func (q *Queries) AggregateInventoryMovementsByDay(ctx context.Context, arg AggregateInventoryMovementsByDayParams) ([]AggregateInventoryMovementsByDayRow, error) {
+	rows, err := q.db.Query(ctx, aggregateInventoryMovementsByDay,
+		arg.Timezone,
+		arg.CreatedFrom,
+		arg.CreatedTo,
+		arg.WarehouseID,
+		arg.SkuID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AggregateInventoryMovementsByDayRow
+	for rows.Next() {
+		var i AggregateInventoryMovementsByDayRow
+		if err := rows.Scan(&i.Bucket, &i.OperationType, &i.Calls); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const aggregateInventoryMovementsByHour = `-- name: AggregateInventoryMovementsByHour :many
+SELECT (date_trunc('hour', m.created_at AT TIME ZONE $1::text)
+            AT TIME ZONE $1::text)::timestamptz AS bucket,
+       m.operation_type,
+       COUNT(DISTINCT m.idempotency_key)::bigint AS calls
+FROM inventory_movements m
+WHERE m.deleted_at IS NULL
+  AND m.created_at >= $2::timestamptz
+  AND m.created_at < $3::timestamptz
+  AND ($4::bigint IS NULL OR m.warehouse_id = $4::bigint)
+  AND ($5::bigint IS NULL OR m.sku_id = $5::bigint)
+GROUP BY 1, 2
+ORDER BY 1
+`
+
+type AggregateInventoryMovementsByHourParams struct {
+	Timezone    string             `db:"timezone" json:"timezone"`
+	CreatedFrom pgtype.Timestamptz `db:"created_from" json:"created_from"`
+	CreatedTo   pgtype.Timestamptz `db:"created_to" json:"created_to"`
+	WarehouseID *int64             `db:"warehouse_id" json:"warehouse_id"`
+	SkuID       *int64             `db:"sku_id" json:"sku_id"`
+}
+
+type AggregateInventoryMovementsByHourRow struct {
+	Bucket        pgtype.Timestamptz `db:"bucket" json:"bucket"`
+	OperationType string             `db:"operation_type" json:"operation_type"`
+	Calls         int64              `db:"calls" json:"calls"`
+}
+
+// 工作台趋势统计：按本地时区的小时桶聚合。
+// 用 COUNT(DISTINCT idempotency_key) 而不是 COUNT(*)：一次请求在跨批次 FIFO 分配时
+// 会写入多行 movement（同一 idempotency_key），COUNT(*) 统计的是分配行数而非调用次数。
+func (q *Queries) AggregateInventoryMovementsByHour(ctx context.Context, arg AggregateInventoryMovementsByHourParams) ([]AggregateInventoryMovementsByHourRow, error) {
+	rows, err := q.db.Query(ctx, aggregateInventoryMovementsByHour,
+		arg.Timezone,
+		arg.CreatedFrom,
+		arg.CreatedTo,
+		arg.WarehouseID,
+		arg.SkuID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AggregateInventoryMovementsByHourRow
+	for rows.Next() {
+		var i AggregateInventoryMovementsByHourRow
+		if err := rows.Scan(&i.Bucket, &i.OperationType, &i.Calls); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const claimInventoryIdempotencyKey = `-- name: ClaimInventoryIdempotencyKey :one
 INSERT INTO inventory_idempotency_keys (operation_type, idempotency_key, request_hash, request_payload)
 VALUES ($1::text,

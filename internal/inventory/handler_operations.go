@@ -315,3 +315,74 @@ func parseListMovementsFilter(c *gin.Context) (ListMovementsFilter, error) {
 
 	return filter, nil
 }
+
+// GetMovementStats godoc
+// @Summary Get inventory movement trend statistics
+// @Description Aggregates inventory movement call counts into time buckets. Buckets without data are returned as zero so the series stays continuous.
+// @Tags Inventory
+// @Produce json
+// @Param granularity query string false "Bucket granularity" Enums(hour,day)
+// @Param from query string true "Range start (RFC3339)"
+// @Param to query string true "Range end (RFC3339, exclusive)"
+// @Param timezone query string false "IANA timezone used to align buckets" default(Asia/Shanghai)
+// @Param warehouse_id query int false "Warehouse ID"
+// @Param sku_id query int false "SKU ID"
+// @Success 200 {object} response.Body{data=MovementStats}
+// @Failure 400 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /inventory/movements/stats [get]
+func (h *handler) GetMovementStats(c *gin.Context) {
+	filter, err := parseMovementStatsFilter(c)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+
+	result, err := h.service.GetMovementStats(c.Request.Context(), filter)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+
+	response.Success(c, result)
+}
+
+func parseMovementStatsFilter(c *gin.Context) (MovementStatsFilter, error) {
+	filter := MovementStatsFilter{
+		Granularity: c.Query("granularity"),
+		Timezone:    c.Query("timezone"),
+	}
+
+	rawFrom := c.Query("from")
+	rawTo := c.Query("to")
+	if rawFrom == "" || rawTo == "" {
+		return MovementStatsFilter{}, apperr.NewValidationError("from and to are required")
+	}
+	from, err := time.Parse(time.RFC3339, rawFrom)
+	if err != nil {
+		return MovementStatsFilter{}, apperr.NewValidationError("from must be an RFC3339 timestamp")
+	}
+	to, err := time.Parse(time.RFC3339, rawTo)
+	if err != nil {
+		return MovementStatsFilter{}, apperr.NewValidationError("to must be an RFC3339 timestamp")
+	}
+	filter.From = from
+	filter.To = to
+
+	if raw := c.Query("warehouse_id"); raw != "" {
+		value, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || value <= 0 {
+			return MovementStatsFilter{}, apperr.NewValidationError("warehouse_id must be an integer greater than zero")
+		}
+		filter.WarehouseID = &value
+	}
+	if raw := c.Query("sku_id"); raw != "" {
+		value, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || value <= 0 {
+			return MovementStatsFilter{}, apperr.NewValidationError("sku_id must be an integer greater than zero")
+		}
+		filter.SKUID = &value
+	}
+
+	return filter, nil
+}

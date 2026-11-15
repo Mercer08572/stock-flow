@@ -123,6 +123,7 @@ type fakeService struct {
 	releaseStockFunc     func(context.Context, inventory.ReleaseStockRequest) (*inventory.StockOperationResult, error)
 	decreaseStockFunc    func(context.Context, inventory.DecreaseStockRequest) (*inventory.StockOperationResult, error)
 	listMovementsFunc    func(context.Context, inventory.ListMovementsFilter) (inventory.MovementListResult, error)
+	getMovementStatsFunc func(context.Context, inventory.MovementStatsFilter) (inventory.MovementStats, error)
 }
 
 func (s *fakeService) ListReservations(ctx context.Context, filter inventory.ListReservationsFilter) (inventory.ReservationListResult, error) {
@@ -193,4 +194,11 @@ func (s *fakeService) ListMovements(ctx context.Context, filter inventory.ListMo
 		return s.listMovementsFunc(ctx, filter)
 	}
 	return inventory.MovementListResult{}, errFakeRepositoryNotImplemented
+}
+
+func (s *fakeService) GetMovementStats(ctx context.Context, filter inventory.MovementStatsFilter) (inventory.MovementStats, error) {
+	if s.getMovementStatsFunc != nil {
+		return s.getMovementStatsFunc(ctx, filter)
+	}
+	return inventory.MovementStats{}, errFakeRepositoryNotImplemented
 }

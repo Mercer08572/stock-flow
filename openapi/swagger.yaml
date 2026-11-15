@@ -68,6 +68,33 @@ definitions:
       user_agent:
         type: string
     type: object
+  audit.Stats:
+    properties:
+      buckets:
+        items:
+          type: string
+        type: array
+      failed:
+        items:
+          type: integer
+        type: array
+      failure_rate:
+        items:
+          type: number
+        type: array
+      from:
+        type: string
+      granularity:
+        type: string
+      timezone:
+        type: string
+      to:
+        type: string
+      total:
+        items:
+          type: integer
+        type: array
+    type: object
   auth.APIApp:
     properties:
       app_id:
@@ -445,6 +472,34 @@ definitions:
         type: string
       stock_layer_id:
         type: integer
+    type: object
+  inventory.MovementStats:
+    properties:
+      buckets:
+        items:
+          type: string
+        type: array
+      from:
+        type: string
+      granularity:
+        type: string
+      series:
+        items:
+          $ref: '#/definitions/inventory.MovementStatsSeries'
+        type: array
+      timezone:
+        type: string
+      to:
+        type: string
+    type: object
+  inventory.MovementStatsSeries:
+    properties:
+      calls:
+        items:
+          type: integer
+        type: array
+      operation_type:
+        type: string
     type: object
   inventory.Reservation:
     properties:
@@ -1194,6 +1249,71 @@ paths:
       security:
       - AdminSession: []
       summary: List request audit logs
+      tags:
+      - Audit
+  /audit/stats:
+    get:
+      description: Aggregates audit rows for the inventory mutation routes into time
+        buckets. Failed counts include 4xx and 5xx responses.
+      parameters:
+      - description: Start time (RFC3339)
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: End time (RFC3339, exclusive)
+        in: query
+        name: to
+        required: true
+        type: string
+      - description: Bucket granularity
+        enum:
+        - hour
+        - day
+        in: query
+        name: granularity
+        type: string
+      - default: Asia/Shanghai
+        description: IANA timezone used to align buckets
+        in: query
+        name: timezone
+        type: string
+      - description: Comma-separated route templates; defaults to the inventory mutation
+          routes
+        in: query
+        name: routes
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/audit.Stats'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - AdminSession: []
+      summary: Get inventory API throughput statistics
       tags:
       - Audit
   /auth/admin/login:
@@ -2063,6 +2183,64 @@ paths:
           schema:
             $ref: '#/definitions/response.Body'
       summary: List inventory movements
+      tags:
+      - Inventory
+  /inventory/movements/stats:
+    get:
+      description: Aggregates inventory movement call counts into time buckets. Buckets
+        without data are returned as zero so the series stays continuous.
+      parameters:
+      - description: Bucket granularity
+        enum:
+        - hour
+        - day
+        in: query
+        name: granularity
+        type: string
+      - description: Range start (RFC3339)
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: Range end (RFC3339, exclusive)
+        in: query
+        name: to
+        required: true
+        type: string
+      - default: Asia/Shanghai
+        description: IANA timezone used to align buckets
+        in: query
+        name: timezone
+        type: string
+      - description: Warehouse ID
+        in: query
+        name: warehouse_id
+        type: integer
+      - description: SKU ID
+        in: query
+        name: sku_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.MovementStats'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Get inventory movement trend statistics
       tags:
       - Inventory
   /inventory/release:

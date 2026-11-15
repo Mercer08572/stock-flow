@@ -658,6 +658,59 @@ func (r *postgresRepository) CountMovements(ctx context.Context, filter ListMove
 	return count, nil
 }
 
+// AggregateMovements 按时间桶与操作类型聚合库存流水的调用次数。
+//
+// 粒度决定调用哪条 sqlc 查询：两条查询只在 date_trunc 的单位上不同，
+// 拆开写是为了让 sqlc 能推断参数与返回类型（动态 date_trunc 单位会被推成 interface{}）。
+func (r *postgresRepository) AggregateMovements(ctx context.Context, filter MovementStatsFilter) ([]MovementStatsBucket, error) {
+	from := timestamptzValue(&filter.From)
+	to := timestamptzValue(&filter.To)
+
+	if filter.Granularity == StatsGranularityDay {
+		rows, err := r.queries.AggregateInventoryMovementsByDay(ctx, inventorydb.AggregateInventoryMovementsByDayParams{
+			Timezone:    filter.Timezone,
+			CreatedFrom: from,
+			CreatedTo:   to,
+			WarehouseID: filter.WarehouseID,
+			SkuID:       filter.SKUID,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		buckets := make([]MovementStatsBucket, 0, len(rows))
+		for _, row := range rows {
+			buckets = append(buckets, MovementStatsBucket{
+				Bucket:        row.Bucket.Time,
+				OperationType: row.OperationType,
+				Calls:         row.Calls,
+			})
+		}
+		return buckets, nil
+	}
+
+	rows, err := r.queries.AggregateInventoryMovementsByHour(ctx, inventorydb.AggregateInventoryMovementsByHourParams{
+		Timezone:    filter.Timezone,
+		CreatedFrom: from,
+		CreatedTo:   to,
+		WarehouseID: filter.WarehouseID,
+		SkuID:       filter.SKUID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	buckets := make([]MovementStatsBucket, 0, len(rows))
+	for _, row := range rows {
+		buckets = append(buckets, MovementStatsBucket{
+			Bucket:        row.Bucket.Time,
+			OperationType: row.OperationType,
+			Calls:         row.Calls,
+		})
+	}
+	return buckets, nil
+}
+
 func (r *postgresRepository) ClaimIdempotencyKey(ctx context.Context, input IdempotencyClaim) (*IdempotencyRecord, bool, error) {
 	row, err := r.queries.ClaimInventoryIdempotencyKey(ctx, inventorydb.ClaimInventoryIdempotencyKeyParams{
 		OperationType:  input.OperationType,

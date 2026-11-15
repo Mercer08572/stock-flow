@@ -126,9 +126,11 @@ func (f *fakeInserter) count() int {
 }
 
 type fakeRepository struct {
-	inserted []Entry
-	items    []Log
-	filters  []QueryFilter
+	inserted     []Entry
+	items        []Log
+	filters      []QueryFilter
+	statsBuckets []StatsBucket
+	statsFilters []StatsFilter
 }
 
 func (r *fakeRepository) InsertBatch(_ context.Context, entries []Entry) error {
@@ -139,6 +141,11 @@ func (r *fakeRepository) InsertBatch(_ context.Context, entries []Entry) error {
 func (r *fakeRepository) List(_ context.Context, filter QueryFilter) ([]Log, error) {
 	r.filters = append(r.filters, filter)
 	return r.items, nil
+}
+
+func (r *fakeRepository) Aggregate(_ context.Context, filter StatsFilter) ([]StatsBucket, error) {
+	r.statsFilters = append(r.statsFilters, filter)
+	return r.statsBuckets, nil
 }
 
 func waitFor(t *testing.T, condition func() bool) {

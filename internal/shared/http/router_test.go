@@ -123,6 +123,10 @@ func (s *fakeAuditService) List(context.Context, audit.ListFilter) (audit.ListRe
 	return audit.ListResult{Items: []audit.Log{}}, nil
 }
 
+func (s *fakeAuditService) Stats(context.Context, audit.StatsFilter) (audit.Stats, error) {
+	return audit.Stats{}, nil
+}
+
 type fakeAuthenticator struct{}
 
 func (a *fakeAuthenticator) AuthenticateAdminSession(context.Context, string) (auth.Caller, error) {

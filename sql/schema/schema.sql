@@ -542,6 +542,10 @@ CREATE INDEX idx_inventory_movements_warehouse_sku_created_at
     ON inventory_movements (warehouse_id, sku_id, created_at)
     WHERE deleted_at IS NULL;
 
+CREATE INDEX idx_inventory_movements_created_at
+    ON inventory_movements (created_at)
+    WHERE deleted_at IS NULL;
+
 CREATE INDEX idx_inventory_movements_warehouse_id
     ON inventory_movements (warehouse_id)
     WHERE deleted_at IS NULL;

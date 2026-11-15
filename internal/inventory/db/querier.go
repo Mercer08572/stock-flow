@@ -15,6 +15,12 @@ type Querier interface {
 	AddInventoryReservationReleased(ctx context.Context, arg AddInventoryReservationReleasedParams) (AddInventoryReservationReleasedRow, error)
 	AddInventoryStockLayerReserved(ctx context.Context, arg AddInventoryStockLayerReservedParams) (int64, error)
 	AddInventoryStockOnHand(ctx context.Context, arg AddInventoryStockOnHandParams) (int64, error)
+	// 与 AggregateInventoryMovementsByHour 相同的口径，仅把时间桶换成按本地时区的自然日。
+	AggregateInventoryMovementsByDay(ctx context.Context, arg AggregateInventoryMovementsByDayParams) ([]AggregateInventoryMovementsByDayRow, error)
+	// 工作台趋势统计：按本地时区的小时桶聚合。
+	// 用 COUNT(DISTINCT idempotency_key) 而不是 COUNT(*)：一次请求在跨批次 FIFO 分配时
+	// 会写入多行 movement（同一 idempotency_key），COUNT(*) 统计的是分配行数而非调用次数。
+	AggregateInventoryMovementsByHour(ctx context.Context, arg AggregateInventoryMovementsByHourParams) ([]AggregateInventoryMovementsByHourRow, error)
 	ClaimInventoryIdempotencyKey(ctx context.Context, arg ClaimInventoryIdempotencyKeyParams) (ClaimInventoryIdempotencyKeyRow, error)
 	CompleteInventoryIdempotencyKey(ctx context.Context, arg CompleteInventoryIdempotencyKeyParams) (int64, error)
 	ConsumeInventoryStockLayerReserved(ctx context.Context, arg ConsumeInventoryStockLayerReservedParams) (int64, error)

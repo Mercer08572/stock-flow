@@ -236,3 +236,47 @@ func textPointer(value pgtype.Text) *string {
 	copy := value.String
 	return &copy
 }
+
+// Aggregate 按时间桶聚合库存接口的调用量与失败量。
+//
+// route 维度天然包含失败请求（4xx/5xx），与 movements 口径的「成功操作次数」互补。
+// occurred_at 的范围谓词必须在，审计表按 occurred_at 分区，缺少它会导致全分区扫描。
+func (r *postgresRepository) Aggregate(ctx context.Context, filter StatsFilter) ([]StatsBucket, error) {
+	const aggregateQuery = `
+SELECT (date_trunc($1::text, occurred_at AT TIME ZONE $2::text)
+            AT TIME ZONE $2::text)::timestamptz AS bucket,
+       COUNT(*)::bigint AS total,
+       COUNT(*) FILTER (WHERE status_code >= 400)::bigint AS failed
+FROM audit_logs
+WHERE occurred_at >= $3::timestamptz
+  AND occurred_at < $4::timestamptz
+  AND route = ANY($5::text[])
+GROUP BY 1
+ORDER BY 1`
+
+	rows, err := r.pool.Query(ctx, aggregateQuery,
+		filter.Granularity,
+		filter.Timezone,
+		filter.From,
+		filter.To,
+		filter.Routes,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	buckets := make([]StatsBucket, 0, 16)
+	for rows.Next() {
+		var bucket StatsBucket
+		if err := rows.Scan(&bucket.Bucket, &bucket.Total, &bucket.Failed); err != nil {
+			return nil, err
+		}
+		buckets = append(buckets, bucket)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return buckets, nil
+}

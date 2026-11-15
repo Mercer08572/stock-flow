@@ -534,3 +534,35 @@ WHERE deleted_at IS NULL
   AND (sqlc.narg('operation_type')::text IS NULL OR operation_type = sqlc.narg('operation_type')::text)
   AND (sqlc.narg('created_from')::timestamptz IS NULL OR created_at >= sqlc.narg('created_from')::timestamptz)
   AND (sqlc.narg('created_to')::timestamptz IS NULL OR created_at < sqlc.narg('created_to')::timestamptz);
+
+-- name: AggregateInventoryMovementsByHour :many
+-- 工作台趋势统计：按本地时区的小时桶聚合。
+-- 用 COUNT(DISTINCT idempotency_key) 而不是 COUNT(*)：一次请求在跨批次 FIFO 分配时
+-- 会写入多行 movement（同一 idempotency_key），COUNT(*) 统计的是分配行数而非调用次数。
+SELECT (date_trunc('hour', m.created_at AT TIME ZONE sqlc.arg('timezone')::text)
+            AT TIME ZONE sqlc.arg('timezone')::text)::timestamptz AS bucket,
+       m.operation_type,
+       COUNT(DISTINCT m.idempotency_key)::bigint AS calls
+FROM inventory_movements m
+WHERE m.deleted_at IS NULL
+  AND m.created_at >= sqlc.arg('created_from')::timestamptz
+  AND m.created_at < sqlc.arg('created_to')::timestamptz
+  AND (sqlc.narg('warehouse_id')::bigint IS NULL OR m.warehouse_id = sqlc.narg('warehouse_id')::bigint)
+  AND (sqlc.narg('sku_id')::bigint IS NULL OR m.sku_id = sqlc.narg('sku_id')::bigint)
+GROUP BY 1, 2
+ORDER BY 1;
+
+-- name: AggregateInventoryMovementsByDay :many
+-- 与 AggregateInventoryMovementsByHour 相同的口径，仅把时间桶换成按本地时区的自然日。
+SELECT (date_trunc('day', m.created_at AT TIME ZONE sqlc.arg('timezone')::text)
+            AT TIME ZONE sqlc.arg('timezone')::text)::timestamptz AS bucket,
+       m.operation_type,
+       COUNT(DISTINCT m.idempotency_key)::bigint AS calls
+FROM inventory_movements m
+WHERE m.deleted_at IS NULL
+  AND m.created_at >= sqlc.arg('created_from')::timestamptz
+  AND m.created_at < sqlc.arg('created_to')::timestamptz
+  AND (sqlc.narg('warehouse_id')::bigint IS NULL OR m.warehouse_id = sqlc.narg('warehouse_id')::bigint)
+  AND (sqlc.narg('sku_id')::bigint IS NULL OR m.sku_id = sqlc.narg('sku_id')::bigint)
+GROUP BY 1, 2
+ORDER BY 1;

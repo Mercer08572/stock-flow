@@ -14,10 +14,12 @@ const defaultRange = 24 * time.Hour
 type Repository interface {
 	InsertBatch(ctx context.Context, entries []Entry) error
 	List(ctx context.Context, filter QueryFilter) ([]Log, error)
+	Aggregate(ctx context.Context, filter StatsFilter) ([]StatsBucket, error)
 }
 
 type Service interface {
 	List(ctx context.Context, filter ListFilter) (ListResult, error)
+	Stats(ctx context.Context, filter StatsFilter) (Stats, error)
 }
 
 type ServiceOptions struct {

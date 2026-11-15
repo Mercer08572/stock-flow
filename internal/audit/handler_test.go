@@ -14,14 +14,22 @@ import (
 )
 
 type fakeAuditService struct {
-	filter ListFilter
-	result ListResult
-	err    error
+	filter      ListFilter
+	result      ListResult
+	err         error
+	stats       Stats
+	statsError  error
+	statsFilter StatsFilter
 }
 
 func (s *fakeAuditService) List(_ context.Context, filter ListFilter) (ListResult, error) {
 	s.filter = filter
 	return s.result, s.err
+}
+
+func (s *fakeAuditService) Stats(_ context.Context, filter StatsFilter) (Stats, error) {
+	s.statsFilter = filter
+	return s.stats, s.statsError
 }
 
 func TestHandlerListParsesFilters(t *testing.T) {

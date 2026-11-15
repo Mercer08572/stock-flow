@@ -27,6 +27,7 @@ func NewHandler(service Service) Handler {
 
 func (h *handler) RegisterRoutes(router gin.IRouter) {
 	router.GET("/audit/logs", h.List)
+	router.GET("/audit/stats", h.Stats)
 }
 
 // List returns one page of audit rows ordered by occurred_at DESC, id DESC.
@@ -65,6 +66,75 @@ func (h *handler) List(c *gin.Context) {
 		return
 	}
 	response.Success(c, result)
+}
+
+// Stats returns inventory API throughput and failure-rate trend buckets.
+// @Summary Get inventory API throughput statistics
+// @Description Aggregates audit rows for the inventory mutation routes into time buckets. Failed counts include 4xx and 5xx responses.
+// @Tags Audit
+// @Produce json
+// @Param from query string true "Start time (RFC3339)"
+// @Param to query string true "End time (RFC3339, exclusive)"
+// @Param granularity query string false "Bucket granularity" Enums(hour,day)
+// @Param timezone query string false "IANA timezone used to align buckets" default(Asia/Shanghai)
+// @Param routes query string false "Comma-separated route templates; defaults to the inventory mutation routes"
+// @Success 200 {object} response.Body{data=Stats}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Failure 403 {object} response.Body
+// @Failure 500 {object} response.Body
+// @Router /audit/stats [get]
+// @Security AdminSession
+func (h *handler) Stats(c *gin.Context) {
+	filter, err := parseStatsFilter(c)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+
+	result, err := h.service.Stats(c.Request.Context(), filter)
+	if err != nil {
+		httperr.Write(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func parseStatsFilter(c *gin.Context) (StatsFilter, error) {
+	from, err := parseTimeQuery(c, "from")
+	if err != nil {
+		return StatsFilter{}, err
+	}
+	if from.IsZero() {
+		return StatsFilter{}, apperr.NewValidationError("from is required")
+	}
+	to, err := parseTimeQuery(c, "to")
+	if err != nil {
+		return StatsFilter{}, err
+	}
+	if to.IsZero() {
+		return StatsFilter{}, apperr.NewValidationError("to is required")
+	}
+
+	filter := StatsFilter{
+		From:        from,
+		To:          to,
+		Granularity: strings.TrimSpace(c.Query("granularity")),
+		Timezone:    strings.TrimSpace(c.Query("timezone")),
+	}
+
+	if raw := strings.TrimSpace(c.Query("routes")); raw != "" {
+		parts := strings.Split(raw, ",")
+		routes := make([]string, 0, len(parts))
+		for _, part := range parts {
+			if route := strings.TrimSpace(part); route != "" {
+				routes = append(routes, route)
+			}
+		}
+		filter.Routes = routes
+	}
+
+	return filter, nil
 }
 
 func parseListFilter(c *gin.Context) (ListFilter, error) {
