@@ -1,17 +1,28 @@
 -- name: ListMaterialUnitConversions :many
-SELECT id,
-       material_id,
-       from_unit_id,
-       to_unit_id,
-       factor,
-       created_at,
-       updated_at
-FROM material_unit_conversions
-WHERE material_id = sqlc.arg('material_id')::bigint
-  AND deleted_at IS NULL
-  AND (sqlc.narg('from_unit_id')::bigint IS NULL OR from_unit_id = sqlc.narg('from_unit_id')::bigint)
-  AND (sqlc.narg('to_unit_id')::bigint IS NULL OR to_unit_id = sqlc.narg('to_unit_id')::bigint)
-ORDER BY id DESC
+-- 两端单位的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
+SELECT conv.id,
+       conv.material_id,
+       conv.from_unit_id,
+       conv.to_unit_id,
+       conv.factor,
+       conv.created_at,
+       conv.updated_at,
+       fu.code       AS from_unit_code,
+       fu.name       AS from_unit_name,
+       fu.status     AS from_unit_status,
+       fu.deleted_at AS from_unit_deleted_at,
+       tu.code       AS to_unit_code,
+       tu.name       AS to_unit_name,
+       tu.status     AS to_unit_status,
+       tu.deleted_at AS to_unit_deleted_at
+FROM material_unit_conversions conv
+LEFT JOIN units fu ON fu.id = conv.from_unit_id
+LEFT JOIN units tu ON tu.id = conv.to_unit_id
+WHERE conv.material_id = sqlc.arg('material_id')::bigint
+  AND conv.deleted_at IS NULL
+  AND (sqlc.narg('from_unit_id')::bigint IS NULL OR conv.from_unit_id = sqlc.narg('from_unit_id')::bigint)
+  AND (sqlc.narg('to_unit_id')::bigint IS NULL OR conv.to_unit_id = sqlc.narg('to_unit_id')::bigint)
+ORDER BY conv.id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountMaterialUnitConversions :one

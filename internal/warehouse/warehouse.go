@@ -1,6 +1,10 @@
 package warehouse
 
-import "time"
+import (
+	"time"
+
+	"github.com/Mercer08572/stock-flow/internal/shared/reference"
+)
 
 const (
 	DefaultListLimit int32 = 20
@@ -35,12 +39,8 @@ type Warehouse struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-type Reference struct {
-	ID      int64  `json:"id"`
-	Code    string `json:"code"`
-	Name    string `json:"name"`
-	Deleted bool   `json:"deleted"`
-}
+// Reference 是仓库的最小可读快照，形状由 shared/reference 统一。
+type Reference = reference.Reference
 
 type CreateInput struct {
 	Code         string

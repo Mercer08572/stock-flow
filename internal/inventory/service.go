@@ -132,9 +132,6 @@ func (s *service) ListStocks(ctx context.Context, filter ListStocksFilter) (Stoc
 		if err := applyStockAvailable(&items[i]); err != nil {
 			return StockListResult{}, err
 		}
-		if err := s.applyStockReferences(ctx, &items[i]); err != nil {
-			return StockListResult{}, err
-		}
 	}
 
 	return StockListResult{
@@ -169,8 +166,13 @@ func (s *service) GetStock(ctx context.Context, query GetStockQuery) (*StockBala
 	if err := applyStockAvailable(stock); err != nil {
 		return nil, err
 	}
-	stock.Warehouse = warehouseReference
-	stock.SKU = skuReference
+	// 引用快照由仓储 JOIN 带回；零库存（没有行）或 JOIN 意外落空时用校验查询兜底。
+	if stock.Warehouse == nil {
+		stock.Warehouse = warehouseReference
+	}
+	if stock.SKU == nil {
+		stock.SKU = skuReference
+	}
 
 	if normalized.IncludeLayers {
 		layers, err := s.repo.ListLayers(ctx, ListLayersFilter{
@@ -186,8 +188,12 @@ func (s *service) GetStock(ctx context.Context, query GetStockQuery) (*StockBala
 			if err := applyLayerAvailable(&layers[i]); err != nil {
 				return nil, err
 			}
-			layers[i].Warehouse = warehouseReference
-			layers[i].SKU = skuReference
+			if layers[i].Warehouse == nil {
+				layers[i].Warehouse = warehouseReference
+			}
+			if layers[i].SKU == nil {
+				layers[i].SKU = skuReference
+			}
 		}
 		stock.Layers = layers
 	}
@@ -231,8 +237,12 @@ func (s *service) ListLayers(ctx context.Context, filter ListLayersFilter) (Laye
 		if err := applyLayerAvailable(&items[i]); err != nil {
 			return LayerListResult{}, err
 		}
-		items[i].Warehouse = warehouseReference
-		items[i].SKU = skuReference
+		if items[i].Warehouse == nil {
+			items[i].Warehouse = warehouseReference
+		}
+		if items[i].SKU == nil {
+			items[i].SKU = skuReference
+		}
 	}
 
 	return LayerListResult{
@@ -277,21 +287,6 @@ func (s *service) getSKUReference(ctx context.Context, id int64) (*sku.Reference
 	}
 
 	return reference, nil
-}
-
-func (s *service) applyStockReferences(ctx context.Context, stock *StockBalance) error {
-	warehouseReference, err := s.getWarehouseReference(ctx, stock.WarehouseID)
-	if err != nil {
-		return err
-	}
-	skuReference, err := s.getSKUReference(ctx, stock.SKUID)
-	if err != nil {
-		return err
-	}
-
-	stock.Warehouse = warehouseReference
-	stock.SKU = skuReference
-	return nil
 }
 
 func normalizeListStocksFilter(filter ListStocksFilter) (ListStocksFilter, error) {

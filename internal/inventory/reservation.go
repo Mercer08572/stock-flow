@@ -96,9 +96,6 @@ func (s *service) ListReservations(ctx context.Context, filter ListReservationsF
 		if err := applyReservationQuantities(&items[i]); err != nil {
 			return ReservationListResult{}, err
 		}
-		if err := s.applyReservationReferences(ctx, &items[i]); err != nil {
-			return ReservationListResult{}, err
-		}
 	}
 
 	return ReservationListResult{
@@ -136,8 +133,11 @@ func (s *service) GetReservation(ctx context.Context, reservationID int64) (*Res
 	}
 	reservation.Items = items
 
-	if err := s.applyReservationReferences(ctx, reservation); err != nil {
-		return nil, err
+	// 引用快照由仓储 JOIN 带回；仅在 JOIN 意外落空时补查，同时保留引用缺失的 404 语义。
+	if reservation.Warehouse == nil || reservation.SKU == nil {
+		if err := s.applyReservationReferences(ctx, reservation); err != nil {
+			return nil, err
+		}
 	}
 
 	return reservation, nil
@@ -225,17 +225,22 @@ func applyReservationItemQuantities(item *ReservationItem) error {
 	return nil
 }
 
+// applyReservationReferences 只为缺失的引用补快照，不覆盖仓储已 JOIN 出来的值。
 func (s *service) applyReservationReferences(ctx context.Context, reservation *Reservation) error {
-	warehouseReference, err := s.getWarehouseReference(ctx, reservation.WarehouseID)
-	if err != nil {
-		return err
+	if reservation.Warehouse == nil {
+		warehouseReference, err := s.getWarehouseReference(ctx, reservation.WarehouseID)
+		if err != nil {
+			return err
+		}
+		reservation.Warehouse = warehouseReference
 	}
-	skuReference, err := s.getSKUReference(ctx, reservation.SKUID)
-	if err != nil {
-		return err
+	if reservation.SKU == nil {
+		skuReference, err := s.getSKUReference(ctx, reservation.SKUID)
+		if err != nil {
+			return err
+		}
+		reservation.SKU = skuReference
 	}
 
-	reservation.Warehouse = warehouseReference
-	reservation.SKU = skuReference
 	return nil
 }

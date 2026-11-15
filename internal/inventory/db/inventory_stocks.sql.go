@@ -56,16 +56,26 @@ func (q *Queries) CountInventoryStocks(ctx context.Context, arg CountInventorySt
 }
 
 const getInventoryStock = `-- name: GetInventoryStock :one
-SELECT warehouse_id,
-       sku_id,
-       on_hand_qty,
-       reserved_qty,
-       (on_hand_qty - reserved_qty)::numeric AS available_qty,
-       updated_at
-FROM inventory_stocks
-WHERE warehouse_id = $1::bigint
-  AND sku_id = $2::bigint
-  AND deleted_at IS NULL
+SELECT st.warehouse_id,
+       st.sku_id,
+       st.on_hand_qty,
+       st.reserved_qty,
+       (st.on_hand_qty - st.reserved_qty)::numeric AS available_qty,
+       st.updated_at,
+       w.code       AS warehouse_code,
+       w.name       AS warehouse_name,
+       w.status     AS warehouse_status,
+       w.deleted_at AS warehouse_deleted_at,
+       s.code       AS sku_code,
+       s.name       AS sku_name,
+       s.status     AS sku_status,
+       s.deleted_at AS sku_deleted_at
+FROM inventory_stocks AS st
+LEFT JOIN warehouses AS w ON w.id = st.warehouse_id
+LEFT JOIN skus AS s ON s.id = st.sku_id
+WHERE st.warehouse_id = $1::bigint
+  AND st.sku_id = $2::bigint
+  AND st.deleted_at IS NULL
 `
 
 type GetInventoryStockParams struct {
@@ -74,12 +84,20 @@ type GetInventoryStockParams struct {
 }
 
 type GetInventoryStockRow struct {
-	WarehouseID  int64              `db:"warehouse_id" json:"warehouse_id"`
-	SkuID        int64              `db:"sku_id" json:"sku_id"`
-	OnHandQty    pgtype.Numeric     `db:"on_hand_qty" json:"on_hand_qty"`
-	ReservedQty  pgtype.Numeric     `db:"reserved_qty" json:"reserved_qty"`
-	AvailableQty pgtype.Numeric     `db:"available_qty" json:"available_qty"`
-	UpdatedAt    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	WarehouseID        int64              `db:"warehouse_id" json:"warehouse_id"`
+	SkuID              int64              `db:"sku_id" json:"sku_id"`
+	OnHandQty          pgtype.Numeric     `db:"on_hand_qty" json:"on_hand_qty"`
+	ReservedQty        pgtype.Numeric     `db:"reserved_qty" json:"reserved_qty"`
+	AvailableQty       pgtype.Numeric     `db:"available_qty" json:"available_qty"`
+	UpdatedAt          pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	WarehouseCode      *string            `db:"warehouse_code" json:"warehouse_code"`
+	WarehouseName      *string            `db:"warehouse_name" json:"warehouse_name"`
+	WarehouseStatus    *string            `db:"warehouse_status" json:"warehouse_status"`
+	WarehouseDeletedAt pgtype.Timestamptz `db:"warehouse_deleted_at" json:"warehouse_deleted_at"`
+	SkuCode            *string            `db:"sku_code" json:"sku_code"`
+	SkuName            *string            `db:"sku_name" json:"sku_name"`
+	SkuStatus          *string            `db:"sku_status" json:"sku_status"`
+	SkuDeletedAt       pgtype.Timestamptz `db:"sku_deleted_at" json:"sku_deleted_at"`
 }
 
 func (q *Queries) GetInventoryStock(ctx context.Context, arg GetInventoryStockParams) (GetInventoryStockRow, error) {
@@ -92,6 +110,14 @@ func (q *Queries) GetInventoryStock(ctx context.Context, arg GetInventoryStockPa
 		&i.ReservedQty,
 		&i.AvailableQty,
 		&i.UpdatedAt,
+		&i.WarehouseCode,
+		&i.WarehouseName,
+		&i.WarehouseStatus,
+		&i.WarehouseDeletedAt,
+		&i.SkuCode,
+		&i.SkuName,
+		&i.SkuStatus,
+		&i.SkuDeletedAt,
 	)
 	return i, err
 }
@@ -184,9 +210,19 @@ SELECT l.id,
        l.reserved_qty,
        (l.on_hand_qty - l.reserved_qty)::numeric AS available_qty,
        l.created_at,
-       l.updated_at
+       l.updated_at,
+       w.code       AS warehouse_code,
+       w.name       AS warehouse_name,
+       w.status     AS warehouse_status,
+       w.deleted_at AS warehouse_deleted_at,
+       s.code       AS sku_code,
+       s.name       AS sku_name,
+       s.status     AS sku_status,
+       s.deleted_at AS sku_deleted_at
 FROM inventory_stock_layers AS l
 LEFT JOIN inventory_batches AS b ON b.id = l.batch_id
+LEFT JOIN warehouses AS w ON w.id = l.warehouse_id
+LEFT JOIN skus AS s ON s.id = l.sku_id
 WHERE l.warehouse_id = $1::bigint
   AND l.sku_id = $2::bigint
   AND l.deleted_at IS NULL
@@ -204,16 +240,24 @@ type ListInventoryStockLayersParams struct {
 }
 
 type ListInventoryStockLayersRow struct {
-	ID           int64              `db:"id" json:"id"`
-	WarehouseID  int64              `db:"warehouse_id" json:"warehouse_id"`
-	SkuID        int64              `db:"sku_id" json:"sku_id"`
-	BatchID      *int64             `db:"batch_id" json:"batch_id"`
-	ReceivedAt   pgtype.Timestamptz `db:"received_at" json:"received_at"`
-	OnHandQty    pgtype.Numeric     `db:"on_hand_qty" json:"on_hand_qty"`
-	ReservedQty  pgtype.Numeric     `db:"reserved_qty" json:"reserved_qty"`
-	AvailableQty pgtype.Numeric     `db:"available_qty" json:"available_qty"`
-	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID                 int64              `db:"id" json:"id"`
+	WarehouseID        int64              `db:"warehouse_id" json:"warehouse_id"`
+	SkuID              int64              `db:"sku_id" json:"sku_id"`
+	BatchID            *int64             `db:"batch_id" json:"batch_id"`
+	ReceivedAt         pgtype.Timestamptz `db:"received_at" json:"received_at"`
+	OnHandQty          pgtype.Numeric     `db:"on_hand_qty" json:"on_hand_qty"`
+	ReservedQty        pgtype.Numeric     `db:"reserved_qty" json:"reserved_qty"`
+	AvailableQty       pgtype.Numeric     `db:"available_qty" json:"available_qty"`
+	CreatedAt          pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	WarehouseCode      *string            `db:"warehouse_code" json:"warehouse_code"`
+	WarehouseName      *string            `db:"warehouse_name" json:"warehouse_name"`
+	WarehouseStatus    *string            `db:"warehouse_status" json:"warehouse_status"`
+	WarehouseDeletedAt pgtype.Timestamptz `db:"warehouse_deleted_at" json:"warehouse_deleted_at"`
+	SkuCode            *string            `db:"sku_code" json:"sku_code"`
+	SkuName            *string            `db:"sku_name" json:"sku_name"`
+	SkuStatus          *string            `db:"sku_status" json:"sku_status"`
+	SkuDeletedAt       pgtype.Timestamptz `db:"sku_deleted_at" json:"sku_deleted_at"`
 }
 
 // 分配顺序：先按批次 dispatch_priority（0-9 提升、10 默认、11+ 延后；非批次层视为 10），
@@ -245,6 +289,14 @@ func (q *Queries) ListInventoryStockLayers(ctx context.Context, arg ListInventor
 			&i.AvailableQty,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.WarehouseCode,
+			&i.WarehouseName,
+			&i.WarehouseStatus,
+			&i.WarehouseDeletedAt,
+			&i.SkuCode,
+			&i.SkuName,
+			&i.SkuStatus,
+			&i.SkuDeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -257,17 +309,27 @@ func (q *Queries) ListInventoryStockLayers(ctx context.Context, arg ListInventor
 }
 
 const listInventoryStocks = `-- name: ListInventoryStocks :many
-SELECT warehouse_id,
-       sku_id,
-       on_hand_qty,
-       reserved_qty,
-       (on_hand_qty - reserved_qty)::numeric AS available_qty,
-       updated_at
-FROM inventory_stocks
-WHERE deleted_at IS NULL
-  AND ($1::bigint IS NULL OR warehouse_id = $1::bigint)
-  AND ($2::bigint IS NULL OR sku_id = $2::bigint)
-ORDER BY warehouse_id, sku_id
+SELECT st.warehouse_id,
+       st.sku_id,
+       st.on_hand_qty,
+       st.reserved_qty,
+       (st.on_hand_qty - st.reserved_qty)::numeric AS available_qty,
+       st.updated_at,
+       w.code       AS warehouse_code,
+       w.name       AS warehouse_name,
+       w.status     AS warehouse_status,
+       w.deleted_at AS warehouse_deleted_at,
+       s.code       AS sku_code,
+       s.name       AS sku_name,
+       s.status     AS sku_status,
+       s.deleted_at AS sku_deleted_at
+FROM inventory_stocks AS st
+LEFT JOIN warehouses AS w ON w.id = st.warehouse_id
+LEFT JOIN skus AS s ON s.id = st.sku_id
+WHERE st.deleted_at IS NULL
+  AND ($1::bigint IS NULL OR st.warehouse_id = $1::bigint)
+  AND ($2::bigint IS NULL OR st.sku_id = $2::bigint)
+ORDER BY st.warehouse_id, st.sku_id
 LIMIT $4 OFFSET $3
 `
 
@@ -279,14 +341,23 @@ type ListInventoryStocksParams struct {
 }
 
 type ListInventoryStocksRow struct {
-	WarehouseID  int64              `db:"warehouse_id" json:"warehouse_id"`
-	SkuID        int64              `db:"sku_id" json:"sku_id"`
-	OnHandQty    pgtype.Numeric     `db:"on_hand_qty" json:"on_hand_qty"`
-	ReservedQty  pgtype.Numeric     `db:"reserved_qty" json:"reserved_qty"`
-	AvailableQty pgtype.Numeric     `db:"available_qty" json:"available_qty"`
-	UpdatedAt    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	WarehouseID        int64              `db:"warehouse_id" json:"warehouse_id"`
+	SkuID              int64              `db:"sku_id" json:"sku_id"`
+	OnHandQty          pgtype.Numeric     `db:"on_hand_qty" json:"on_hand_qty"`
+	ReservedQty        pgtype.Numeric     `db:"reserved_qty" json:"reserved_qty"`
+	AvailableQty       pgtype.Numeric     `db:"available_qty" json:"available_qty"`
+	UpdatedAt          pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	WarehouseCode      *string            `db:"warehouse_code" json:"warehouse_code"`
+	WarehouseName      *string            `db:"warehouse_name" json:"warehouse_name"`
+	WarehouseStatus    *string            `db:"warehouse_status" json:"warehouse_status"`
+	WarehouseDeletedAt pgtype.Timestamptz `db:"warehouse_deleted_at" json:"warehouse_deleted_at"`
+	SkuCode            *string            `db:"sku_code" json:"sku_code"`
+	SkuName            *string            `db:"sku_name" json:"sku_name"`
+	SkuStatus          *string            `db:"sku_status" json:"sku_status"`
+	SkuDeletedAt       pgtype.Timestamptz `db:"sku_deleted_at" json:"sku_deleted_at"`
 }
 
+// 仓库与 SKU 的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
 func (q *Queries) ListInventoryStocks(ctx context.Context, arg ListInventoryStocksParams) ([]ListInventoryStocksRow, error) {
 	rows, err := q.db.Query(ctx, listInventoryStocks,
 		arg.WarehouseID,
@@ -308,6 +379,14 @@ func (q *Queries) ListInventoryStocks(ctx context.Context, arg ListInventoryStoc
 			&i.ReservedQty,
 			&i.AvailableQty,
 			&i.UpdatedAt,
+			&i.WarehouseCode,
+			&i.WarehouseName,
+			&i.WarehouseStatus,
+			&i.WarehouseDeletedAt,
+			&i.SkuCode,
+			&i.SkuName,
+			&i.SkuStatus,
+			&i.SkuDeletedAt,
 		); err != nil {
 			return nil, err
 		}

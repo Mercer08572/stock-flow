@@ -5,6 +5,7 @@ import (
 	"time"
 
 	inventorydb "github.com/Mercer08572/stock-flow/internal/inventory/db"
+	"github.com/Mercer08572/stock-flow/internal/shared/reference"
 )
 
 func (r *postgresRepository) ListReservations(ctx context.Context, filter ListReservationsFilter) ([]Reservation, error) {
@@ -73,6 +74,20 @@ func (r *postgresRepository) GetReservation(ctx context.Context, reservationID i
 	}
 
 	reservation := reservationFromRecord(record)
+	reservation.Warehouse = reference.FromJoin(
+		row.WarehouseID,
+		row.WarehouseCode,
+		row.WarehouseName,
+		row.WarehouseStatus,
+		row.WarehouseDeletedAt.Valid,
+	)
+	reservation.SKU = reference.FromJoin(
+		row.SkuID,
+		row.SkuCode,
+		row.SkuName,
+		row.SkuStatus,
+		row.SkuDeletedAt.Valid,
+	)
 	return &reservation, nil
 }
 
@@ -118,7 +133,22 @@ func reservationFromListRow(row inventorydb.ListInventoryReservationsRow) (Reser
 		return Reservation{}, err
 	}
 
-	return reservationFromRecord(record), nil
+	reservation := reservationFromRecord(record)
+	reservation.Warehouse = reference.FromJoin(
+		row.WarehouseID,
+		row.WarehouseCode,
+		row.WarehouseName,
+		row.WarehouseStatus,
+		row.WarehouseDeletedAt.Valid,
+	)
+	reservation.SKU = reference.FromJoin(
+		row.SkuID,
+		row.SkuCode,
+		row.SkuName,
+		row.SkuStatus,
+		row.SkuDeletedAt.Valid,
+	)
+	return reservation, nil
 }
 
 // reservationFromRecord 只做字段搬运；数量归一化与剩余量推导在服务层完成。

@@ -94,30 +94,48 @@ func (q *Queries) CreateSKU(ctx context.Context, arg CreateSKUParams) (CreateSKU
 }
 
 const getSKUByID = `-- name: GetSKUByID :one
-SELECT id,
-       material_id,
-       code,
-       name,
-       unit_id,
-       status,
-       remark,
-       created_at,
-       updated_at
-FROM skus
-WHERE id = $1
-  AND deleted_at IS NULL
+SELECT s.id,
+       s.material_id,
+       s.code,
+       s.name,
+       s.unit_id,
+       s.status,
+       s.remark,
+       s.created_at,
+       s.updated_at,
+       m.code       AS material_code,
+       m.name       AS material_name,
+       m.status     AS material_status,
+       m.deleted_at AS material_deleted_at,
+       u.code       AS unit_code,
+       u.name       AS unit_name,
+       u.status     AS unit_status,
+       u.deleted_at AS unit_deleted_at
+FROM skus s
+LEFT JOIN materials m ON m.id = s.material_id
+LEFT JOIN units u ON u.id = s.unit_id
+WHERE s.id = $1
+  AND s.deleted_at IS NULL
 `
 
 type GetSKUByIDRow struct {
-	ID         int64              `db:"id" json:"id"`
-	MaterialID int64              `db:"material_id" json:"material_id"`
-	Code       string             `db:"code" json:"code"`
-	Name       string             `db:"name" json:"name"`
-	UnitID     int64              `db:"unit_id" json:"unit_id"`
-	Status     string             `db:"status" json:"status"`
-	Remark     *string            `db:"remark" json:"remark"`
-	CreatedAt  pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt  pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID                int64              `db:"id" json:"id"`
+	MaterialID        int64              `db:"material_id" json:"material_id"`
+	Code              string             `db:"code" json:"code"`
+	Name              string             `db:"name" json:"name"`
+	UnitID            int64              `db:"unit_id" json:"unit_id"`
+	Status            string             `db:"status" json:"status"`
+	Remark            *string            `db:"remark" json:"remark"`
+	CreatedAt         pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	MaterialCode      *string            `db:"material_code" json:"material_code"`
+	MaterialName      *string            `db:"material_name" json:"material_name"`
+	MaterialStatus    *string            `db:"material_status" json:"material_status"`
+	MaterialDeletedAt pgtype.Timestamptz `db:"material_deleted_at" json:"material_deleted_at"`
+	UnitCode          *string            `db:"unit_code" json:"unit_code"`
+	UnitName          *string            `db:"unit_name" json:"unit_name"`
+	UnitStatus        *string            `db:"unit_status" json:"unit_status"`
+	UnitDeletedAt     pgtype.Timestamptz `db:"unit_deleted_at" json:"unit_deleted_at"`
 }
 
 func (q *Queries) GetSKUByID(ctx context.Context, id int64) (GetSKUByIDRow, error) {
@@ -133,6 +151,14 @@ func (q *Queries) GetSKUByID(ctx context.Context, id int64) (GetSKUByIDRow, erro
 		&i.Remark,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.MaterialCode,
+		&i.MaterialName,
+		&i.MaterialStatus,
+		&i.MaterialDeletedAt,
+		&i.UnitCode,
+		&i.UnitName,
+		&i.UnitStatus,
+		&i.UnitDeletedAt,
 	)
 	return i, err
 }
@@ -166,21 +192,31 @@ func (q *Queries) GetSKUReference(ctx context.Context, id int64) (GetSKUReferenc
 }
 
 const listSKUs = `-- name: ListSKUs :many
-SELECT id,
-       material_id,
-       code,
-       name,
-       unit_id,
-       status,
-       remark,
-       created_at,
-       updated_at
-FROM skus
-WHERE deleted_at IS NULL
-  AND ($1::text IS NULL OR status = $1::text)
-  AND ($2::bigint IS NULL OR material_id = $2::bigint)
-  AND ($3::bigint IS NULL OR unit_id = $3::bigint)
-ORDER BY id DESC
+SELECT s.id,
+       s.material_id,
+       s.code,
+       s.name,
+       s.unit_id,
+       s.status,
+       s.remark,
+       s.created_at,
+       s.updated_at,
+       m.code       AS material_code,
+       m.name       AS material_name,
+       m.status     AS material_status,
+       m.deleted_at AS material_deleted_at,
+       u.code       AS unit_code,
+       u.name       AS unit_name,
+       u.status     AS unit_status,
+       u.deleted_at AS unit_deleted_at
+FROM skus s
+LEFT JOIN materials m ON m.id = s.material_id
+LEFT JOIN units u ON u.id = s.unit_id
+WHERE s.deleted_at IS NULL
+  AND ($1::text IS NULL OR s.status = $1::text)
+  AND ($2::bigint IS NULL OR s.material_id = $2::bigint)
+  AND ($3::bigint IS NULL OR s.unit_id = $3::bigint)
+ORDER BY s.id DESC
 LIMIT $5 OFFSET $4
 `
 
@@ -193,17 +229,28 @@ type ListSKUsParams struct {
 }
 
 type ListSKUsRow struct {
-	ID         int64              `db:"id" json:"id"`
-	MaterialID int64              `db:"material_id" json:"material_id"`
-	Code       string             `db:"code" json:"code"`
-	Name       string             `db:"name" json:"name"`
-	UnitID     int64              `db:"unit_id" json:"unit_id"`
-	Status     string             `db:"status" json:"status"`
-	Remark     *string            `db:"remark" json:"remark"`
-	CreatedAt  pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt  pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID                int64              `db:"id" json:"id"`
+	MaterialID        int64              `db:"material_id" json:"material_id"`
+	Code              string             `db:"code" json:"code"`
+	Name              string             `db:"name" json:"name"`
+	UnitID            int64              `db:"unit_id" json:"unit_id"`
+	Status            string             `db:"status" json:"status"`
+	Remark            *string            `db:"remark" json:"remark"`
+	CreatedAt         pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	MaterialCode      *string            `db:"material_code" json:"material_code"`
+	MaterialName      *string            `db:"material_name" json:"material_name"`
+	MaterialStatus    *string            `db:"material_status" json:"material_status"`
+	MaterialDeletedAt pgtype.Timestamptz `db:"material_deleted_at" json:"material_deleted_at"`
+	UnitCode          *string            `db:"unit_code" json:"unit_code"`
+	UnitName          *string            `db:"unit_name" json:"unit_name"`
+	UnitStatus        *string            `db:"unit_status" json:"unit_status"`
+	UnitDeletedAt     pgtype.Timestamptz `db:"unit_deleted_at" json:"unit_deleted_at"`
 }
 
+// 引用快照（物料 / 单位）随行内联，避免客户端再按 ID 二次查询后自行拼接。
+// JOIN 不带 status / deleted_at 过滤：停用或软删除的引用也要给出名字，
+// 由 reference_deleted_at / reference_status 说明其当前状态。
 func (q *Queries) ListSKUs(ctx context.Context, arg ListSKUsParams) ([]ListSKUsRow, error) {
 	rows, err := q.db.Query(ctx, listSKUs,
 		arg.Status,
@@ -229,6 +276,14 @@ func (q *Queries) ListSKUs(ctx context.Context, arg ListSKUsParams) ([]ListSKUsR
 			&i.Remark,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.MaterialCode,
+			&i.MaterialName,
+			&i.MaterialStatus,
+			&i.MaterialDeletedAt,
+			&i.UnitCode,
+			&i.UnitName,
+			&i.UnitStatus,
+			&i.UnitDeletedAt,
 		); err != nil {
 			return nil, err
 		}

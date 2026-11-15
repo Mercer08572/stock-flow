@@ -106,30 +106,48 @@ func (q *Queries) GetMaterialBaseUnit(ctx context.Context, id int64) (int64, err
 }
 
 const getMaterialByID = `-- name: GetMaterialByID :one
-SELECT id,
-       code,
-       name,
-       category_id,
-       base_unit_id,
-       status,
-       remark,
-       created_at,
-       updated_at
-FROM materials
-WHERE id = $1
-  AND deleted_at IS NULL
+SELECT m.id,
+       m.code,
+       m.name,
+       m.category_id,
+       m.base_unit_id,
+       m.status,
+       m.remark,
+       m.created_at,
+       m.updated_at,
+       c.code       AS category_code,
+       c.name       AS category_name,
+       c.status     AS category_status,
+       c.deleted_at AS category_deleted_at,
+       u.code       AS base_unit_code,
+       u.name       AS base_unit_name,
+       u.status     AS base_unit_status,
+       u.deleted_at AS base_unit_deleted_at
+FROM materials m
+LEFT JOIN material_categories c ON c.id = m.category_id
+LEFT JOIN units u ON u.id = m.base_unit_id
+WHERE m.id = $1
+  AND m.deleted_at IS NULL
 `
 
 type GetMaterialByIDRow struct {
-	ID         int64              `db:"id" json:"id"`
-	Code       string             `db:"code" json:"code"`
-	Name       string             `db:"name" json:"name"`
-	CategoryID int64              `db:"category_id" json:"category_id"`
-	BaseUnitID int64              `db:"base_unit_id" json:"base_unit_id"`
-	Status     string             `db:"status" json:"status"`
-	Remark     *string            `db:"remark" json:"remark"`
-	CreatedAt  pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt  pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID                int64              `db:"id" json:"id"`
+	Code              string             `db:"code" json:"code"`
+	Name              string             `db:"name" json:"name"`
+	CategoryID        int64              `db:"category_id" json:"category_id"`
+	BaseUnitID        int64              `db:"base_unit_id" json:"base_unit_id"`
+	Status            string             `db:"status" json:"status"`
+	Remark            *string            `db:"remark" json:"remark"`
+	CreatedAt         pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	CategoryCode      *string            `db:"category_code" json:"category_code"`
+	CategoryName      *string            `db:"category_name" json:"category_name"`
+	CategoryStatus    *string            `db:"category_status" json:"category_status"`
+	CategoryDeletedAt pgtype.Timestamptz `db:"category_deleted_at" json:"category_deleted_at"`
+	BaseUnitCode      *string            `db:"base_unit_code" json:"base_unit_code"`
+	BaseUnitName      *string            `db:"base_unit_name" json:"base_unit_name"`
+	BaseUnitStatus    *string            `db:"base_unit_status" json:"base_unit_status"`
+	BaseUnitDeletedAt pgtype.Timestamptz `db:"base_unit_deleted_at" json:"base_unit_deleted_at"`
 }
 
 func (q *Queries) GetMaterialByID(ctx context.Context, id int64) (GetMaterialByIDRow, error) {
@@ -145,6 +163,14 @@ func (q *Queries) GetMaterialByID(ctx context.Context, id int64) (GetMaterialByI
 		&i.Remark,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CategoryCode,
+		&i.CategoryName,
+		&i.CategoryStatus,
+		&i.CategoryDeletedAt,
+		&i.BaseUnitCode,
+		&i.BaseUnitName,
+		&i.BaseUnitStatus,
+		&i.BaseUnitDeletedAt,
 	)
 	return i, err
 }
@@ -183,20 +209,30 @@ func (q *Queries) GetUnitsByIDs(ctx context.Context, unitIds []int64) ([]GetUnit
 }
 
 const listMaterials = `-- name: ListMaterials :many
-SELECT id,
-       code,
-       name,
-       category_id,
-       base_unit_id,
-       status,
-       remark,
-       created_at,
-       updated_at
-FROM materials
-WHERE deleted_at IS NULL
-  AND ($1::text IS NULL OR status = $1::text)
-  AND ($2::bigint IS NULL OR category_id = $2::bigint)
-ORDER BY id DESC
+SELECT m.id,
+       m.code,
+       m.name,
+       m.category_id,
+       m.base_unit_id,
+       m.status,
+       m.remark,
+       m.created_at,
+       m.updated_at,
+       c.code       AS category_code,
+       c.name       AS category_name,
+       c.status     AS category_status,
+       c.deleted_at AS category_deleted_at,
+       u.code       AS base_unit_code,
+       u.name       AS base_unit_name,
+       u.status     AS base_unit_status,
+       u.deleted_at AS base_unit_deleted_at
+FROM materials m
+LEFT JOIN material_categories c ON c.id = m.category_id
+LEFT JOIN units u ON u.id = m.base_unit_id
+WHERE m.deleted_at IS NULL
+  AND ($1::text IS NULL OR m.status = $1::text)
+  AND ($2::bigint IS NULL OR m.category_id = $2::bigint)
+ORDER BY m.id DESC
 LIMIT $4 OFFSET $3
 `
 
@@ -208,17 +244,26 @@ type ListMaterialsParams struct {
 }
 
 type ListMaterialsRow struct {
-	ID         int64              `db:"id" json:"id"`
-	Code       string             `db:"code" json:"code"`
-	Name       string             `db:"name" json:"name"`
-	CategoryID int64              `db:"category_id" json:"category_id"`
-	BaseUnitID int64              `db:"base_unit_id" json:"base_unit_id"`
-	Status     string             `db:"status" json:"status"`
-	Remark     *string            `db:"remark" json:"remark"`
-	CreatedAt  pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt  pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID                int64              `db:"id" json:"id"`
+	Code              string             `db:"code" json:"code"`
+	Name              string             `db:"name" json:"name"`
+	CategoryID        int64              `db:"category_id" json:"category_id"`
+	BaseUnitID        int64              `db:"base_unit_id" json:"base_unit_id"`
+	Status            string             `db:"status" json:"status"`
+	Remark            *string            `db:"remark" json:"remark"`
+	CreatedAt         pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	CategoryCode      *string            `db:"category_code" json:"category_code"`
+	CategoryName      *string            `db:"category_name" json:"category_name"`
+	CategoryStatus    *string            `db:"category_status" json:"category_status"`
+	CategoryDeletedAt pgtype.Timestamptz `db:"category_deleted_at" json:"category_deleted_at"`
+	BaseUnitCode      *string            `db:"base_unit_code" json:"base_unit_code"`
+	BaseUnitName      *string            `db:"base_unit_name" json:"base_unit_name"`
+	BaseUnitStatus    *string            `db:"base_unit_status" json:"base_unit_status"`
+	BaseUnitDeletedAt pgtype.Timestamptz `db:"base_unit_deleted_at" json:"base_unit_deleted_at"`
 }
 
+// 分类与基础单位的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
 func (q *Queries) ListMaterials(ctx context.Context, arg ListMaterialsParams) ([]ListMaterialsRow, error) {
 	rows, err := q.db.Query(ctx, listMaterials,
 		arg.Status,
@@ -243,6 +288,14 @@ func (q *Queries) ListMaterials(ctx context.Context, arg ListMaterialsParams) ([
 			&i.Remark,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CategoryCode,
+			&i.CategoryName,
+			&i.CategoryStatus,
+			&i.CategoryDeletedAt,
+			&i.BaseUnitCode,
+			&i.BaseUnitName,
+			&i.BaseUnitStatus,
+			&i.BaseUnitDeletedAt,
 		); err != nil {
 			return nil, err
 		}

@@ -14,6 +14,9 @@ type Querier interface {
 	CreateSKU(ctx context.Context, arg CreateSKUParams) (CreateSKURow, error)
 	GetSKUByID(ctx context.Context, id int64) (GetSKUByIDRow, error)
 	GetSKUReference(ctx context.Context, id int64) (GetSKUReferenceRow, error)
+	// 引用快照（物料 / 单位）随行内联，避免客户端再按 ID 二次查询后自行拼接。
+	// JOIN 不带 status / deleted_at 过滤：停用或软删除的引用也要给出名字，
+	// 由 reference_deleted_at / reference_status 说明其当前状态。
 	ListSKUs(ctx context.Context, arg ListSKUsParams) ([]ListSKUsRow, error)
 	SKUCodeExists(ctx context.Context, arg SKUCodeExistsParams) (bool, error)
 	SoftDeleteSKU(ctx context.Context, id int64) (int64, error)

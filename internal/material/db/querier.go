@@ -28,7 +28,9 @@ type Querier interface {
 	GetUnitByID(ctx context.Context, id int64) (GetUnitByIDRow, error)
 	GetUnitsByIDs(ctx context.Context, unitIds []int64) ([]GetUnitsByIDsRow, error)
 	ListMaterialCategories(ctx context.Context, arg ListMaterialCategoriesParams) ([]ListMaterialCategoriesRow, error)
+	// 两端单位的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
 	ListMaterialUnitConversions(ctx context.Context, arg ListMaterialUnitConversionsParams) ([]ListMaterialUnitConversionsRow, error)
+	// 分类与基础单位的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
 	ListMaterials(ctx context.Context, arg ListMaterialsParams) ([]ListMaterialsRow, error)
 	ListUnits(ctx context.Context, arg ListUnitsParams) ([]ListUnitsRow, error)
 	MaterialCategoryCodeExists(ctx context.Context, arg MaterialCategoryCodeExistsParams) (bool, error)

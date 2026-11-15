@@ -47,9 +47,11 @@ type Querier interface {
 	InsertInventoryReservationItem(ctx context.Context, arg InsertInventoryReservationItemParams) (InsertInventoryReservationItemRow, error)
 	InsertInventoryStockLayer(ctx context.Context, arg InsertInventoryStockLayerParams) (InsertInventoryStockLayerRow, error)
 	InventoryBatchExistsForSKU(ctx context.Context, arg InventoryBatchExistsForSKUParams) (bool, error)
+	// 仓库与 SKU 的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
 	ListInventoryMovements(ctx context.Context, arg ListInventoryMovementsParams) ([]ListInventoryMovementsRow, error)
 	ListInventoryReservationItems(ctx context.Context, reservationID int64) ([]ListInventoryReservationItemsRow, error)
 	ListInventoryReservationItemsForUpdate(ctx context.Context, reservationID int64) ([]ListInventoryReservationItemsForUpdateRow, error)
+	// 仓库与 SKU 的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
 	ListInventoryReservations(ctx context.Context, arg ListInventoryReservationsParams) ([]ListInventoryReservationsRow, error)
 	// 分配顺序：先按批次 dispatch_priority（0-9 提升、10 默认、11+ 延后；非批次层视为 10），
 	// 再按 received_at, id 即 FIFO。
@@ -58,6 +60,7 @@ type Querier interface {
 	// 分配顺序：指定 batch_id 时目标批次优先，随后按 dispatch_priority、received_at、id。
 	// 非批次层视为 dispatch_priority = 10。锁定库存层行，防止并发分配超扣。
 	ListInventoryStockLayersForUpdate(ctx context.Context, arg ListInventoryStockLayersForUpdateParams) ([]ListInventoryStockLayersForUpdateRow, error)
+	// 仓库与 SKU 的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
 	ListInventoryStocks(ctx context.Context, arg ListInventoryStocksParams) ([]ListInventoryStocksRow, error)
 	LockInventoryReservation(ctx context.Context, id int64) (LockInventoryReservationRow, error)
 	LockInventoryStockRow(ctx context.Context, arg LockInventoryStockRowParams) (LockInventoryStockRowRow, error)

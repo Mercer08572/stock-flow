@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Mercer08572/stock-flow/internal/inventory"
+	"github.com/Mercer08572/stock-flow/internal/shared/reference"
 	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
@@ -14,6 +15,7 @@ func TestServiceListReservationsNormalizesQuantitiesAndReferences(t *testing.T) 
 	ctx := context.Background()
 	now := time.Date(2026, 10, 27, 3, 0, 0, 0, time.UTC)
 	repo := newFakeRepository()
+	// 引用快照由仓储 JOIN 带回，服务层不再逐行补查（见 ListReservations 的注释）。
 	repo.reservations[2] = inventory.Reservation{
 		ID:             2,
 		WarehouseID:    1,
@@ -25,6 +27,8 @@ func TestServiceListReservationsNormalizesQuantitiesAndReferences(t *testing.T) 
 		IdempotencyKey: "sales_order:SO-20261027-002:5:reserve",
 		CreatedAt:      now,
 		UpdatedAt:      now,
+		Warehouse:      &reference.Reference{ID: 1, Code: "WH-01", Name: "主仓"},
+		SKU:            &reference.Reference{ID: 9, Code: "SKU-09", Name: "控制器 X1"},
 	}
 	service := newTestService(repo, newFakeWarehouseReader(1), newFakeSKUReader(9))
 
@@ -55,6 +59,10 @@ func TestServiceListReservationsNormalizesQuantitiesAndReferences(t *testing.T) 
 	}
 	if item.Warehouse == nil || item.Warehouse.ID != 1 || item.SKU == nil || item.SKU.ID != 9 {
 		t.Fatalf("expected warehouse and sku references, got %#v", item)
+	}
+	// 服务层不得用校验查询覆盖仓储带回的快照
+	if item.Warehouse.Code != "WH-01" || item.SKU.Code != "SKU-09" {
+		t.Fatalf("expected joined reference codes to survive, got %#v", item)
 	}
 	if result.Limit != inventory.DefaultListLimit || result.Offset != 0 {
 		t.Fatalf("unexpected pagination: %d/%d", result.Limit, result.Offset)

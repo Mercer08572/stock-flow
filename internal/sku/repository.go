@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/Mercer08572/stock-flow/internal/shared/reference"
 	skudb "github.com/Mercer08572/stock-flow/internal/sku/db"
 )
 
@@ -177,6 +178,20 @@ func skuFromListRow(row skudb.ListSKUsRow) SKU {
 		Remark:     row.Remark,
 		CreatedAt:  row.CreatedAt.Time,
 		UpdatedAt:  row.UpdatedAt.Time,
+		Material: reference.FromJoin(
+			row.MaterialID,
+			row.MaterialCode,
+			row.MaterialName,
+			row.MaterialStatus,
+			row.MaterialDeletedAt.Valid,
+		),
+		Unit: reference.FromJoin(
+			row.UnitID,
+			row.UnitCode,
+			row.UnitName,
+			row.UnitStatus,
+			row.UnitDeletedAt.Valid,
+		),
 	}
 }
 
@@ -191,6 +206,20 @@ func skuFromGetRow(row skudb.GetSKUByIDRow) SKU {
 		Remark:     row.Remark,
 		CreatedAt:  row.CreatedAt.Time,
 		UpdatedAt:  row.UpdatedAt.Time,
+		Material: reference.FromJoin(
+			row.MaterialID,
+			row.MaterialCode,
+			row.MaterialName,
+			row.MaterialStatus,
+			row.MaterialDeletedAt.Valid,
+		),
+		Unit: reference.FromJoin(
+			row.UnitID,
+			row.UnitCode,
+			row.UnitName,
+			row.UnitStatus,
+			row.UnitDeletedAt.Valid,
+		),
 	}
 }
 

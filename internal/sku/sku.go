@@ -1,6 +1,10 @@
 package sku
 
-import "time"
+import (
+	"time"
+
+	"github.com/Mercer08572/stock-flow/internal/shared/reference"
+)
 
 const (
 	DefaultListLimit int32 = 20
@@ -24,14 +28,14 @@ type SKU struct {
 	Remark     *string   `json:"remark"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
+	// 列表与详情接口内联的引用快照，供客户端直接展示，无需再按 ID 二次查询。
+	// 写入接口不返回这两个字段。
+	Material *reference.Reference `json:"material,omitempty"`
+	Unit     *reference.Reference `json:"unit,omitempty"`
 }
 
-type Reference struct {
-	ID      int64  `json:"id"`
-	Code    string `json:"code"`
-	Name    string `json:"name"`
-	Deleted bool   `json:"deleted"`
-}
+// Reference 是 SKU 的最小可读快照，形状由 shared/reference 统一。
+type Reference = reference.Reference
 
 type CreateInput struct {
 	MaterialID int64

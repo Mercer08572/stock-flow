@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	materialdb "github.com/Mercer08572/stock-flow/internal/material/db"
+	"github.com/Mercer08572/stock-flow/internal/shared/reference"
 )
 
 type postgresRepository struct {
@@ -258,6 +259,20 @@ func conversionFromListRow(row materialdb.ListMaterialUnitConversionsRow) (Mater
 		Factor:     factor,
 		CreatedAt:  row.CreatedAt.Time,
 		UpdatedAt:  row.UpdatedAt.Time,
+		FromUnit: reference.FromJoin(
+			row.FromUnitID,
+			row.FromUnitCode,
+			row.FromUnitName,
+			row.FromUnitStatus,
+			row.FromUnitDeletedAt.Valid,
+		),
+		ToUnit: reference.FromJoin(
+			row.ToUnitID,
+			row.ToUnitCode,
+			row.ToUnitName,
+			row.ToUnitStatus,
+			row.ToUnitDeletedAt.Valid,
+		),
 	}, nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	inventorydb "github.com/Mercer08572/stock-flow/internal/inventory/db"
+	"github.com/Mercer08572/stock-flow/internal/shared/reference"
 )
 
 type postgresRepository struct {
@@ -187,6 +188,20 @@ func stockFromListRow(row inventorydb.ListInventoryStocksRow) (StockBalance, err
 		ReservedQty:  reserved,
 		AvailableQty: available,
 		UpdatedAt:    &updatedAt,
+		Warehouse: reference.FromJoin(
+			row.WarehouseID,
+			row.WarehouseCode,
+			row.WarehouseName,
+			row.WarehouseStatus,
+			row.WarehouseDeletedAt.Valid,
+		),
+		SKU: reference.FromJoin(
+			row.SkuID,
+			row.SkuCode,
+			row.SkuName,
+			row.SkuStatus,
+			row.SkuDeletedAt.Valid,
+		),
 	}, nil
 }
 
@@ -212,6 +227,20 @@ func stockFromGetRow(row inventorydb.GetInventoryStockRow) (StockBalance, error)
 		ReservedQty:  reserved,
 		AvailableQty: available,
 		UpdatedAt:    &updatedAt,
+		Warehouse: reference.FromJoin(
+			row.WarehouseID,
+			row.WarehouseCode,
+			row.WarehouseName,
+			row.WarehouseStatus,
+			row.WarehouseDeletedAt.Valid,
+		),
+		SKU: reference.FromJoin(
+			row.SkuID,
+			row.SkuCode,
+			row.SkuName,
+			row.SkuStatus,
+			row.SkuDeletedAt.Valid,
+		),
 	}, nil
 }
 
@@ -240,5 +269,19 @@ func layerFromListRow(row inventorydb.ListInventoryStockLayersRow) (StockLayer, 
 		AvailableQty: available,
 		CreatedAt:    row.CreatedAt.Time,
 		UpdatedAt:    row.UpdatedAt.Time,
+		Warehouse: reference.FromJoin(
+			row.WarehouseID,
+			row.WarehouseCode,
+			row.WarehouseName,
+			row.WarehouseStatus,
+			row.WarehouseDeletedAt.Valid,
+		),
+		SKU: reference.FromJoin(
+			row.SkuID,
+			row.SkuCode,
+			row.SkuName,
+			row.SkuStatus,
+			row.SkuDeletedAt.Valid,
+		),
 	}, nil
 }

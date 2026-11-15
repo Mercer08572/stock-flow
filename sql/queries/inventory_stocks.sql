@@ -1,15 +1,26 @@
 -- name: ListInventoryStocks :many
-SELECT warehouse_id,
-       sku_id,
-       on_hand_qty,
-       reserved_qty,
-       (on_hand_qty - reserved_qty)::numeric AS available_qty,
-       updated_at
-FROM inventory_stocks
-WHERE deleted_at IS NULL
-  AND (sqlc.narg('warehouse_id')::bigint IS NULL OR warehouse_id = sqlc.narg('warehouse_id')::bigint)
-  AND (sqlc.narg('sku_id')::bigint IS NULL OR sku_id = sqlc.narg('sku_id')::bigint)
-ORDER BY warehouse_id, sku_id
+-- 仓库与 SKU 的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
+SELECT st.warehouse_id,
+       st.sku_id,
+       st.on_hand_qty,
+       st.reserved_qty,
+       (st.on_hand_qty - st.reserved_qty)::numeric AS available_qty,
+       st.updated_at,
+       w.code       AS warehouse_code,
+       w.name       AS warehouse_name,
+       w.status     AS warehouse_status,
+       w.deleted_at AS warehouse_deleted_at,
+       s.code       AS sku_code,
+       s.name       AS sku_name,
+       s.status     AS sku_status,
+       s.deleted_at AS sku_deleted_at
+FROM inventory_stocks AS st
+LEFT JOIN warehouses AS w ON w.id = st.warehouse_id
+LEFT JOIN skus AS s ON s.id = st.sku_id
+WHERE st.deleted_at IS NULL
+  AND (sqlc.narg('warehouse_id')::bigint IS NULL OR st.warehouse_id = sqlc.narg('warehouse_id')::bigint)
+  AND (sqlc.narg('sku_id')::bigint IS NULL OR st.sku_id = sqlc.narg('sku_id')::bigint)
+ORDER BY st.warehouse_id, st.sku_id
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountInventoryStocks :one
@@ -21,16 +32,26 @@ WHERE deleted_at IS NULL
   AND (sqlc.narg('sku_id')::bigint IS NULL OR sku_id = sqlc.narg('sku_id')::bigint);
 
 -- name: GetInventoryStock :one
-SELECT warehouse_id,
-       sku_id,
-       on_hand_qty,
-       reserved_qty,
-       (on_hand_qty - reserved_qty)::numeric AS available_qty,
-       updated_at
-FROM inventory_stocks
-WHERE warehouse_id = sqlc.arg('warehouse_id')::bigint
-  AND sku_id = sqlc.arg('sku_id')::bigint
-  AND deleted_at IS NULL;
+SELECT st.warehouse_id,
+       st.sku_id,
+       st.on_hand_qty,
+       st.reserved_qty,
+       (st.on_hand_qty - st.reserved_qty)::numeric AS available_qty,
+       st.updated_at,
+       w.code       AS warehouse_code,
+       w.name       AS warehouse_name,
+       w.status     AS warehouse_status,
+       w.deleted_at AS warehouse_deleted_at,
+       s.code       AS sku_code,
+       s.name       AS sku_name,
+       s.status     AS sku_status,
+       s.deleted_at AS sku_deleted_at
+FROM inventory_stocks AS st
+LEFT JOIN warehouses AS w ON w.id = st.warehouse_id
+LEFT JOIN skus AS s ON s.id = st.sku_id
+WHERE st.warehouse_id = sqlc.arg('warehouse_id')::bigint
+  AND st.sku_id = sqlc.arg('sku_id')::bigint
+  AND st.deleted_at IS NULL;
 
 -- name: ListInventoryStockLayers :many
 -- 分配顺序：先按批次 dispatch_priority（0-9 提升、10 默认、11+ 延后；非批次层视为 10），
@@ -45,9 +66,19 @@ SELECT l.id,
        l.reserved_qty,
        (l.on_hand_qty - l.reserved_qty)::numeric AS available_qty,
        l.created_at,
-       l.updated_at
+       l.updated_at,
+       w.code       AS warehouse_code,
+       w.name       AS warehouse_name,
+       w.status     AS warehouse_status,
+       w.deleted_at AS warehouse_deleted_at,
+       s.code       AS sku_code,
+       s.name       AS sku_name,
+       s.status     AS sku_status,
+       s.deleted_at AS sku_deleted_at
 FROM inventory_stock_layers AS l
 LEFT JOIN inventory_batches AS b ON b.id = l.batch_id
+LEFT JOIN warehouses AS w ON w.id = l.warehouse_id
+LEFT JOIN skus AS s ON s.id = l.sku_id
 WHERE l.warehouse_id = sqlc.arg('warehouse_id')::bigint
   AND l.sku_id = sqlc.arg('sku_id')::bigint
   AND l.deleted_at IS NULL

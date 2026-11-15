@@ -1,18 +1,29 @@
 -- name: ListMaterials :many
-SELECT id,
-       code,
-       name,
-       category_id,
-       base_unit_id,
-       status,
-       remark,
-       created_at,
-       updated_at
-FROM materials
-WHERE deleted_at IS NULL
-  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
-  AND (sqlc.narg('category_id')::bigint IS NULL OR category_id = sqlc.narg('category_id')::bigint)
-ORDER BY id DESC
+-- 分类与基础单位的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
+SELECT m.id,
+       m.code,
+       m.name,
+       m.category_id,
+       m.base_unit_id,
+       m.status,
+       m.remark,
+       m.created_at,
+       m.updated_at,
+       c.code       AS category_code,
+       c.name       AS category_name,
+       c.status     AS category_status,
+       c.deleted_at AS category_deleted_at,
+       u.code       AS base_unit_code,
+       u.name       AS base_unit_name,
+       u.status     AS base_unit_status,
+       u.deleted_at AS base_unit_deleted_at
+FROM materials m
+LEFT JOIN material_categories c ON c.id = m.category_id
+LEFT JOIN units u ON u.id = m.base_unit_id
+WHERE m.deleted_at IS NULL
+  AND (sqlc.narg('status')::text IS NULL OR m.status = sqlc.narg('status')::text)
+  AND (sqlc.narg('category_id')::bigint IS NULL OR m.category_id = sqlc.narg('category_id')::bigint)
+ORDER BY m.id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountMaterials :one
@@ -24,18 +35,28 @@ WHERE deleted_at IS NULL
   AND (sqlc.narg('category_id')::bigint IS NULL OR category_id = sqlc.narg('category_id')::bigint);
 
 -- name: GetMaterialByID :one
-SELECT id,
-       code,
-       name,
-       category_id,
-       base_unit_id,
-       status,
-       remark,
-       created_at,
-       updated_at
-FROM materials
-WHERE id = $1
-  AND deleted_at IS NULL;
+SELECT m.id,
+       m.code,
+       m.name,
+       m.category_id,
+       m.base_unit_id,
+       m.status,
+       m.remark,
+       m.created_at,
+       m.updated_at,
+       c.code       AS category_code,
+       c.name       AS category_name,
+       c.status     AS category_status,
+       c.deleted_at AS category_deleted_at,
+       u.code       AS base_unit_code,
+       u.name       AS base_unit_name,
+       u.status     AS base_unit_status,
+       u.deleted_at AS base_unit_deleted_at
+FROM materials m
+LEFT JOIN material_categories c ON c.id = m.category_id
+LEFT JOIN units u ON u.id = m.base_unit_id
+WHERE m.id = $1
+  AND m.deleted_at IS NULL;
 
 -- name: CreateMaterial :one
 INSERT INTO materials (code, name, category_id, base_unit_id, status, remark)

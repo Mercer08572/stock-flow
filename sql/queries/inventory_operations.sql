@@ -205,29 +205,40 @@ WHERE id = sqlc.arg('id')::bigint
 FOR UPDATE;
 
 -- name: ListInventoryReservations :many
-SELECT id,
-       warehouse_id,
-       sku_id,
-       total_qty,
-       released_qty,
-       consumed_qty,
-       status,
-       close_reason,
-       idempotency_key,
-       source_type,
-       source_id,
-       source_line_id,
-       actor_type,
-       actor_id,
-       actor_label,
-       created_at,
-       updated_at
-FROM inventory_reservations
-WHERE deleted_at IS NULL
-  AND (sqlc.narg('warehouse_id')::bigint IS NULL OR warehouse_id = sqlc.narg('warehouse_id')::bigint)
-  AND (sqlc.narg('sku_id')::bigint IS NULL OR sku_id = sqlc.narg('sku_id')::bigint)
-  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
-ORDER BY created_at DESC, id DESC
+-- 仓库与 SKU 的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
+SELECT r.id,
+       r.warehouse_id,
+       r.sku_id,
+       r.total_qty,
+       r.released_qty,
+       r.consumed_qty,
+       r.status,
+       r.close_reason,
+       r.idempotency_key,
+       r.source_type,
+       r.source_id,
+       r.source_line_id,
+       r.actor_type,
+       r.actor_id,
+       r.actor_label,
+       r.created_at,
+       r.updated_at,
+       w.code       AS warehouse_code,
+       w.name       AS warehouse_name,
+       w.status     AS warehouse_status,
+       w.deleted_at AS warehouse_deleted_at,
+       s.code       AS sku_code,
+       s.name       AS sku_name,
+       s.status     AS sku_status,
+       s.deleted_at AS sku_deleted_at
+FROM inventory_reservations AS r
+LEFT JOIN warehouses AS w ON w.id = r.warehouse_id
+LEFT JOIN skus AS s ON s.id = r.sku_id
+WHERE r.deleted_at IS NULL
+  AND (sqlc.narg('warehouse_id')::bigint IS NULL OR r.warehouse_id = sqlc.narg('warehouse_id')::bigint)
+  AND (sqlc.narg('sku_id')::bigint IS NULL OR r.sku_id = sqlc.narg('sku_id')::bigint)
+  AND (sqlc.narg('status')::text IS NULL OR r.status = sqlc.narg('status')::text)
+ORDER BY r.created_at DESC, r.id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountInventoryReservations :one
@@ -240,26 +251,36 @@ WHERE deleted_at IS NULL
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text);
 
 -- name: GetInventoryReservation :one
-SELECT id,
-       warehouse_id,
-       sku_id,
-       total_qty,
-       released_qty,
-       consumed_qty,
-       status,
-       close_reason,
-       idempotency_key,
-       source_type,
-       source_id,
-       source_line_id,
-       actor_type,
-       actor_id,
-       actor_label,
-       created_at,
-       updated_at
-FROM inventory_reservations
-WHERE id = sqlc.arg('id')::bigint
-  AND deleted_at IS NULL;
+SELECT r.id,
+       r.warehouse_id,
+       r.sku_id,
+       r.total_qty,
+       r.released_qty,
+       r.consumed_qty,
+       r.status,
+       r.close_reason,
+       r.idempotency_key,
+       r.source_type,
+       r.source_id,
+       r.source_line_id,
+       r.actor_type,
+       r.actor_id,
+       r.actor_label,
+       r.created_at,
+       r.updated_at,
+       w.code       AS warehouse_code,
+       w.name       AS warehouse_name,
+       w.status     AS warehouse_status,
+       w.deleted_at AS warehouse_deleted_at,
+       s.code       AS sku_code,
+       s.name       AS sku_name,
+       s.status     AS sku_status,
+       s.deleted_at AS sku_deleted_at
+FROM inventory_reservations AS r
+LEFT JOIN warehouses AS w ON w.id = r.warehouse_id
+LEFT JOIN skus AS s ON s.id = r.sku_id
+WHERE r.id = sqlc.arg('id')::bigint
+  AND r.deleted_at IS NULL;
 
 -- name: AddInventoryReservationReleased :one
 UPDATE inventory_reservations
@@ -494,33 +515,44 @@ WHERE id = sqlc.arg('id')::bigint
   AND deleted_at IS NULL;
 
 -- name: ListInventoryMovements :many
-SELECT id,
-       operation_type,
-       warehouse_id,
-       sku_id,
-       batch_id,
-       stock_layer_id,
-       reservation_id,
-       reservation_item_id,
-       qty,
-       idempotency_key,
-       source_type,
-       source_id,
-       source_line_id,
-       actor_type,
-       actor_id,
-       actor_label,
-       trace_id,
-       created_at
-FROM inventory_movements
-WHERE deleted_at IS NULL
-  AND (sqlc.narg('warehouse_id')::bigint IS NULL OR warehouse_id = sqlc.narg('warehouse_id')::bigint)
-  AND (sqlc.narg('sku_id')::bigint IS NULL OR sku_id = sqlc.narg('sku_id')::bigint)
-  AND (sqlc.narg('reservation_id')::bigint IS NULL OR reservation_id = sqlc.narg('reservation_id')::bigint)
-  AND (sqlc.narg('operation_type')::text IS NULL OR operation_type = sqlc.narg('operation_type')::text)
-  AND (sqlc.narg('created_from')::timestamptz IS NULL OR created_at >= sqlc.narg('created_from')::timestamptz)
-  AND (sqlc.narg('created_to')::timestamptz IS NULL OR created_at < sqlc.narg('created_to')::timestamptz)
-ORDER BY created_at DESC, id DESC
+-- 仓库与 SKU 的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
+SELECT mv.id,
+       mv.operation_type,
+       mv.warehouse_id,
+       mv.sku_id,
+       mv.batch_id,
+       mv.stock_layer_id,
+       mv.reservation_id,
+       mv.reservation_item_id,
+       mv.qty,
+       mv.idempotency_key,
+       mv.source_type,
+       mv.source_id,
+       mv.source_line_id,
+       mv.actor_type,
+       mv.actor_id,
+       mv.actor_label,
+       mv.trace_id,
+       mv.created_at,
+       w.code       AS warehouse_code,
+       w.name       AS warehouse_name,
+       w.status     AS warehouse_status,
+       w.deleted_at AS warehouse_deleted_at,
+       s.code       AS sku_code,
+       s.name       AS sku_name,
+       s.status     AS sku_status,
+       s.deleted_at AS sku_deleted_at
+FROM inventory_movements mv
+LEFT JOIN warehouses w ON w.id = mv.warehouse_id
+LEFT JOIN skus s ON s.id = mv.sku_id
+WHERE mv.deleted_at IS NULL
+  AND (sqlc.narg('warehouse_id')::bigint IS NULL OR mv.warehouse_id = sqlc.narg('warehouse_id')::bigint)
+  AND (sqlc.narg('sku_id')::bigint IS NULL OR mv.sku_id = sqlc.narg('sku_id')::bigint)
+  AND (sqlc.narg('reservation_id')::bigint IS NULL OR mv.reservation_id = sqlc.narg('reservation_id')::bigint)
+  AND (sqlc.narg('operation_type')::text IS NULL OR mv.operation_type = sqlc.narg('operation_type')::text)
+  AND (sqlc.narg('created_from')::timestamptz IS NULL OR mv.created_at >= sqlc.narg('created_from')::timestamptz)
+  AND (sqlc.narg('created_to')::timestamptz IS NULL OR mv.created_at < sqlc.narg('created_to')::timestamptz)
+ORDER BY mv.created_at DESC, mv.id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountInventoryMovements :one

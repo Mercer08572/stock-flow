@@ -721,46 +721,64 @@ func (q *Queries) GetInventoryIdempotencyKey(ctx context.Context, arg GetInvento
 }
 
 const getInventoryReservation = `-- name: GetInventoryReservation :one
-SELECT id,
-       warehouse_id,
-       sku_id,
-       total_qty,
-       released_qty,
-       consumed_qty,
-       status,
-       close_reason,
-       idempotency_key,
-       source_type,
-       source_id,
-       source_line_id,
-       actor_type,
-       actor_id,
-       actor_label,
-       created_at,
-       updated_at
-FROM inventory_reservations
-WHERE id = $1::bigint
-  AND deleted_at IS NULL
+SELECT r.id,
+       r.warehouse_id,
+       r.sku_id,
+       r.total_qty,
+       r.released_qty,
+       r.consumed_qty,
+       r.status,
+       r.close_reason,
+       r.idempotency_key,
+       r.source_type,
+       r.source_id,
+       r.source_line_id,
+       r.actor_type,
+       r.actor_id,
+       r.actor_label,
+       r.created_at,
+       r.updated_at,
+       w.code       AS warehouse_code,
+       w.name       AS warehouse_name,
+       w.status     AS warehouse_status,
+       w.deleted_at AS warehouse_deleted_at,
+       s.code       AS sku_code,
+       s.name       AS sku_name,
+       s.status     AS sku_status,
+       s.deleted_at AS sku_deleted_at
+FROM inventory_reservations AS r
+LEFT JOIN warehouses AS w ON w.id = r.warehouse_id
+LEFT JOIN skus AS s ON s.id = r.sku_id
+WHERE r.id = $1::bigint
+  AND r.deleted_at IS NULL
 `
 
 type GetInventoryReservationRow struct {
-	ID             int64              `db:"id" json:"id"`
-	WarehouseID    int64              `db:"warehouse_id" json:"warehouse_id"`
-	SkuID          int64              `db:"sku_id" json:"sku_id"`
-	TotalQty       pgtype.Numeric     `db:"total_qty" json:"total_qty"`
-	ReleasedQty    pgtype.Numeric     `db:"released_qty" json:"released_qty"`
-	ConsumedQty    pgtype.Numeric     `db:"consumed_qty" json:"consumed_qty"`
-	Status         string             `db:"status" json:"status"`
-	CloseReason    *string            `db:"close_reason" json:"close_reason"`
-	IdempotencyKey string             `db:"idempotency_key" json:"idempotency_key"`
-	SourceType     *string            `db:"source_type" json:"source_type"`
-	SourceID       *string            `db:"source_id" json:"source_id"`
-	SourceLineID   *string            `db:"source_line_id" json:"source_line_id"`
-	ActorType      *string            `db:"actor_type" json:"actor_type"`
-	ActorID        *int64             `db:"actor_id" json:"actor_id"`
-	ActorLabel     *string            `db:"actor_label" json:"actor_label"`
-	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID                 int64              `db:"id" json:"id"`
+	WarehouseID        int64              `db:"warehouse_id" json:"warehouse_id"`
+	SkuID              int64              `db:"sku_id" json:"sku_id"`
+	TotalQty           pgtype.Numeric     `db:"total_qty" json:"total_qty"`
+	ReleasedQty        pgtype.Numeric     `db:"released_qty" json:"released_qty"`
+	ConsumedQty        pgtype.Numeric     `db:"consumed_qty" json:"consumed_qty"`
+	Status             string             `db:"status" json:"status"`
+	CloseReason        *string            `db:"close_reason" json:"close_reason"`
+	IdempotencyKey     string             `db:"idempotency_key" json:"idempotency_key"`
+	SourceType         *string            `db:"source_type" json:"source_type"`
+	SourceID           *string            `db:"source_id" json:"source_id"`
+	SourceLineID       *string            `db:"source_line_id" json:"source_line_id"`
+	ActorType          *string            `db:"actor_type" json:"actor_type"`
+	ActorID            *int64             `db:"actor_id" json:"actor_id"`
+	ActorLabel         *string            `db:"actor_label" json:"actor_label"`
+	CreatedAt          pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	WarehouseCode      *string            `db:"warehouse_code" json:"warehouse_code"`
+	WarehouseName      *string            `db:"warehouse_name" json:"warehouse_name"`
+	WarehouseStatus    *string            `db:"warehouse_status" json:"warehouse_status"`
+	WarehouseDeletedAt pgtype.Timestamptz `db:"warehouse_deleted_at" json:"warehouse_deleted_at"`
+	SkuCode            *string            `db:"sku_code" json:"sku_code"`
+	SkuName            *string            `db:"sku_name" json:"sku_name"`
+	SkuStatus          *string            `db:"sku_status" json:"sku_status"`
+	SkuDeletedAt       pgtype.Timestamptz `db:"sku_deleted_at" json:"sku_deleted_at"`
 }
 
 func (q *Queries) GetInventoryReservation(ctx context.Context, id int64) (GetInventoryReservationRow, error) {
@@ -784,6 +802,14 @@ func (q *Queries) GetInventoryReservation(ctx context.Context, id int64) (GetInv
 		&i.ActorLabel,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WarehouseCode,
+		&i.WarehouseName,
+		&i.WarehouseStatus,
+		&i.WarehouseDeletedAt,
+		&i.SkuCode,
+		&i.SkuName,
+		&i.SkuStatus,
+		&i.SkuDeletedAt,
 	)
 	return i, err
 }
@@ -1142,33 +1168,43 @@ func (q *Queries) InsertInventoryStockLayer(ctx context.Context, arg InsertInven
 }
 
 const listInventoryMovements = `-- name: ListInventoryMovements :many
-SELECT id,
-       operation_type,
-       warehouse_id,
-       sku_id,
-       batch_id,
-       stock_layer_id,
-       reservation_id,
-       reservation_item_id,
-       qty,
-       idempotency_key,
-       source_type,
-       source_id,
-       source_line_id,
-       actor_type,
-       actor_id,
-       actor_label,
-       trace_id,
-       created_at
-FROM inventory_movements
-WHERE deleted_at IS NULL
-  AND ($1::bigint IS NULL OR warehouse_id = $1::bigint)
-  AND ($2::bigint IS NULL OR sku_id = $2::bigint)
-  AND ($3::bigint IS NULL OR reservation_id = $3::bigint)
-  AND ($4::text IS NULL OR operation_type = $4::text)
-  AND ($5::timestamptz IS NULL OR created_at >= $5::timestamptz)
-  AND ($6::timestamptz IS NULL OR created_at < $6::timestamptz)
-ORDER BY created_at DESC, id DESC
+SELECT mv.id,
+       mv.operation_type,
+       mv.warehouse_id,
+       mv.sku_id,
+       mv.batch_id,
+       mv.stock_layer_id,
+       mv.reservation_id,
+       mv.reservation_item_id,
+       mv.qty,
+       mv.idempotency_key,
+       mv.source_type,
+       mv.source_id,
+       mv.source_line_id,
+       mv.actor_type,
+       mv.actor_id,
+       mv.actor_label,
+       mv.trace_id,
+       mv.created_at,
+       w.code       AS warehouse_code,
+       w.name       AS warehouse_name,
+       w.status     AS warehouse_status,
+       w.deleted_at AS warehouse_deleted_at,
+       s.code       AS sku_code,
+       s.name       AS sku_name,
+       s.status     AS sku_status,
+       s.deleted_at AS sku_deleted_at
+FROM inventory_movements mv
+LEFT JOIN warehouses w ON w.id = mv.warehouse_id
+LEFT JOIN skus s ON s.id = mv.sku_id
+WHERE mv.deleted_at IS NULL
+  AND ($1::bigint IS NULL OR mv.warehouse_id = $1::bigint)
+  AND ($2::bigint IS NULL OR mv.sku_id = $2::bigint)
+  AND ($3::bigint IS NULL OR mv.reservation_id = $3::bigint)
+  AND ($4::text IS NULL OR mv.operation_type = $4::text)
+  AND ($5::timestamptz IS NULL OR mv.created_at >= $5::timestamptz)
+  AND ($6::timestamptz IS NULL OR mv.created_at < $6::timestamptz)
+ORDER BY mv.created_at DESC, mv.id DESC
 LIMIT $8 OFFSET $7
 `
 
@@ -1184,26 +1220,35 @@ type ListInventoryMovementsParams struct {
 }
 
 type ListInventoryMovementsRow struct {
-	ID                int64              `db:"id" json:"id"`
-	OperationType     string             `db:"operation_type" json:"operation_type"`
-	WarehouseID       int64              `db:"warehouse_id" json:"warehouse_id"`
-	SkuID             int64              `db:"sku_id" json:"sku_id"`
-	BatchID           *int64             `db:"batch_id" json:"batch_id"`
-	StockLayerID      *int64             `db:"stock_layer_id" json:"stock_layer_id"`
-	ReservationID     *int64             `db:"reservation_id" json:"reservation_id"`
-	ReservationItemID *int64             `db:"reservation_item_id" json:"reservation_item_id"`
-	Qty               pgtype.Numeric     `db:"qty" json:"qty"`
-	IdempotencyKey    string             `db:"idempotency_key" json:"idempotency_key"`
-	SourceType        *string            `db:"source_type" json:"source_type"`
-	SourceID          *string            `db:"source_id" json:"source_id"`
-	SourceLineID      *string            `db:"source_line_id" json:"source_line_id"`
-	ActorType         *string            `db:"actor_type" json:"actor_type"`
-	ActorID           *int64             `db:"actor_id" json:"actor_id"`
-	ActorLabel        *string            `db:"actor_label" json:"actor_label"`
-	TraceID           *string            `db:"trace_id" json:"trace_id"`
-	CreatedAt         pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	ID                 int64              `db:"id" json:"id"`
+	OperationType      string             `db:"operation_type" json:"operation_type"`
+	WarehouseID        int64              `db:"warehouse_id" json:"warehouse_id"`
+	SkuID              int64              `db:"sku_id" json:"sku_id"`
+	BatchID            *int64             `db:"batch_id" json:"batch_id"`
+	StockLayerID       *int64             `db:"stock_layer_id" json:"stock_layer_id"`
+	ReservationID      *int64             `db:"reservation_id" json:"reservation_id"`
+	ReservationItemID  *int64             `db:"reservation_item_id" json:"reservation_item_id"`
+	Qty                pgtype.Numeric     `db:"qty" json:"qty"`
+	IdempotencyKey     string             `db:"idempotency_key" json:"idempotency_key"`
+	SourceType         *string            `db:"source_type" json:"source_type"`
+	SourceID           *string            `db:"source_id" json:"source_id"`
+	SourceLineID       *string            `db:"source_line_id" json:"source_line_id"`
+	ActorType          *string            `db:"actor_type" json:"actor_type"`
+	ActorID            *int64             `db:"actor_id" json:"actor_id"`
+	ActorLabel         *string            `db:"actor_label" json:"actor_label"`
+	TraceID            *string            `db:"trace_id" json:"trace_id"`
+	CreatedAt          pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	WarehouseCode      *string            `db:"warehouse_code" json:"warehouse_code"`
+	WarehouseName      *string            `db:"warehouse_name" json:"warehouse_name"`
+	WarehouseStatus    *string            `db:"warehouse_status" json:"warehouse_status"`
+	WarehouseDeletedAt pgtype.Timestamptz `db:"warehouse_deleted_at" json:"warehouse_deleted_at"`
+	SkuCode            *string            `db:"sku_code" json:"sku_code"`
+	SkuName            *string            `db:"sku_name" json:"sku_name"`
+	SkuStatus          *string            `db:"sku_status" json:"sku_status"`
+	SkuDeletedAt       pgtype.Timestamptz `db:"sku_deleted_at" json:"sku_deleted_at"`
 }
 
+// 仓库与 SKU 的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
 func (q *Queries) ListInventoryMovements(ctx context.Context, arg ListInventoryMovementsParams) ([]ListInventoryMovementsRow, error) {
 	rows, err := q.db.Query(ctx, listInventoryMovements,
 		arg.WarehouseID,
@@ -1241,6 +1286,14 @@ func (q *Queries) ListInventoryMovements(ctx context.Context, arg ListInventoryM
 			&i.ActorLabel,
 			&i.TraceID,
 			&i.CreatedAt,
+			&i.WarehouseCode,
+			&i.WarehouseName,
+			&i.WarehouseStatus,
+			&i.WarehouseDeletedAt,
+			&i.SkuCode,
+			&i.SkuName,
+			&i.SkuStatus,
+			&i.SkuDeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1371,29 +1424,39 @@ func (q *Queries) ListInventoryReservationItemsForUpdate(ctx context.Context, re
 }
 
 const listInventoryReservations = `-- name: ListInventoryReservations :many
-SELECT id,
-       warehouse_id,
-       sku_id,
-       total_qty,
-       released_qty,
-       consumed_qty,
-       status,
-       close_reason,
-       idempotency_key,
-       source_type,
-       source_id,
-       source_line_id,
-       actor_type,
-       actor_id,
-       actor_label,
-       created_at,
-       updated_at
-FROM inventory_reservations
-WHERE deleted_at IS NULL
-  AND ($1::bigint IS NULL OR warehouse_id = $1::bigint)
-  AND ($2::bigint IS NULL OR sku_id = $2::bigint)
-  AND ($3::text IS NULL OR status = $3::text)
-ORDER BY created_at DESC, id DESC
+SELECT r.id,
+       r.warehouse_id,
+       r.sku_id,
+       r.total_qty,
+       r.released_qty,
+       r.consumed_qty,
+       r.status,
+       r.close_reason,
+       r.idempotency_key,
+       r.source_type,
+       r.source_id,
+       r.source_line_id,
+       r.actor_type,
+       r.actor_id,
+       r.actor_label,
+       r.created_at,
+       r.updated_at,
+       w.code       AS warehouse_code,
+       w.name       AS warehouse_name,
+       w.status     AS warehouse_status,
+       w.deleted_at AS warehouse_deleted_at,
+       s.code       AS sku_code,
+       s.name       AS sku_name,
+       s.status     AS sku_status,
+       s.deleted_at AS sku_deleted_at
+FROM inventory_reservations AS r
+LEFT JOIN warehouses AS w ON w.id = r.warehouse_id
+LEFT JOIN skus AS s ON s.id = r.sku_id
+WHERE r.deleted_at IS NULL
+  AND ($1::bigint IS NULL OR r.warehouse_id = $1::bigint)
+  AND ($2::bigint IS NULL OR r.sku_id = $2::bigint)
+  AND ($3::text IS NULL OR r.status = $3::text)
+ORDER BY r.created_at DESC, r.id DESC
 LIMIT $5 OFFSET $4
 `
 
@@ -1406,25 +1469,34 @@ type ListInventoryReservationsParams struct {
 }
 
 type ListInventoryReservationsRow struct {
-	ID             int64              `db:"id" json:"id"`
-	WarehouseID    int64              `db:"warehouse_id" json:"warehouse_id"`
-	SkuID          int64              `db:"sku_id" json:"sku_id"`
-	TotalQty       pgtype.Numeric     `db:"total_qty" json:"total_qty"`
-	ReleasedQty    pgtype.Numeric     `db:"released_qty" json:"released_qty"`
-	ConsumedQty    pgtype.Numeric     `db:"consumed_qty" json:"consumed_qty"`
-	Status         string             `db:"status" json:"status"`
-	CloseReason    *string            `db:"close_reason" json:"close_reason"`
-	IdempotencyKey string             `db:"idempotency_key" json:"idempotency_key"`
-	SourceType     *string            `db:"source_type" json:"source_type"`
-	SourceID       *string            `db:"source_id" json:"source_id"`
-	SourceLineID   *string            `db:"source_line_id" json:"source_line_id"`
-	ActorType      *string            `db:"actor_type" json:"actor_type"`
-	ActorID        *int64             `db:"actor_id" json:"actor_id"`
-	ActorLabel     *string            `db:"actor_label" json:"actor_label"`
-	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID                 int64              `db:"id" json:"id"`
+	WarehouseID        int64              `db:"warehouse_id" json:"warehouse_id"`
+	SkuID              int64              `db:"sku_id" json:"sku_id"`
+	TotalQty           pgtype.Numeric     `db:"total_qty" json:"total_qty"`
+	ReleasedQty        pgtype.Numeric     `db:"released_qty" json:"released_qty"`
+	ConsumedQty        pgtype.Numeric     `db:"consumed_qty" json:"consumed_qty"`
+	Status             string             `db:"status" json:"status"`
+	CloseReason        *string            `db:"close_reason" json:"close_reason"`
+	IdempotencyKey     string             `db:"idempotency_key" json:"idempotency_key"`
+	SourceType         *string            `db:"source_type" json:"source_type"`
+	SourceID           *string            `db:"source_id" json:"source_id"`
+	SourceLineID       *string            `db:"source_line_id" json:"source_line_id"`
+	ActorType          *string            `db:"actor_type" json:"actor_type"`
+	ActorID            *int64             `db:"actor_id" json:"actor_id"`
+	ActorLabel         *string            `db:"actor_label" json:"actor_label"`
+	CreatedAt          pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	WarehouseCode      *string            `db:"warehouse_code" json:"warehouse_code"`
+	WarehouseName      *string            `db:"warehouse_name" json:"warehouse_name"`
+	WarehouseStatus    *string            `db:"warehouse_status" json:"warehouse_status"`
+	WarehouseDeletedAt pgtype.Timestamptz `db:"warehouse_deleted_at" json:"warehouse_deleted_at"`
+	SkuCode            *string            `db:"sku_code" json:"sku_code"`
+	SkuName            *string            `db:"sku_name" json:"sku_name"`
+	SkuStatus          *string            `db:"sku_status" json:"sku_status"`
+	SkuDeletedAt       pgtype.Timestamptz `db:"sku_deleted_at" json:"sku_deleted_at"`
 }
 
+// 仓库与 SKU 的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
 func (q *Queries) ListInventoryReservations(ctx context.Context, arg ListInventoryReservationsParams) ([]ListInventoryReservationsRow, error) {
 	rows, err := q.db.Query(ctx, listInventoryReservations,
 		arg.WarehouseID,
@@ -1458,6 +1530,14 @@ func (q *Queries) ListInventoryReservations(ctx context.Context, arg ListInvento
 			&i.ActorLabel,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.WarehouseCode,
+			&i.WarehouseName,
+			&i.WarehouseStatus,
+			&i.WarehouseDeletedAt,
+			&i.SkuCode,
+			&i.SkuName,
+			&i.SkuStatus,
+			&i.SkuDeletedAt,
 		); err != nil {
 			return nil, err
 		}

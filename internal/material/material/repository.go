@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	materialdb "github.com/Mercer08572/stock-flow/internal/material/db"
+	"github.com/Mercer08572/stock-flow/internal/shared/reference"
 )
 
 type Repository interface {
@@ -230,6 +231,20 @@ func materialFromListRow(row materialdb.ListMaterialsRow) Material {
 		Remark:     row.Remark,
 		CreatedAt:  row.CreatedAt.Time,
 		UpdatedAt:  row.UpdatedAt.Time,
+		Category: reference.FromJoin(
+			row.CategoryID,
+			row.CategoryCode,
+			row.CategoryName,
+			row.CategoryStatus,
+			row.CategoryDeletedAt.Valid,
+		),
+		BaseUnit: reference.FromJoin(
+			row.BaseUnitID,
+			row.BaseUnitCode,
+			row.BaseUnitName,
+			row.BaseUnitStatus,
+			row.BaseUnitDeletedAt.Valid,
+		),
 	}
 }
 
@@ -244,6 +259,20 @@ func materialFromGetRow(row materialdb.GetMaterialByIDRow) Material {
 		Remark:     row.Remark,
 		CreatedAt:  row.CreatedAt.Time,
 		UpdatedAt:  row.UpdatedAt.Time,
+		Category: reference.FromJoin(
+			row.CategoryID,
+			row.CategoryCode,
+			row.CategoryName,
+			row.CategoryStatus,
+			row.CategoryDeletedAt.Valid,
+		),
+		BaseUnit: reference.FromJoin(
+			row.BaseUnitID,
+			row.BaseUnitCode,
+			row.BaseUnitName,
+			row.BaseUnitStatus,
+			row.BaseUnitDeletedAt.Valid,
+		),
 	}
 }
 

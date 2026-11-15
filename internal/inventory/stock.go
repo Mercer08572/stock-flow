@@ -187,6 +187,9 @@ type Movement struct {
 	ActorLabel        *string   `json:"actor_label"`
 	TraceID           *string   `json:"trace_id"`
 	CreatedAt         time.Time `json:"created_at"`
+	// 仓库与 SKU 的引用快照，供客户端直接展示流水归属，无需再按 ID 二次查询。
+	Warehouse *warehouse.Reference `json:"warehouse,omitempty"`
+	SKU       *sku.Reference       `json:"sku,omitempty"`
 }
 
 type ListMovementsFilter struct {

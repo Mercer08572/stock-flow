@@ -1,19 +1,32 @@
 -- name: ListSKUs :many
-SELECT id,
-       material_id,
-       code,
-       name,
-       unit_id,
-       status,
-       remark,
-       created_at,
-       updated_at
-FROM skus
-WHERE deleted_at IS NULL
-  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
-  AND (sqlc.narg('material_id')::bigint IS NULL OR material_id = sqlc.narg('material_id')::bigint)
-  AND (sqlc.narg('unit_id')::bigint IS NULL OR unit_id = sqlc.narg('unit_id')::bigint)
-ORDER BY id DESC
+-- 引用快照（物料 / 单位）随行内联，避免客户端再按 ID 二次查询后自行拼接。
+-- JOIN 不带 status / deleted_at 过滤：停用或软删除的引用也要给出名字，
+-- 由 reference_deleted_at / reference_status 说明其当前状态。
+SELECT s.id,
+       s.material_id,
+       s.code,
+       s.name,
+       s.unit_id,
+       s.status,
+       s.remark,
+       s.created_at,
+       s.updated_at,
+       m.code       AS material_code,
+       m.name       AS material_name,
+       m.status     AS material_status,
+       m.deleted_at AS material_deleted_at,
+       u.code       AS unit_code,
+       u.name       AS unit_name,
+       u.status     AS unit_status,
+       u.deleted_at AS unit_deleted_at
+FROM skus s
+LEFT JOIN materials m ON m.id = s.material_id
+LEFT JOIN units u ON u.id = s.unit_id
+WHERE s.deleted_at IS NULL
+  AND (sqlc.narg('status')::text IS NULL OR s.status = sqlc.narg('status')::text)
+  AND (sqlc.narg('material_id')::bigint IS NULL OR s.material_id = sqlc.narg('material_id')::bigint)
+  AND (sqlc.narg('unit_id')::bigint IS NULL OR s.unit_id = sqlc.narg('unit_id')::bigint)
+ORDER BY s.id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountSKUs :one
@@ -26,18 +39,28 @@ WHERE deleted_at IS NULL
   AND (sqlc.narg('unit_id')::bigint IS NULL OR unit_id = sqlc.narg('unit_id')::bigint);
 
 -- name: GetSKUByID :one
-SELECT id,
-       material_id,
-       code,
-       name,
-       unit_id,
-       status,
-       remark,
-       created_at,
-       updated_at
-FROM skus
-WHERE id = $1
-  AND deleted_at IS NULL;
+SELECT s.id,
+       s.material_id,
+       s.code,
+       s.name,
+       s.unit_id,
+       s.status,
+       s.remark,
+       s.created_at,
+       s.updated_at,
+       m.code       AS material_code,
+       m.name       AS material_name,
+       m.status     AS material_status,
+       m.deleted_at AS material_deleted_at,
+       u.code       AS unit_code,
+       u.name       AS unit_name,
+       u.status     AS unit_status,
+       u.deleted_at AS unit_deleted_at
+FROM skus s
+LEFT JOIN materials m ON m.id = s.material_id
+LEFT JOIN units u ON u.id = s.unit_id
+WHERE s.id = $1
+  AND s.deleted_at IS NULL;
 
 -- name: GetSKUReference :one
 SELECT id,

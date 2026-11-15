@@ -4756,6 +4756,14 @@ const docTemplate = `{
                 "factor": {
                     "type": "string"
                 },
+                "from_unit": {
+                    "description": "两端单位的引用快照，供客户端直接展示换算关系，无需再按 ID 二次查询。",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/reference.Reference"
+                        }
+                    ]
+                },
                 "from_unit_id": {
                     "type": "integer"
                 },
@@ -4764,6 +4772,9 @@ const docTemplate = `{
                 },
                 "material_id": {
                     "type": "integer"
+                },
+                "to_unit": {
+                    "$ref": "#/definitions/reference.Reference"
                 },
                 "to_unit_id": {
                     "type": "integer"
@@ -4855,6 +4866,9 @@ const docTemplate = `{
                 "reservation_item_id": {
                     "type": "integer"
                 },
+                "sku": {
+                    "$ref": "#/definitions/sku.Reference"
+                },
                 "sku_id": {
                     "type": "integer"
                 },
@@ -4872,6 +4886,14 @@ const docTemplate = `{
                 },
                 "trace_id": {
                     "type": "string"
+                },
+                "warehouse": {
+                    "description": "仓库与 SKU 的引用快照，供客户端直接展示流水归属，无需再按 ID 二次查询。",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/warehouse.Reference"
+                        }
+                    ]
                 },
                 "warehouse_id": {
                     "type": "integer"
@@ -5441,8 +5463,19 @@ const docTemplate = `{
         "material.Material": {
             "type": "object",
             "properties": {
+                "base_unit": {
+                    "$ref": "#/definitions/reference.Reference"
+                },
                 "base_unit_id": {
                     "type": "integer"
+                },
+                "category": {
+                    "description": "列表与详情接口内联的引用快照，供客户端直接展示，无需再按 ID 二次查询。\n写入接口不返回这两个字段。",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/reference.Reference"
+                        }
+                    ]
                 },
                 "category_id": {
                     "type": "integer"
@@ -5501,6 +5534,26 @@ const docTemplate = `{
                 },
                 "status": {
                     "$ref": "#/definitions/material.Status"
+                }
+            }
+        },
+        "reference.Reference": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "deleted": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
@@ -5583,6 +5636,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
@@ -5598,6 +5654,14 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "material": {
+                    "description": "列表与详情接口内联的引用快照，供客户端直接展示，无需再按 ID 二次查询。\n写入接口不返回这两个字段。",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/reference.Reference"
+                        }
+                    ]
+                },
                 "material_id": {
                     "type": "integer"
                 },
@@ -5609,6 +5673,9 @@ const docTemplate = `{
                 },
                 "status": {
                     "$ref": "#/definitions/sku.Status"
+                },
+                "unit": {
+                    "$ref": "#/definitions/reference.Reference"
                 },
                 "unit_id": {
                     "type": "integer"
@@ -5846,6 +5913,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }

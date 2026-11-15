@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	inventorydb "github.com/Mercer08572/stock-flow/internal/inventory/db"
+	"github.com/Mercer08572/stock-flow/internal/shared/reference"
 )
 
 func (r *postgresRepository) GetBatch(ctx context.Context, batchID int64, skuID int64) (*BatchInfo, error) {
@@ -637,6 +638,20 @@ func (r *postgresRepository) ListMovements(ctx context.Context, filter ListMovem
 			ActorLabel:        row.ActorLabel,
 			TraceID:           row.TraceID,
 			CreatedAt:         row.CreatedAt.Time,
+			Warehouse: reference.FromJoin(
+				row.WarehouseID,
+				row.WarehouseCode,
+				row.WarehouseName,
+				row.WarehouseStatus,
+				row.WarehouseDeletedAt.Valid,
+			),
+			SKU: reference.FromJoin(
+				row.SkuID,
+				row.SkuCode,
+				row.SkuName,
+				row.SkuStatus,
+				row.SkuDeletedAt.Valid,
+			),
 		})
 	}
 
