@@ -17,16 +17,20 @@ FROM warehouses
 WHERE deleted_at IS NULL
   AND ($1::text IS NULL OR status = $1::text)
   AND ($2::text IS NULL OR type = $2::text)
+  AND ($3::text IS NULL
+       OR strpos(lower(code), lower($3::text)) > 0
+       OR strpos(lower(name), lower($3::text)) > 0)
 `
 
 type CountWarehousesParams struct {
-	Status *string `db:"status" json:"status"`
-	Type   *string `db:"type" json:"type"`
+	Status  *string `db:"status" json:"status"`
+	Type    *string `db:"type" json:"type"`
+	Keyword *string `db:"keyword" json:"keyword"`
 }
 
 // 必须与 ListWarehouses 的过滤条件保持一致。
 func (q *Queries) CountWarehouses(ctx context.Context, arg CountWarehousesParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countWarehouses, arg.Status, arg.Type)
+	row := q.db.QueryRow(ctx, countWarehouses, arg.Status, arg.Type, arg.Keyword)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -247,15 +251,19 @@ FROM warehouses
 WHERE deleted_at IS NULL
   AND ($1::text IS NULL OR status = $1::text)
   AND ($2::text IS NULL OR type = $2::text)
+  AND ($3::text IS NULL
+       OR strpos(lower(code), lower($3::text)) > 0
+       OR strpos(lower(name), lower($3::text)) > 0)
 ORDER BY id DESC
-LIMIT $4 OFFSET $3
+LIMIT $5 OFFSET $4
 `
 
 type ListWarehousesParams struct {
-	Status *string `db:"status" json:"status"`
-	Type   *string `db:"type" json:"type"`
-	Offset int32   `db:"offset" json:"offset"`
-	Limit  int32   `db:"limit" json:"limit"`
+	Status  *string `db:"status" json:"status"`
+	Type    *string `db:"type" json:"type"`
+	Keyword *string `db:"keyword" json:"keyword"`
+	Offset  int32   `db:"offset" json:"offset"`
+	Limit   int32   `db:"limit" json:"limit"`
 }
 
 type ListWarehousesRow struct {
@@ -276,6 +284,7 @@ func (q *Queries) ListWarehouses(ctx context.Context, arg ListWarehousesParams) 
 	rows, err := q.db.Query(ctx, listWarehouses,
 		arg.Status,
 		arg.Type,
+		arg.Keyword,
 		arg.Offset,
 		arg.Limit,
 	)

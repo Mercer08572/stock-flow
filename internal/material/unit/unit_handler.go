@@ -56,6 +56,7 @@ func (h *unitHandler) RegisterRoutes(router gin.IRouter) {
 // @Produce json
 // @Param status query string false "Unit status" Enums(active,inactive)
 // @Param unit_type query string false "Unit type" Enums(count,weight,length,area,volume,package,time,other)
+// @Param q query string false "Keyword matched against code or name (case-insensitive substring)"
 // @Param limit query int false "Page size"
 // @Param offset query int false "Page offset"
 // @Success 200 {object} response.Body{data=UnitListResult}
@@ -229,6 +230,10 @@ func parseUnitListFilter(c *gin.Context) (UnitListFilter, error) {
 	if rawUnitType := c.Query("unit_type"); rawUnitType != "" {
 		unitType := UnitType(rawUnitType)
 		filter.UnitType = &unitType
+	}
+
+	if rawKeyword := c.Query("q"); rawKeyword != "" {
+		filter.Keyword = &rawKeyword
 	}
 
 	if rawLimit := c.Query("limit"); rawLimit != "" {

@@ -3,6 +3,7 @@ package material_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -404,4 +405,61 @@ func TestServiceCheckUnitConversionReportsMissingUnits(t *testing.T) {
 	if missingFrom.Status != material.UnitConversionFromUnitMissing {
 		t.Fatalf("expected from unit missing, got %q", missingFrom.Status)
 	}
+}
+
+func TestServiceListNormalizesKeyword(t *testing.T) {
+	ctx := context.Background()
+	repo := &capturingRepository{fakeRepository: newFakeRepository()}
+	raw := "  钢板  "
+
+	service := material.NewService(repo)
+	if _, err := service.List(ctx, material.ListFilter{Keyword: &raw}); err != nil {
+		t.Fatalf("list materials: %v", err)
+	}
+
+	if repo.lastFilter.Keyword == nil || *repo.lastFilter.Keyword != "钢板" {
+		t.Fatalf("expected trimmed keyword, got %v", repo.lastFilter.Keyword)
+	}
+}
+
+func TestServiceListDropsBlankKeyword(t *testing.T) {
+	ctx := context.Background()
+	repo := &capturingRepository{fakeRepository: newFakeRepository()}
+	raw := "   "
+
+	service := material.NewService(repo)
+	if _, err := service.List(ctx, material.ListFilter{Keyword: &raw}); err != nil {
+		t.Fatalf("list materials: %v", err)
+	}
+
+	if repo.lastFilter.Keyword != nil {
+		t.Fatalf("expected blank keyword to be dropped, got %q", *repo.lastFilter.Keyword)
+	}
+}
+
+func TestServiceListRejectsOverlongKeyword(t *testing.T) {
+	ctx := context.Background()
+	repo := &capturingRepository{fakeRepository: newFakeRepository()}
+	raw := strings.Repeat("长", 65)
+
+	service := material.NewService(repo)
+	_, err := service.List(ctx, material.ListFilter{Keyword: &raw})
+
+	var validationErr *apperr.ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+	if validationErr.Message != "q must be at most 64 characters" {
+		t.Fatalf("expected keyword length message, got %q", validationErr.Message)
+	}
+}
+
+type capturingRepository struct {
+	*fakeRepository
+	lastFilter material.ListFilter
+}
+
+func (r *capturingRepository) List(ctx context.Context, filter material.ListFilter) ([]material.Material, error) {
+	r.lastFilter = filter
+	return r.fakeRepository.List(ctx, filter)
 }

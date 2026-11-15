@@ -68,8 +68,10 @@ type UpdateInput struct {
 type ListFilter struct {
 	Status *Status
 	Type   *Type
-	Limit  int32
-	Offset int32
+	// Keyword 按编码或名称做大小写不敏感的子串匹配
+	Keyword *string
+	Limit   int32
+	Offset  int32
 }
 
 type ListResult struct {

@@ -22,10 +22,11 @@ func NewPostgresRepository(db *pgxpool.Pool) Repository {
 
 func (r *postgresRepository) List(ctx context.Context, filter ListFilter) ([]Warehouse, error) {
 	rows, err := r.queries.ListWarehouses(ctx, warehousedb.ListWarehousesParams{
-		Status: nullableStatus(filter.Status),
-		Type:   nullableType(filter.Type),
-		Offset: filter.Offset,
-		Limit:  filter.Limit,
+		Status:  nullableStatus(filter.Status),
+		Type:    nullableType(filter.Type),
+		Keyword: filter.Keyword,
+		Offset:  filter.Offset,
+		Limit:   filter.Limit,
 	})
 	if err != nil {
 		return nil, mapPostgresError(err)
@@ -41,8 +42,9 @@ func (r *postgresRepository) List(ctx context.Context, filter ListFilter) ([]War
 
 func (r *postgresRepository) Count(ctx context.Context, filter ListFilter) (int64, error) {
 	count, err := r.queries.CountWarehouses(ctx, warehousedb.CountWarehousesParams{
-		Status: nullableStatus(filter.Status),
-		Type:   nullableType(filter.Type),
+		Status:  nullableStatus(filter.Status),
+		Type:    nullableType(filter.Type),
+		Keyword: filter.Keyword,
 	})
 	if err != nil {
 		return 0, mapPostgresError(err)

@@ -24,6 +24,7 @@ func (r *postgresRepository) ListUnits(ctx context.Context, filter UnitListFilte
 	rows, err := r.queries.ListUnits(ctx, materialdb.ListUnitsParams{
 		Status:   nullableStatus(filter.Status),
 		UnitType: nullableUnitType(filter.UnitType),
+		Keyword:  filter.Keyword,
 		Offset:   filter.Offset,
 		Limit:    filter.Limit,
 	})
@@ -43,6 +44,7 @@ func (r *postgresRepository) CountUnits(ctx context.Context, filter UnitListFilt
 	count, err := r.queries.CountUnits(ctx, materialdb.CountUnitsParams{
 		Status:   nullableStatus(filter.Status),
 		UnitType: nullableUnitType(filter.UnitType),
+		Keyword:  filter.Keyword,
 	})
 	if err != nil {
 		return 0, mapPostgresError(err)

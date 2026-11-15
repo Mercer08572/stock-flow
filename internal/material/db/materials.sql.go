@@ -17,16 +17,20 @@ FROM materials
 WHERE deleted_at IS NULL
   AND ($1::text IS NULL OR status = $1::text)
   AND ($2::bigint IS NULL OR category_id = $2::bigint)
+  AND ($3::text IS NULL
+       OR strpos(lower(code), lower($3::text)) > 0
+       OR strpos(lower(name), lower($3::text)) > 0)
 `
 
 type CountMaterialsParams struct {
 	Status     *string `db:"status" json:"status"`
 	CategoryID *int64  `db:"category_id" json:"category_id"`
+	Keyword    *string `db:"keyword" json:"keyword"`
 }
 
 // 必须与 ListMaterials 的过滤条件保持一致。
 func (q *Queries) CountMaterials(ctx context.Context, arg CountMaterialsParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countMaterials, arg.Status, arg.CategoryID)
+	row := q.db.QueryRow(ctx, countMaterials, arg.Status, arg.CategoryID, arg.Keyword)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -232,13 +236,17 @@ LEFT JOIN units u ON u.id = m.base_unit_id
 WHERE m.deleted_at IS NULL
   AND ($1::text IS NULL OR m.status = $1::text)
   AND ($2::bigint IS NULL OR m.category_id = $2::bigint)
+  AND ($3::text IS NULL
+       OR strpos(lower(m.code), lower($3::text)) > 0
+       OR strpos(lower(m.name), lower($3::text)) > 0)
 ORDER BY m.id DESC
-LIMIT $4 OFFSET $3
+LIMIT $5 OFFSET $4
 `
 
 type ListMaterialsParams struct {
 	Status     *string `db:"status" json:"status"`
 	CategoryID *int64  `db:"category_id" json:"category_id"`
+	Keyword    *string `db:"keyword" json:"keyword"`
 	Offset     int32   `db:"offset" json:"offset"`
 	Limit      int32   `db:"limit" json:"limit"`
 }
@@ -268,6 +276,7 @@ func (q *Queries) ListMaterials(ctx context.Context, arg ListMaterialsParams) ([
 	rows, err := q.db.Query(ctx, listMaterials,
 		arg.Status,
 		arg.CategoryID,
+		arg.Keyword,
 		arg.Offset,
 		arg.Limit,
 	)

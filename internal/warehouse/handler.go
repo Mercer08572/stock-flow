@@ -61,6 +61,7 @@ func (h *handler) RegisterRoutes(router gin.IRouter) {
 // @Produce json
 // @Param status query string false "Warehouse status" Enums(active,inactive)
 // @Param type query string false "Warehouse type" Enums(normal,virtual)
+// @Param q query string false "Keyword matched against code or name (case-insensitive substring)"
 // @Param limit query int false "Page size"
 // @Param offset query int false "Page offset"
 // @Success 200 {object} response.Body{data=ListResult}
@@ -265,6 +266,10 @@ func parseListFilter(c *gin.Context) (ListFilter, error) {
 	if rawType := c.Query("type"); rawType != "" {
 		warehouseType := Type(rawType)
 		filter.Type = &warehouseType
+	}
+
+	if rawKeyword := c.Query("q"); rawKeyword != "" {
+		filter.Keyword = &rawKeyword
 	}
 
 	if rawLimit := c.Query("limit"); rawLimit != "" {

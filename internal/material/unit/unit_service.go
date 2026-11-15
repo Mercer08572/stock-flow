@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/Mercer08572/stock-flow/internal/shared/search"
 	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
@@ -123,6 +124,12 @@ func normalizeUnitListFilter(filter UnitListFilter) (UnitListFilter, error) {
 		}
 		filter.UnitType = &unitType
 	}
+
+	keyword, err := search.NormalizeKeyword(filter.Keyword)
+	if err != nil {
+		return UnitListFilter{}, err
+	}
+	filter.Keyword = keyword
 
 	if filter.Limit <= 0 {
 		filter.Limit = DefaultListLimit

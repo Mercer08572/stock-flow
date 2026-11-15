@@ -17,16 +17,20 @@ FROM units
 WHERE deleted_at IS NULL
   AND ($1::text IS NULL OR status = $1::text)
   AND ($2::text IS NULL OR unit_type = $2::text)
+  AND ($3::text IS NULL
+       OR strpos(lower(code), lower($3::text)) > 0
+       OR strpos(lower(name), lower($3::text)) > 0)
 `
 
 type CountUnitsParams struct {
 	Status   *string `db:"status" json:"status"`
 	UnitType *string `db:"unit_type" json:"unit_type"`
+	Keyword  *string `db:"keyword" json:"keyword"`
 }
 
 // 必须与 ListUnits 的过滤条件保持一致。
 func (q *Queries) CountUnits(ctx context.Context, arg CountUnitsParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countUnits, arg.Status, arg.UnitType)
+	row := q.db.QueryRow(ctx, countUnits, arg.Status, arg.UnitType, arg.Keyword)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -149,13 +153,17 @@ FROM units
 WHERE deleted_at IS NULL
   AND ($1::text IS NULL OR status = $1::text)
   AND ($2::text IS NULL OR unit_type = $2::text)
+  AND ($3::text IS NULL
+       OR strpos(lower(code), lower($3::text)) > 0
+       OR strpos(lower(name), lower($3::text)) > 0)
 ORDER BY id DESC
-LIMIT $4 OFFSET $3
+LIMIT $5 OFFSET $4
 `
 
 type ListUnitsParams struct {
 	Status   *string `db:"status" json:"status"`
 	UnitType *string `db:"unit_type" json:"unit_type"`
+	Keyword  *string `db:"keyword" json:"keyword"`
 	Offset   int32   `db:"offset" json:"offset"`
 	Limit    int32   `db:"limit" json:"limit"`
 }
@@ -176,6 +184,7 @@ func (q *Queries) ListUnits(ctx context.Context, arg ListUnitsParams) ([]ListUni
 	rows, err := q.db.Query(ctx, listUnits,
 		arg.Status,
 		arg.UnitType,
+		arg.Keyword,
 		arg.Offset,
 		arg.Limit,
 	)

@@ -181,3 +181,27 @@ func (s *fakeService) CheckUnitConversion(_ context.Context, _ int64, fromUnitID
 		ToUnitID:   toUnitID,
 	}, nil
 }
+
+func TestHandlerListPassesKeyword(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var got *string
+	service := &fakeService{
+		listFunc: func(_ context.Context, filter material.ListFilter) (material.ListResult, error) {
+			got = filter.Keyword
+			return material.ListResult{Limit: 20}, nil
+		},
+	}
+	router := newMaterialRouter(service)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/materials?q=steel", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got == nil || *got != "steel" {
+		t.Fatalf("expected q=steel to reach the service, got %v", got)
+	}
+}

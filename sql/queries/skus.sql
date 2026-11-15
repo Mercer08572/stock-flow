@@ -26,6 +26,9 @@ WHERE s.deleted_at IS NULL
   AND (sqlc.narg('status')::text IS NULL OR s.status = sqlc.narg('status')::text)
   AND (sqlc.narg('material_id')::bigint IS NULL OR s.material_id = sqlc.narg('material_id')::bigint)
   AND (sqlc.narg('unit_id')::bigint IS NULL OR s.unit_id = sqlc.narg('unit_id')::bigint)
+  AND (sqlc.narg('keyword')::text IS NULL
+       OR strpos(lower(s.code), lower(sqlc.narg('keyword')::text)) > 0
+       OR strpos(lower(s.name), lower(sqlc.narg('keyword')::text)) > 0)
 ORDER BY s.id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
@@ -36,7 +39,10 @@ FROM skus
 WHERE deleted_at IS NULL
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
   AND (sqlc.narg('material_id')::bigint IS NULL OR material_id = sqlc.narg('material_id')::bigint)
-  AND (sqlc.narg('unit_id')::bigint IS NULL OR unit_id = sqlc.narg('unit_id')::bigint);
+  AND (sqlc.narg('unit_id')::bigint IS NULL OR unit_id = sqlc.narg('unit_id')::bigint)
+  AND (sqlc.narg('keyword')::text IS NULL
+       OR strpos(lower(code), lower(sqlc.narg('keyword')::text)) > 0
+       OR strpos(lower(name), lower(sqlc.narg('keyword')::text)) > 0);
 
 -- name: GetSKUByID :one
 SELECT s.id,

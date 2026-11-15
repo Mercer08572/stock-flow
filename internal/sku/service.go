@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	material "github.com/Mercer08572/stock-flow/internal/material/material"
+	"github.com/Mercer08572/stock-flow/internal/shared/search"
 	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
@@ -196,6 +197,12 @@ func normalizeListFilter(filter ListFilter) (ListFilter, error) {
 	if filter.UnitID != nil && *filter.UnitID <= 0 {
 		return ListFilter{}, apperr.NewValidationError("unit_id must be greater than zero")
 	}
+
+	keyword, err := search.NormalizeKeyword(filter.Keyword)
+	if err != nil {
+		return ListFilter{}, err
+	}
+	filter.Keyword = keyword
 
 	if filter.Limit <= 0 {
 		filter.Limit = DefaultListLimit

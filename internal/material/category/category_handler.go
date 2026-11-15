@@ -54,6 +54,7 @@ func (h *categoryHandler) RegisterRoutes(router gin.IRouter) {
 // @Produce json
 // @Param status query string false "Category status" Enums(active,inactive)
 // @Param parent_id query int false "Parent category ID"
+// @Param q query string false "Keyword matched against code or name (case-insensitive substring)"
 // @Param limit query int false "Page size"
 // @Param offset query int false "Page offset"
 // @Success 200 {object} response.Body{data=CategoryListResult}
@@ -228,6 +229,10 @@ func parseCategoryListFilter(c *gin.Context) (CategoryListFilter, error) {
 			return CategoryListFilter{}, apperr.NewValidationError("parent_id must be an integer")
 		}
 		filter.ParentID = &parentID
+	}
+
+	if rawKeyword := c.Query("q"); rawKeyword != "" {
+		filter.Keyword = &rawKeyword
 	}
 
 	if rawLimit := c.Query("limit"); rawLimit != "" {

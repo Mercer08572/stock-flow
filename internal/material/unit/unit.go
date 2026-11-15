@@ -61,8 +61,10 @@ type UpdateUnitInput struct {
 type UnitListFilter struct {
 	Status   *Status
 	UnitType *UnitType
-	Limit    int32
-	Offset   int32
+	// Keyword 按编码或名称做大小写不敏感的子串匹配
+	Keyword *string
+	Limit   int32
+	Offset  int32
 }
 
 type UnitListResult struct {

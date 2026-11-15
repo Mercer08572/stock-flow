@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/Mercer08572/stock-flow/internal/shared/search"
 	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
@@ -165,6 +166,12 @@ func normalizeListFilter(filter ListFilter) (ListFilter, error) {
 		}
 		filter.Type = &warehouseType
 	}
+
+	keyword, err := search.NormalizeKeyword(filter.Keyword)
+	if err != nil {
+		return ListFilter{}, err
+	}
+	filter.Keyword = keyword
 
 	if filter.Limit <= 0 {
 		filter.Limit = DefaultListLimit

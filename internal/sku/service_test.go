@@ -3,6 +3,7 @@ package sku_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -347,4 +348,61 @@ func (c *fakeInventoryReferenceChecker) HasSKUReferences(context.Context, int64)
 func (v *fakeMaterialValidator) ValidateSKUUnit(_ context.Context, materialID int64, unitID int64) error {
 	v.calls = append(v.calls, [2]int64{materialID, unitID})
 	return v.err
+}
+
+func TestServiceListNormalizesKeyword(t *testing.T) {
+	ctx := context.Background()
+	repo := &capturingRepository{fakeRepository: newFakeRepository()}
+	raw := "  橄榄油  "
+
+	service := sku.NewService(repo, &fakeMaterialValidator{})
+	if _, err := service.List(ctx, sku.ListFilter{Keyword: &raw}); err != nil {
+		t.Fatalf("list skus: %v", err)
+	}
+
+	if repo.lastFilter.Keyword == nil || *repo.lastFilter.Keyword != "橄榄油" {
+		t.Fatalf("expected trimmed keyword, got %v", repo.lastFilter.Keyword)
+	}
+}
+
+func TestServiceListDropsBlankKeyword(t *testing.T) {
+	ctx := context.Background()
+	repo := &capturingRepository{fakeRepository: newFakeRepository()}
+	raw := "   "
+
+	service := sku.NewService(repo, &fakeMaterialValidator{})
+	if _, err := service.List(ctx, sku.ListFilter{Keyword: &raw}); err != nil {
+		t.Fatalf("list skus: %v", err)
+	}
+
+	if repo.lastFilter.Keyword != nil {
+		t.Fatalf("expected blank keyword to be dropped, got %q", *repo.lastFilter.Keyword)
+	}
+}
+
+func TestServiceListRejectsOverlongKeyword(t *testing.T) {
+	ctx := context.Background()
+	repo := &capturingRepository{fakeRepository: newFakeRepository()}
+	raw := strings.Repeat("长", 65)
+
+	service := sku.NewService(repo, &fakeMaterialValidator{})
+	_, err := service.List(ctx, sku.ListFilter{Keyword: &raw})
+
+	var validationErr *apperr.ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+	if validationErr.Message != "q must be at most 64 characters" {
+		t.Fatalf("expected keyword length message, got %q", validationErr.Message)
+	}
+}
+
+type capturingRepository struct {
+	*fakeRepository
+	lastFilter sku.ListFilter
+}
+
+func (r *capturingRepository) List(ctx context.Context, filter sku.ListFilter) ([]sku.SKU, error) {
+	r.lastFilter = filter
+	return r.fakeRepository.List(ctx, filter)
 }

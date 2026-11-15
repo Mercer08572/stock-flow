@@ -3,6 +3,7 @@ package warehouse_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -298,4 +299,61 @@ type fakeInventoryReferenceChecker struct {
 
 func (c *fakeInventoryReferenceChecker) HasWarehouseReferences(context.Context, int64) (bool, error) {
 	return c.warehouseReferenced, c.err
+}
+
+func TestServiceListNormalizesKeyword(t *testing.T) {
+	ctx := context.Background()
+	repo := &capturingRepository{fakeRepository: newFakeRepository()}
+	raw := "  主仓  "
+
+	service := warehouse.NewService(repo)
+	if _, err := service.List(ctx, warehouse.ListFilter{Keyword: &raw}); err != nil {
+		t.Fatalf("list warehouses: %v", err)
+	}
+
+	if repo.lastFilter.Keyword == nil || *repo.lastFilter.Keyword != "主仓" {
+		t.Fatalf("expected trimmed keyword, got %v", repo.lastFilter.Keyword)
+	}
+}
+
+func TestServiceListDropsBlankKeyword(t *testing.T) {
+	ctx := context.Background()
+	repo := &capturingRepository{fakeRepository: newFakeRepository()}
+	raw := "   "
+
+	service := warehouse.NewService(repo)
+	if _, err := service.List(ctx, warehouse.ListFilter{Keyword: &raw}); err != nil {
+		t.Fatalf("list warehouses: %v", err)
+	}
+
+	if repo.lastFilter.Keyword != nil {
+		t.Fatalf("expected blank keyword to be dropped, got %q", *repo.lastFilter.Keyword)
+	}
+}
+
+func TestServiceListRejectsOverlongKeyword(t *testing.T) {
+	ctx := context.Background()
+	repo := &capturingRepository{fakeRepository: newFakeRepository()}
+	raw := strings.Repeat("长", 65)
+
+	service := warehouse.NewService(repo)
+	_, err := service.List(ctx, warehouse.ListFilter{Keyword: &raw})
+
+	var validationErr *apperr.ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+	if validationErr.Message != "q must be at most 64 characters" {
+		t.Fatalf("expected keyword length message, got %q", validationErr.Message)
+	}
+}
+
+type capturingRepository struct {
+	*fakeRepository
+	lastFilter warehouse.ListFilter
+}
+
+func (r *capturingRepository) List(ctx context.Context, filter warehouse.ListFilter) ([]warehouse.Warehouse, error) {
+	r.lastFilter = filter
+	return r.fakeRepository.List(ctx, filter)
 }

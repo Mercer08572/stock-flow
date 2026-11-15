@@ -17,16 +17,20 @@ FROM material_categories
 WHERE deleted_at IS NULL
   AND ($1::text IS NULL OR status = $1::text)
   AND ($2::bigint IS NULL OR parent_id = $2::bigint)
+  AND ($3::text IS NULL
+       OR strpos(lower(code), lower($3::text)) > 0
+       OR strpos(lower(name), lower($3::text)) > 0)
 `
 
 type CountMaterialCategoriesParams struct {
 	Status   *string `db:"status" json:"status"`
 	ParentID *int64  `db:"parent_id" json:"parent_id"`
+	Keyword  *string `db:"keyword" json:"keyword"`
 }
 
 // 必须与 ListMaterialCategories 的过滤条件保持一致。
 func (q *Queries) CountMaterialCategories(ctx context.Context, arg CountMaterialCategoriesParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countMaterialCategories, arg.Status, arg.ParentID)
+	row := q.db.QueryRow(ctx, countMaterialCategories, arg.Status, arg.ParentID, arg.Keyword)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -140,13 +144,17 @@ FROM material_categories
 WHERE deleted_at IS NULL
   AND ($1::text IS NULL OR status = $1::text)
   AND ($2::bigint IS NULL OR parent_id = $2::bigint)
+  AND ($3::text IS NULL
+       OR strpos(lower(code), lower($3::text)) > 0
+       OR strpos(lower(name), lower($3::text)) > 0)
 ORDER BY id DESC
-LIMIT $4 OFFSET $3
+LIMIT $5 OFFSET $4
 `
 
 type ListMaterialCategoriesParams struct {
 	Status   *string `db:"status" json:"status"`
 	ParentID *int64  `db:"parent_id" json:"parent_id"`
+	Keyword  *string `db:"keyword" json:"keyword"`
 	Offset   int32   `db:"offset" json:"offset"`
 	Limit    int32   `db:"limit" json:"limit"`
 }
@@ -166,6 +174,7 @@ func (q *Queries) ListMaterialCategories(ctx context.Context, arg ListMaterialCa
 	rows, err := q.db.Query(ctx, listMaterialCategories,
 		arg.Status,
 		arg.ParentID,
+		arg.Keyword,
 		arg.Offset,
 		arg.Limit,
 	)

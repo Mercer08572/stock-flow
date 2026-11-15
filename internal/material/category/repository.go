@@ -24,6 +24,7 @@ func (r *postgresRepository) ListCategories(ctx context.Context, filter Category
 	rows, err := r.queries.ListMaterialCategories(ctx, materialdb.ListMaterialCategoriesParams{
 		Status:   nullableStatus(filter.Status),
 		ParentID: filter.ParentID,
+		Keyword:  filter.Keyword,
 		Offset:   filter.Offset,
 		Limit:    filter.Limit,
 	})
@@ -43,6 +44,7 @@ func (r *postgresRepository) CountCategories(ctx context.Context, filter Categor
 	count, err := r.queries.CountMaterialCategories(ctx, materialdb.CountMaterialCategoriesParams{
 		Status:   nullableStatus(filter.Status),
 		ParentID: filter.ParentID,
+		Keyword:  filter.Keyword,
 	})
 	if err != nil {
 		return 0, mapPostgresError(err)

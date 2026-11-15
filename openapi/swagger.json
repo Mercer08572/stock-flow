@@ -2232,6 +2232,12 @@
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Keyword matched against code or name (case-insensitive substring)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Page size",
                         "name": "limit",
@@ -2539,6 +2545,12 @@
                         "type": "integer",
                         "description": "Material category ID",
                         "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Keyword matched against code or name (case-insensitive substring)",
+                        "name": "q",
                         "in": "query"
                     },
                     {
@@ -3199,6 +3211,12 @@
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Keyword matched against code or name (case-insensitive substring)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Page size",
                         "name": "limit",
@@ -3525,6 +3543,12 @@
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Keyword matched against code or name (case-insensitive substring)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Page size",
                         "name": "limit",
@@ -3836,6 +3860,12 @@
                         "type": "string",
                         "description": "Warehouse type",
                         "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Keyword matched against code or name (case-insensitive substring)",
+                        "name": "q",
                         "in": "query"
                     },
                     {

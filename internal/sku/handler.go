@@ -57,6 +57,7 @@ func (h *handler) RegisterRoutes(router gin.IRouter) {
 // @Param status query string false "SKU status" Enums(active,inactive)
 // @Param material_id query int false "Material ID"
 // @Param unit_id query int false "Unit ID"
+// @Param q query string false "Keyword matched against code or name (case-insensitive substring)"
 // @Param limit query int false "Page size"
 // @Param offset query int false "Page offset"
 // @Success 200 {object} response.Body{data=ListResult}
@@ -242,6 +243,10 @@ func parseListFilter(c *gin.Context) (ListFilter, error) {
 			return ListFilter{}, apperr.NewValidationError("unit_id must be an integer")
 		}
 		filter.UnitID = &unitID
+	}
+
+	if rawKeyword := c.Query("q"); rawKeyword != "" {
+		filter.Keyword = &rawKeyword
 	}
 
 	if rawLimit := c.Query("limit"); rawLimit != "" {

@@ -25,6 +25,7 @@ func (r *postgresRepository) List(ctx context.Context, filter ListFilter) ([]SKU
 		Status:     nullableStatus(filter.Status),
 		MaterialID: filter.MaterialID,
 		UnitID:     filter.UnitID,
+		Keyword:    filter.Keyword,
 		Offset:     filter.Offset,
 		Limit:      filter.Limit,
 	})
@@ -45,6 +46,7 @@ func (r *postgresRepository) Count(ctx context.Context, filter ListFilter) (int6
 		Status:     nullableStatus(filter.Status),
 		MaterialID: filter.MaterialID,
 		UnitID:     filter.UnitID,
+		Keyword:    filter.Keyword,
 	})
 	if err != nil {
 		return 0, mapPostgresError(err)

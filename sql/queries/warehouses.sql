@@ -14,6 +14,9 @@ FROM warehouses
 WHERE deleted_at IS NULL
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
   AND (sqlc.narg('type')::text IS NULL OR type = sqlc.narg('type')::text)
+  AND (sqlc.narg('keyword')::text IS NULL
+       OR strpos(lower(code), lower(sqlc.narg('keyword')::text)) > 0
+       OR strpos(lower(name), lower(sqlc.narg('keyword')::text)) > 0)
 ORDER BY id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
@@ -23,7 +26,10 @@ SELECT COUNT(*)
 FROM warehouses
 WHERE deleted_at IS NULL
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
-  AND (sqlc.narg('type')::text IS NULL OR type = sqlc.narg('type')::text);
+  AND (sqlc.narg('type')::text IS NULL OR type = sqlc.narg('type')::text)
+  AND (sqlc.narg('keyword')::text IS NULL
+       OR strpos(lower(code), lower(sqlc.narg('keyword')::text)) > 0
+       OR strpos(lower(name), lower(sqlc.narg('keyword')::text)) > 0);
 
 -- name: GetWarehouseByID :one
 SELECT id,

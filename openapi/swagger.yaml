@@ -2597,6 +2597,10 @@ paths:
         in: query
         name: parent_id
         type: integer
+      - description: Keyword matched against code or name (case-insensitive substring)
+        in: query
+        name: q
+        type: string
       - description: Page size
         in: query
         name: limit
@@ -2789,6 +2793,10 @@ paths:
         in: query
         name: category_id
         type: integer
+      - description: Keyword matched against code or name (case-insensitive substring)
+        in: query
+        name: q
+        type: string
       - description: Page size
         in: query
         name: limit
@@ -3199,6 +3207,10 @@ paths:
         in: query
         name: unit_id
         type: integer
+      - description: Keyword matched against code or name (case-insensitive substring)
+        in: query
+        name: q
+        type: string
       - description: Page size
         in: query
         name: limit
@@ -3404,6 +3416,10 @@ paths:
         in: query
         name: unit_type
         type: string
+      - description: Keyword matched against code or name (case-insensitive substring)
+        in: query
+        name: q
+        type: string
       - description: Page size
         in: query
         name: limit
@@ -3598,6 +3614,10 @@ paths:
         - virtual
         in: query
         name: type
+        type: string
+      - description: Keyword matched against code or name (case-insensitive substring)
+        in: query
+        name: q
         type: string
       - description: Page size
         in: query

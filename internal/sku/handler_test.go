@@ -215,3 +215,27 @@ func (s *fakeService) Delete(ctx context.Context, id int64) error {
 	}
 	return nil
 }
+
+func TestHandlerListPassesKeyword(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var got *string
+	service := &fakeService{
+		listFunc: func(_ context.Context, filter sku.ListFilter) (sku.ListResult, error) {
+			got = filter.Keyword
+			return sku.ListResult{Limit: 20}, nil
+		},
+	}
+	router := newSKURouter(service)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/skus?q=olive", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got == nil || *got != "olive" {
+		t.Fatalf("expected q=olive to reach the service, got %v", got)
+	}
+}

@@ -23,6 +23,9 @@ LEFT JOIN units u ON u.id = m.base_unit_id
 WHERE m.deleted_at IS NULL
   AND (sqlc.narg('status')::text IS NULL OR m.status = sqlc.narg('status')::text)
   AND (sqlc.narg('category_id')::bigint IS NULL OR m.category_id = sqlc.narg('category_id')::bigint)
+  AND (sqlc.narg('keyword')::text IS NULL
+       OR strpos(lower(m.code), lower(sqlc.narg('keyword')::text)) > 0
+       OR strpos(lower(m.name), lower(sqlc.narg('keyword')::text)) > 0)
 ORDER BY m.id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
@@ -32,7 +35,10 @@ SELECT COUNT(*)
 FROM materials
 WHERE deleted_at IS NULL
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
-  AND (sqlc.narg('category_id')::bigint IS NULL OR category_id = sqlc.narg('category_id')::bigint);
+  AND (sqlc.narg('category_id')::bigint IS NULL OR category_id = sqlc.narg('category_id')::bigint)
+  AND (sqlc.narg('keyword')::text IS NULL
+       OR strpos(lower(code), lower(sqlc.narg('keyword')::text)) > 0
+       OR strpos(lower(name), lower(sqlc.narg('keyword')::text)) > 0);
 
 -- name: GetMaterialByID :one
 SELECT m.id,

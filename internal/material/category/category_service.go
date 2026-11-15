@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/Mercer08572/stock-flow/internal/shared/search"
 	"github.com/Mercer08572/stock-flow/pkg/apperr"
 )
 
@@ -150,6 +151,12 @@ func normalizeCategoryListFilter(filter CategoryListFilter) (CategoryListFilter,
 	if filter.ParentID != nil && *filter.ParentID <= 0 {
 		return CategoryListFilter{}, apperr.NewValidationError("parent_id must be greater than zero")
 	}
+
+	keyword, err := search.NormalizeKeyword(filter.Keyword)
+	if err != nil {
+		return CategoryListFilter{}, err
+	}
+	filter.Keyword = keyword
 
 	if filter.Limit <= 0 {
 		filter.Limit = DefaultListLimit

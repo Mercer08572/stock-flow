@@ -3,6 +3,7 @@ package category_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -196,4 +197,46 @@ func (r *fakeCategoryRepository) CategoryCodeExists(_ context.Context, code stri
 func (r *fakeCategoryRepository) CategoryExists(_ context.Context, id int64) (bool, error) {
 	_, ok := r.categories[id]
 	return ok, nil
+}
+
+func TestCategoryServiceListNormalizesKeyword(t *testing.T) {
+	ctx := context.Background()
+	repo := &capturingRepository{fakeCategoryRepository: newFakeCategoryRepository()}
+	raw := "  原料  "
+
+	service := category.NewCategoryService(repo)
+	if _, err := service.List(ctx, category.CategoryListFilter{Keyword: &raw}); err != nil {
+		t.Fatalf("list categories: %v", err)
+	}
+
+	if repo.lastFilter.Keyword == nil || *repo.lastFilter.Keyword != "原料" {
+		t.Fatalf("expected trimmed keyword, got %v", repo.lastFilter.Keyword)
+	}
+}
+
+func TestCategoryServiceListRejectsOverlongKeyword(t *testing.T) {
+	ctx := context.Background()
+	repo := &capturingRepository{fakeCategoryRepository: newFakeCategoryRepository()}
+	raw := strings.Repeat("长", 65)
+
+	service := category.NewCategoryService(repo)
+	_, err := service.List(ctx, category.CategoryListFilter{Keyword: &raw})
+
+	var validationErr *apperr.ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+	if validationErr.Message != "q must be at most 64 characters" {
+		t.Fatalf("expected keyword length message, got %q", validationErr.Message)
+	}
+}
+
+type capturingRepository struct {
+	*fakeCategoryRepository
+	lastFilter category.CategoryListFilter
+}
+
+func (r *capturingRepository) ListCategories(ctx context.Context, filter category.CategoryListFilter) ([]category.Category, error) {
+	r.lastFilter = filter
+	return r.fakeCategoryRepository.ListCategories(ctx, filter)
 }

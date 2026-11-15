@@ -2240,6 +2240,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Keyword matched against code or name (case-insensitive substring)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Page size",
                         "name": "limit",
@@ -2547,6 +2553,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Material category ID",
                         "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Keyword matched against code or name (case-insensitive substring)",
+                        "name": "q",
                         "in": "query"
                     },
                     {
@@ -3207,6 +3219,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Keyword matched against code or name (case-insensitive substring)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Page size",
                         "name": "limit",
@@ -3533,6 +3551,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Keyword matched against code or name (case-insensitive substring)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Page size",
                         "name": "limit",
@@ -3844,6 +3868,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Warehouse type",
                         "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Keyword matched against code or name (case-insensitive substring)",
+                        "name": "q",
                         "in": "query"
                     },
                     {

@@ -3,6 +3,7 @@ package unit_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -194,4 +195,46 @@ func (r *fakeUnitRepository) UnitCodeExists(_ context.Context, code string, excl
 	}
 
 	return false, nil
+}
+
+func TestUnitServiceListNormalizesKeyword(t *testing.T) {
+	ctx := context.Background()
+	repo := &capturingRepository{fakeUnitRepository: newFakeUnitRepository()}
+	raw := "  千克  "
+
+	service := unit.NewUnitService(repo)
+	if _, err := service.List(ctx, unit.UnitListFilter{Keyword: &raw}); err != nil {
+		t.Fatalf("list units: %v", err)
+	}
+
+	if repo.lastFilter.Keyword == nil || *repo.lastFilter.Keyword != "千克" {
+		t.Fatalf("expected trimmed keyword, got %v", repo.lastFilter.Keyword)
+	}
+}
+
+func TestUnitServiceListRejectsOverlongKeyword(t *testing.T) {
+	ctx := context.Background()
+	repo := &capturingRepository{fakeUnitRepository: newFakeUnitRepository()}
+	raw := strings.Repeat("长", 65)
+
+	service := unit.NewUnitService(repo)
+	_, err := service.List(ctx, unit.UnitListFilter{Keyword: &raw})
+
+	var validationErr *apperr.ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+	if validationErr.Message != "q must be at most 64 characters" {
+		t.Fatalf("expected keyword length message, got %q", validationErr.Message)
+	}
+}
+
+type capturingRepository struct {
+	*fakeUnitRepository
+	lastFilter unit.UnitListFilter
+}
+
+func (r *capturingRepository) ListUnits(ctx context.Context, filter unit.UnitListFilter) ([]unit.Unit, error) {
+	r.lastFilter = filter
+	return r.fakeUnitRepository.ListUnits(ctx, filter)
 }

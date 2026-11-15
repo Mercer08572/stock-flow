@@ -18,17 +18,26 @@ WHERE deleted_at IS NULL
   AND ($1::text IS NULL OR status = $1::text)
   AND ($2::bigint IS NULL OR material_id = $2::bigint)
   AND ($3::bigint IS NULL OR unit_id = $3::bigint)
+  AND ($4::text IS NULL
+       OR strpos(lower(code), lower($4::text)) > 0
+       OR strpos(lower(name), lower($4::text)) > 0)
 `
 
 type CountSKUsParams struct {
 	Status     *string `db:"status" json:"status"`
 	MaterialID *int64  `db:"material_id" json:"material_id"`
 	UnitID     *int64  `db:"unit_id" json:"unit_id"`
+	Keyword    *string `db:"keyword" json:"keyword"`
 }
 
 // 必须与 ListSKUs 的过滤条件保持一致。
 func (q *Queries) CountSKUs(ctx context.Context, arg CountSKUsParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countSKUs, arg.Status, arg.MaterialID, arg.UnitID)
+	row := q.db.QueryRow(ctx, countSKUs,
+		arg.Status,
+		arg.MaterialID,
+		arg.UnitID,
+		arg.Keyword,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -216,14 +225,18 @@ WHERE s.deleted_at IS NULL
   AND ($1::text IS NULL OR s.status = $1::text)
   AND ($2::bigint IS NULL OR s.material_id = $2::bigint)
   AND ($3::bigint IS NULL OR s.unit_id = $3::bigint)
+  AND ($4::text IS NULL
+       OR strpos(lower(s.code), lower($4::text)) > 0
+       OR strpos(lower(s.name), lower($4::text)) > 0)
 ORDER BY s.id DESC
-LIMIT $5 OFFSET $4
+LIMIT $6 OFFSET $5
 `
 
 type ListSKUsParams struct {
 	Status     *string `db:"status" json:"status"`
 	MaterialID *int64  `db:"material_id" json:"material_id"`
 	UnitID     *int64  `db:"unit_id" json:"unit_id"`
+	Keyword    *string `db:"keyword" json:"keyword"`
 	Offset     int32   `db:"offset" json:"offset"`
 	Limit      int32   `db:"limit" json:"limit"`
 }
@@ -256,6 +269,7 @@ func (q *Queries) ListSKUs(ctx context.Context, arg ListSKUsParams) ([]ListSKUsR
 		arg.Status,
 		arg.MaterialID,
 		arg.UnitID,
+		arg.Keyword,
 		arg.Offset,
 		arg.Limit,
 	)
