@@ -13,6 +13,10 @@ func (r *fakeRepository) GetBatch(context.Context, int64, int64) (*inventory.Bat
 	return nil, errFakeRepositoryNotImplemented
 }
 
+func (r *fakeRepository) TouchBatchFirstReceived(context.Context, int64) error {
+	return errFakeRepositoryNotImplemented
+}
+
 func (r *fakeRepository) EnsureStockRow(context.Context, int64, int64) error {
 	return errFakeRepositoryNotImplemented
 }

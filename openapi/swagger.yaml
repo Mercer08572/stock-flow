@@ -405,6 +405,117 @@ definitions:
       status:
         type: string
     type: object
+  inventory.Batch:
+    properties:
+      batch_no:
+        type: string
+      created_at:
+        type: string
+      dispatch_priority:
+        type: integer
+      expiration_date:
+        type: string
+      first_received_at:
+        type: string
+      id:
+        type: integer
+      production_date:
+        type: string
+      remark:
+        type: string
+      sku:
+        $ref: '#/definitions/sku.Reference'
+      sku_id:
+        type: integer
+      status:
+        $ref: '#/definitions/inventory.BatchStatus'
+      updated_at:
+        type: string
+    type: object
+  inventory.BatchDetail:
+    properties:
+      batch_no:
+        type: string
+      created_at:
+        type: string
+      dispatch_priority:
+        type: integer
+      expiration_date:
+        type: string
+      first_received_at:
+        type: string
+      id:
+        type: integer
+      production_date:
+        type: string
+      remark:
+        type: string
+      sku:
+        $ref: '#/definitions/sku.Reference'
+      sku_id:
+        type: integer
+      status:
+        $ref: '#/definitions/inventory.BatchStatus'
+      stocks:
+        items:
+          $ref: '#/definitions/inventory.BatchWarehouseStock'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  inventory.BatchListResult:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/inventory.Batch'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
+  inventory.BatchStatus:
+    enum:
+    - active
+    - inactive
+    type: string
+    x-enum-varnames:
+    - BatchStatusActive
+    - BatchStatusInactive
+  inventory.BatchWarehouseStock:
+    properties:
+      available_qty:
+        type: string
+      layer_count:
+        type: integer
+      on_hand_qty:
+        type: string
+      reserved_qty:
+        type: string
+      warehouse:
+        $ref: '#/definitions/warehouse.Reference'
+      warehouse_id:
+        type: integer
+    type: object
+  inventory.CreateBatchRequest:
+    properties:
+      batch_no:
+        type: string
+      dispatch_priority:
+        type: integer
+      expiration_date:
+        type: string
+      production_date:
+        type: string
+      remark:
+        type: string
+      sku_id:
+        type: integer
+      status:
+        type: string
+    type: object
   inventory.LayerListResult:
     properties:
       items:
@@ -722,6 +833,19 @@ definitions:
       on_hand_qty:
         type: string
       reserved_qty:
+        type: string
+    type: object
+  inventory.UpdateBatchRequest:
+    properties:
+      dispatch_priority:
+        type: integer
+      expiration_date:
+        type: string
+      production_date:
+        type: string
+      remark:
+        type: string
+      status:
         type: string
     type: object
   inventory.decreaseStockHTTPRequest:
@@ -2090,6 +2214,238 @@ paths:
       summary: Health check
       tags:
       - Health
+  /inventory/batches:
+    get:
+      parameters:
+      - description: SKU ID
+        in: query
+        name: sku_id
+        type: integer
+      - description: Batch status
+        enum:
+        - active
+        - inactive
+        in: query
+        name: status
+        type: string
+      - description: Keyword matched against batch number (case-insensitive substring)
+        in: query
+        name: q
+        type: string
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Page offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.BatchListResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: List inventory batches
+      tags:
+      - Inventory
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Batch payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/inventory.CreateBatchRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.Batch'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Create an inventory batch
+      tags:
+      - Inventory
+  /inventory/batches/{id}:
+    delete:
+      description: 仅当批次没有任何库存层或库存流水引用时才允许删除；否则请改用停用。
+      parameters:
+      - description: Batch ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Delete an inventory batch
+      tags:
+      - Inventory
+    get:
+      parameters:
+      - description: Batch ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.BatchDetail'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Get an inventory batch
+      tags:
+      - Inventory
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Batch ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Batch payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/inventory.UpdateBatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.Batch'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Update an inventory batch
+      tags:
+      - Inventory
+  /inventory/batches/{id}/disable:
+    put:
+      parameters:
+      - description: Batch ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/inventory.Batch'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Disable an inventory batch
+      tags:
+      - Inventory
   /inventory/decrease:
     post:
       consumes:

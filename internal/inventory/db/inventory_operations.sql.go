@@ -1565,6 +1565,10 @@ WHERE l.warehouse_id = $1::bigint
   AND l.sku_id = $2::bigint
   AND l.deleted_at IS NULL
   AND l.on_hand_qty - l.reserved_qty > 0
+  AND (l.batch_id IS NULL
+       OR b.status = 'active'
+       OR ($3::bigint IS NOT NULL
+           AND l.batch_id = $3::bigint))
 ORDER BY CASE
              WHEN $3::bigint IS NOT NULL
                   AND l.batch_id = $3::bigint THEN 0
@@ -1594,6 +1598,7 @@ type ListInventoryStockLayersForUpdateRow struct {
 
 // 分配顺序：指定 batch_id 时目标批次优先，随后按 dispatch_priority、received_at、id。
 // 非批次层视为 dispatch_priority = 10。锁定库存层行，防止并发分配超扣。
+// 停用批次不参与自动分配；只有调用方显式指定该批次时才允许命中（人工处置存量）。
 func (q *Queries) ListInventoryStockLayersForUpdate(ctx context.Context, arg ListInventoryStockLayersForUpdateParams) ([]ListInventoryStockLayersForUpdateRow, error) {
 	rows, err := q.db.Query(ctx, listInventoryStockLayersForUpdate, arg.WarehouseID, arg.SkuID, arg.BatchID)
 	if err != nil {

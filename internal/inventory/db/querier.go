@@ -21,10 +21,17 @@ type Querier interface {
 	// 用 COUNT(DISTINCT idempotency_key) 而不是 COUNT(*)：一次请求在跨批次 FIFO 分配时
 	// 会写入多行 movement（同一 idempotency_key），COUNT(*) 统计的是分配行数而非调用次数。
 	AggregateInventoryMovementsByHour(ctx context.Context, arg AggregateInventoryMovementsByHourParams) ([]AggregateInventoryMovementsByHourRow, error)
+	// 与唯一部分索引 ux_inventory_batches_sku_batch_no 的条件保持一致。
+	BatchNoExistsForSKU(ctx context.Context, arg BatchNoExistsForSKUParams) (bool, error)
 	ClaimInventoryIdempotencyKey(ctx context.Context, arg ClaimInventoryIdempotencyKeyParams) (ClaimInventoryIdempotencyKeyRow, error)
 	CompleteInventoryIdempotencyKey(ctx context.Context, arg CompleteInventoryIdempotencyKeyParams) (int64, error)
 	ConsumeInventoryStockLayerReserved(ctx context.Context, arg ConsumeInventoryStockLayerReservedParams) (int64, error)
 	ConsumeInventoryStockReserved(ctx context.Context, arg ConsumeInventoryStockReservedParams) (int64, error)
+	// 删除守卫：库存层与库存流水都通过外键引用批次，任一存在即不可删除。
+	// 这里不过滤 deleted_at：账本行即使用户不可见也仍然引用该批次。
+	CountInventoryBatchReferences(ctx context.Context, batchID int64) (int32, error)
+	// 必须与 ListInventoryBatches 的过滤条件保持一致。
+	CountInventoryBatches(ctx context.Context, arg CountInventoryBatchesParams) (int64, error)
 	// 必须与 ListInventoryMovements 的过滤条件保持一致。
 	CountInventoryMovements(ctx context.Context, arg CountInventoryMovementsParams) (int64, error)
 	// 必须与 ListInventoryReservations 的过滤条件保持一致。
@@ -33,9 +40,12 @@ type Querier interface {
 	CountInventoryStockLayers(ctx context.Context, arg CountInventoryStockLayersParams) (int64, error)
 	// 必须与 ListInventoryStocks 的过滤条件保持一致。
 	CountInventoryStocks(ctx context.Context, arg CountInventoryStocksParams) (int64, error)
+	CreateInventoryBatch(ctx context.Context, arg CreateInventoryBatchParams) (int64, error)
 	DecreaseInventoryStockAvailable(ctx context.Context, arg DecreaseInventoryStockAvailableParams) (int64, error)
 	DecreaseInventoryStockLayerAvailable(ctx context.Context, arg DecreaseInventoryStockLayerAvailableParams) (int64, error)
+	DisableInventoryBatch(ctx context.Context, id int64) (int64, error)
 	EnsureInventoryStockRow(ctx context.Context, arg EnsureInventoryStockRowParams) error
+	GetInventoryBatch(ctx context.Context, id int64) (GetInventoryBatchRow, error)
 	GetInventoryBatchForSKU(ctx context.Context, arg GetInventoryBatchForSKUParams) (GetInventoryBatchForSKURow, error)
 	GetInventoryIdempotencyKey(ctx context.Context, arg GetInventoryIdempotencyKeyParams) (GetInventoryIdempotencyKeyRow, error)
 	GetInventoryReservation(ctx context.Context, id int64) (GetInventoryReservationRow, error)
@@ -47,6 +57,13 @@ type Querier interface {
 	InsertInventoryReservationItem(ctx context.Context, arg InsertInventoryReservationItemParams) (InsertInventoryReservationItemRow, error)
 	InsertInventoryStockLayer(ctx context.Context, arg InsertInventoryStockLayerParams) (InsertInventoryStockLayerRow, error)
 	InventoryBatchExistsForSKU(ctx context.Context, arg InventoryBatchExistsForSKUParams) (bool, error)
+	// 某批次在各仓库的库存分布；批次库存通过在库存层上按 batch_id 过滤得到。
+	ListInventoryBatchWarehouseStocks(ctx context.Context, batchID int64) ([]ListInventoryBatchWarehouseStocksRow, error)
+	// 批次主数据的读写查询。
+	// 批次是 SKU 级主数据：没有数量字段，也没有 warehouse_id；
+	// 批次库存只能通过在 inventory_stock_layers 上按 batch_id 过滤得到。
+	// SKU 引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
+	ListInventoryBatches(ctx context.Context, arg ListInventoryBatchesParams) ([]ListInventoryBatchesRow, error)
 	// 仓库与 SKU 的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
 	ListInventoryMovements(ctx context.Context, arg ListInventoryMovementsParams) ([]ListInventoryMovementsRow, error)
 	ListInventoryReservationItems(ctx context.Context, reservationID int64) ([]ListInventoryReservationItemsRow, error)
@@ -59,6 +76,7 @@ type Querier interface {
 	ListInventoryStockLayers(ctx context.Context, arg ListInventoryStockLayersParams) ([]ListInventoryStockLayersRow, error)
 	// 分配顺序：指定 batch_id 时目标批次优先，随后按 dispatch_priority、received_at、id。
 	// 非批次层视为 dispatch_priority = 10。锁定库存层行，防止并发分配超扣。
+	// 停用批次不参与自动分配；只有调用方显式指定该批次时才允许命中（人工处置存量）。
 	ListInventoryStockLayersForUpdate(ctx context.Context, arg ListInventoryStockLayersForUpdateParams) ([]ListInventoryStockLayersForUpdateRow, error)
 	// 仓库与 SKU 的引用快照随行内联（JOIN 不过滤 status / deleted_at，见 ListSKUs 说明）。
 	ListInventoryStocks(ctx context.Context, arg ListInventoryStocksParams) ([]ListInventoryStocksRow, error)
@@ -67,6 +85,11 @@ type Querier interface {
 	ReleaseInventoryStockLayerReserved(ctx context.Context, arg ReleaseInventoryStockLayerReservedParams) (int64, error)
 	ReleaseInventoryStockReserved(ctx context.Context, arg ReleaseInventoryStockReservedParams) (int64, error)
 	ReserveInventoryStock(ctx context.Context, arg ReserveInventoryStockParams) (int64, error)
+	SoftDeleteInventoryBatch(ctx context.Context, id int64) (int64, error)
+	// 首次入库时记录批次首次收货时间；已有值时不覆盖。
+	TouchInventoryBatchFirstReceived(ctx context.Context, id int64) (int64, error)
+	// 批号与 sku_id 不在可更新列中：它们是批次的业务标识，创建后不可修改。
+	UpdateInventoryBatch(ctx context.Context, arg UpdateInventoryBatchParams) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

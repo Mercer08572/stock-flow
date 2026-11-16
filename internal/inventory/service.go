@@ -41,6 +41,7 @@ type Repository interface {
 	HasSKUReferences(ctx context.Context, skuID int64) (bool, error)
 
 	GetBatch(ctx context.Context, batchID int64, skuID int64) (*BatchInfo, error)
+	TouchBatchFirstReceived(ctx context.Context, id int64) error
 
 	EnsureStockRow(ctx context.Context, warehouseID int64, skuID int64) error
 	LockStockRow(ctx context.Context, warehouseID int64, skuID int64) (*StockBalance, error)
@@ -220,7 +221,7 @@ func (s *service) ListLayers(ctx context.Context, filter ListLayersFilter) (Laye
 			return LayerListResult{}, err
 		}
 		if !exists {
-			return LayerListResult{}, ErrBatchNotFound
+			return LayerListResult{}, ErrBatchReferenceInvalid
 		}
 	}
 

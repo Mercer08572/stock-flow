@@ -40,6 +40,7 @@ type Dependencies struct {
 	ConversionService      conversion.Service
 	SKUService             sku.Service
 	InventoryService       inventory.Service
+	InventoryBatchService  inventory.BatchService
 	WarehouseService       warehouse.Service
 }
 
@@ -191,13 +192,9 @@ func registerWarehouseRoutes(router gin.IRouter, deps Dependencies) {
 
 func registerInventoryRoutes(router gin.IRouter, deps Dependencies) {
 	service := deps.InventoryService
-	if service == nil && deps.DB != nil {
-		warehouseReader := deps.WarehouseService
-		if warehouseReader == nil {
-			warehouseReader = warehouse.NewService(warehouse.NewPostgresRepository(deps.DB))
-		}
+	skuReader := deps.SKUService
 
-		skuReader := deps.SKUService
+	if deps.DB != nil {
 		if skuReader == nil {
 			materialValidator := deps.MaterialService
 			if materialValidator == nil {
@@ -206,19 +203,32 @@ func registerInventoryRoutes(router gin.IRouter, deps Dependencies) {
 			skuReader = sku.NewService(sku.NewPostgresRepository(deps.DB), materialValidator)
 		}
 
-		service = inventory.NewService(
-			inventory.NewPostgresRepository(deps.DB),
-			warehouseReader,
-			skuReader,
-			inventory.NewPostgresUnitOfWork(deps.DB),
-		)
+		if service == nil {
+			warehouseReader := deps.WarehouseService
+			if warehouseReader == nil {
+				warehouseReader = warehouse.NewService(warehouse.NewPostgresRepository(deps.DB))
+			}
+
+			service = inventory.NewService(
+				inventory.NewPostgresRepository(deps.DB),
+				warehouseReader,
+				skuReader,
+				inventory.NewPostgresUnitOfWork(deps.DB),
+			)
+		}
 	}
 
-	if service == nil {
-		return
+	if service != nil {
+		inventory.NewHandler(service).RegisterRoutes(router)
 	}
 
-	inventory.NewHandler(service).RegisterRoutes(router)
+	batchService := deps.InventoryBatchService
+	if batchService == nil && deps.DB != nil && skuReader != nil {
+		batchService = inventory.NewBatchService(inventory.NewPostgresBatchRepository(deps.DB), skuReader)
+	}
+	if batchService != nil {
+		inventory.NewBatchHandler(batchService).RegisterRoutes(router)
+	}
 }
 
 func registerSKURoutes(router gin.IRouter, deps Dependencies) {

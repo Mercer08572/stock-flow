@@ -99,7 +99,11 @@ func (s *service) validateSKUForMutation(ctx context.Context, skuID int64) error
 	return nil
 }
 
-func (s *service) validateBatchForMutation(ctx context.Context, batchID *int64, skuID int64) error {
+// validateBatchForMutation 校验写操作引用的批次。
+//
+// requireActive 只在「新增收货」与「新预留」时为 true：停用批次不再参与常规流转；
+// 直接从可用库存扣减时允许显式指定停用批次，便于人工清理存量。
+func (s *service) validateBatchForMutation(ctx context.Context, batchID *int64, skuID int64, requireActive bool) error {
 	if batchID == nil {
 		return nil
 	}
@@ -110,11 +114,11 @@ func (s *service) validateBatchForMutation(ctx context.Context, batchID *int64, 
 	batch, err := s.repo.GetBatch(ctx, *batchID, skuID)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			return ErrBatchNotFound
+			return ErrBatchReferenceInvalid
 		}
 		return err
 	}
-	if batch.Status != "active" {
+	if requireActive && batch.Status != "active" {
 		return ErrBatchInactive
 	}
 

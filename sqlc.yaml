@@ -54,6 +54,7 @@ sql:
     queries:
       - "sql/queries/inventory_stocks.sql"
       - "sql/queries/inventory_operations.sql"
+      - "sql/queries/inventory_batches.sql"
     gen:
       go:
         package: "inventorydb"

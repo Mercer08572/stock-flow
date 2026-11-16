@@ -1408,6 +1408,381 @@
                 }
             }
         },
+        "/inventory/batches": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "List inventory batches",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "SKU ID",
+                        "name": "sku_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "active",
+                            "inactive"
+                        ],
+                        "type": "string",
+                        "description": "Batch status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Keyword matched against batch number (case-insensitive substring)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page offset",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/inventory.BatchListResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Create an inventory batch",
+                "parameters": [
+                    {
+                        "description": "Batch payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/inventory.CreateBatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/inventory.Batch"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/inventory/batches/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Get an inventory batch",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Batch ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/inventory.BatchDetail"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Update an inventory batch",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Batch ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Batch payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/inventory.UpdateBatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/inventory.Batch"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "仅当批次没有任何库存层或库存流水引用时才允许删除；否则请改用停用。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Delete an inventory batch",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Batch ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/inventory/batches/{id}/disable": {
+            "put": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Disable an inventory batch",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Batch ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/inventory.Batch"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
         "/inventory/decrease": {
             "post": {
                 "consumes": [
@@ -4832,6 +5207,174 @@
                 }
             }
         },
+        "inventory.Batch": {
+            "type": "object",
+            "properties": {
+                "batch_no": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "dispatch_priority": {
+                    "type": "integer"
+                },
+                "expiration_date": {
+                    "type": "string"
+                },
+                "first_received_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "production_date": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "sku": {
+                    "$ref": "#/definitions/sku.Reference"
+                },
+                "sku_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/inventory.BatchStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "inventory.BatchDetail": {
+            "type": "object",
+            "properties": {
+                "batch_no": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "dispatch_priority": {
+                    "type": "integer"
+                },
+                "expiration_date": {
+                    "type": "string"
+                },
+                "first_received_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "production_date": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "sku": {
+                    "$ref": "#/definitions/sku.Reference"
+                },
+                "sku_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/inventory.BatchStatus"
+                },
+                "stocks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/inventory.BatchWarehouseStock"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "inventory.BatchListResult": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/inventory.Batch"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "inventory.BatchStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "inactive"
+            ],
+            "x-enum-varnames": [
+                "BatchStatusActive",
+                "BatchStatusInactive"
+            ]
+        },
+        "inventory.BatchWarehouseStock": {
+            "type": "object",
+            "properties": {
+                "available_qty": {
+                    "type": "string"
+                },
+                "layer_count": {
+                    "type": "integer"
+                },
+                "on_hand_qty": {
+                    "type": "string"
+                },
+                "reserved_qty": {
+                    "type": "string"
+                },
+                "warehouse": {
+                    "$ref": "#/definitions/warehouse.Reference"
+                },
+                "warehouse_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "inventory.CreateBatchRequest": {
+            "type": "object",
+            "properties": {
+                "batch_no": {
+                    "type": "string"
+                },
+                "dispatch_priority": {
+                    "type": "integer"
+                },
+                "expiration_date": {
+                    "type": "string"
+                },
+                "production_date": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "sku_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "inventory.LayerListResult": {
             "type": "object",
             "properties": {
@@ -5316,6 +5859,26 @@
                     "type": "string"
                 },
                 "reserved_qty": {
+                    "type": "string"
+                }
+            }
+        },
+        "inventory.UpdateBatchRequest": {
+            "type": "object",
+            "properties": {
+                "dispatch_priority": {
+                    "type": "integer"
+                },
+                "expiration_date": {
+                    "type": "string"
+                },
+                "production_date": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }

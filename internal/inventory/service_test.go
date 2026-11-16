@@ -200,7 +200,7 @@ func TestServiceListLayersRejectsInvalidBatchForSKU(t *testing.T) {
 		BatchID:     &batchID,
 	})
 
-	if !errors.Is(err, inventory.ErrBatchNotFound) {
+	if !errors.Is(err, inventory.ErrBatchReferenceInvalid) {
 		t.Fatalf("expected batch not found, got %v", err)
 	}
 }

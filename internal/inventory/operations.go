@@ -78,7 +78,7 @@ func (s *service) IncreaseStock(ctx context.Context, req IncreaseStockRequest) (
 		return nil, err
 	}
 	normalizedQty := formatQuantity(qty)
-	if err := s.validateMutationReferences(ctx, req.WarehouseID, req.SKUID, req.BatchID); err != nil {
+	if err := s.validateMutationReferences(ctx, req.WarehouseID, req.SKUID, req.BatchID, true); err != nil {
 		return nil, err
 	}
 	canonicalQty := canonicalQuantity(qty)
@@ -101,6 +101,12 @@ func (s *service) IncreaseStock(ctx context.Context, req IncreaseStockRequest) (
 			layer, err := repo.InsertStockLayer(ctx, req.WarehouseID, req.SKUID, req.BatchID, normalizedQty)
 			if err != nil {
 				return nil, err
+			}
+			// 首次收货时间只写一次，后续入库不覆盖。
+			if req.BatchID != nil {
+				if err := repo.TouchBatchFirstReceived(ctx, *req.BatchID); err != nil {
+					return nil, err
+				}
 			}
 			if err := repo.AddStockOnHand(ctx, req.WarehouseID, req.SKUID, normalizedQty); err != nil {
 				return nil, err
@@ -138,7 +144,7 @@ func (s *service) ReserveStock(ctx context.Context, req ReserveStockRequest) (*S
 		return nil, err
 	}
 	normalizedQty := formatQuantity(qty)
-	if err := s.validateMutationReferences(ctx, req.WarehouseID, req.SKUID, req.BatchID); err != nil {
+	if err := s.validateMutationReferences(ctx, req.WarehouseID, req.SKUID, req.BatchID, true); err != nil {
 		return nil, err
 	}
 	canonicalQty := canonicalQuantity(qty)
@@ -275,7 +281,7 @@ func (s *service) ReleaseStock(ctx context.Context, req ReleaseStockRequest) (*S
 		value := canonicalQuantity(qty)
 		canonicalQty = &value
 	}
-	if err := s.validateMutationReferences(ctx, req.WarehouseID, req.SKUID, nil); err != nil {
+	if err := s.validateMutationReferences(ctx, req.WarehouseID, req.SKUID, nil, false); err != nil {
 		return nil, err
 	}
 
@@ -423,7 +429,7 @@ func (s *service) DecreaseStock(ctx context.Context, req DecreaseStockRequest) (
 		if req.BatchID != nil {
 			return nil, apperr.NewValidationError("batch_id must not be provided when reservation_id is set")
 		}
-		if err := s.validateMutationReferences(ctx, req.WarehouseID, req.SKUID, nil); err != nil {
+		if err := s.validateMutationReferences(ctx, req.WarehouseID, req.SKUID, nil, false); err != nil {
 			return nil, err
 		}
 
@@ -440,8 +446,9 @@ func (s *service) DecreaseStock(ctx context.Context, req DecreaseStockRequest) (
 		})
 	}
 
-	// 不传 ReservationID , 直接扣减 available stock, 不走占用逻辑，直接减少库存
-	if err := s.validateMutationReferences(ctx, req.WarehouseID, req.SKUID, req.BatchID); err != nil {
+	// 不传 ReservationID , 直接扣减 available stock, 不走占用逻辑，直接减少库存。
+	// 扣减允许显式指定停用批次：停用只拦截自动流转与新增收货，不冻结存量。
+	if err := s.validateMutationReferences(ctx, req.WarehouseID, req.SKUID, req.BatchID, false); err != nil {
 		return nil, err
 	}
 
@@ -668,14 +675,14 @@ func (s *service) ListMovements(ctx context.Context, filter ListMovementsFilter)
 	}, nil
 }
 
-func (s *service) validateMutationReferences(ctx context.Context, warehouseID int64, skuID int64, batchID *int64) error {
+func (s *service) validateMutationReferences(ctx context.Context, warehouseID int64, skuID int64, batchID *int64, requireActiveBatch bool) error {
 	if err := s.validateWarehouseForMutation(ctx, warehouseID); err != nil {
 		return err
 	}
 	if err := s.validateSKUForMutation(ctx, skuID); err != nil {
 		return err
 	}
-	return s.validateBatchForMutation(ctx, batchID, skuID)
+	return s.validateBatchForMutation(ctx, batchID, skuID, requireActiveBatch)
 }
 
 // 查询允许停用/已删除的主数据引用，只校验存在性。

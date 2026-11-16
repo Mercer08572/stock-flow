@@ -83,6 +83,7 @@ RETURNING id,
 -- name: ListInventoryStockLayersForUpdate :many
 -- 分配顺序：指定 batch_id 时目标批次优先，随后按 dispatch_priority、received_at、id。
 -- 非批次层视为 dispatch_priority = 10。锁定库存层行，防止并发分配超扣。
+-- 停用批次不参与自动分配；只有调用方显式指定该批次时才允许命中（人工处置存量）。
 SELECT l.id,
        l.warehouse_id,
        l.sku_id,
@@ -98,6 +99,10 @@ WHERE l.warehouse_id = sqlc.arg('warehouse_id')::bigint
   AND l.sku_id = sqlc.arg('sku_id')::bigint
   AND l.deleted_at IS NULL
   AND l.on_hand_qty - l.reserved_qty > 0
+  AND (l.batch_id IS NULL
+       OR b.status = 'active'
+       OR (sqlc.narg('batch_id')::bigint IS NOT NULL
+           AND l.batch_id = sqlc.narg('batch_id')::bigint))
 ORDER BY CASE
              WHEN sqlc.narg('batch_id')::bigint IS NOT NULL
                   AND l.batch_id = sqlc.narg('batch_id')::bigint THEN 0
